@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Crowdfunding DeepSearch</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #f4f7fb;
+      color: #172033;
+    }
+
+    header {
+      background: #111827;
+      color: white;
+      padding: 24px 20px;
+    }
+
+    .header-inner {
+      max-width: 1100px;
+      margin: auto;
+    }
+
+    .logo {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+
+    .tagline {
+      margin-top: 6px;
+      color: #cbd5e1;
+      font-size: 15px;
+    }
+
+    main {
+      max-width: 1100px;
+      margin: 40px auto;
+      padding: 0 20px;
+    }
+
+    .hero {
+      text-align: center;
+      margin-bottom: 35px;
+    }
+
+    .hero h1 {
+      font-size: 42px;
+      margin: 0 0 14px;
+      letter-spacing: -1px;
+    }
+
+    .hero p {
+      max-width: 720px;
+      margin: auto;
+      color: #64748b;
+      font-size: 18px;
+      line-height: 1.6;
+    }
+
+    .panel {
+      background: white;
+      border-radius: 16px;
+      padding: 30px;
+      box-shadow: 0 8px 30px rgba(15, 23, 42, 0.08);
+      margin-bottom: 30px;
+    }
+
+    .panel h2 {
+      margin-top: 0;
+      font-size: 23px;
+    }
+
+    label {
+      display: block;
+      font-weight: 700;
+      margin: 18px 0 8px;
+    }
+
+    input,
+    textarea,
+    select {
+      width: 100%;
+      padding: 14px;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      font-size: 16px;
+      background: white;
+    }
+
+    textarea {
+      min-height: 130px;
+      resize: vertical;
+    }
+
+    .button-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 22px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 10px;
+      padding: 14px 22px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .primary {
+      background: #2563eb;
+      color: white;
+    }
+
+    .secondary {
+      background: #e2e8f0;
+      color: #172033;
+    }
+
+    button:hover {
+      opacity: 0.9;
+    }
+
+    .results {
+      display: none;
+    }
+
+    .result-card {
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 18px;
+      margin-top: 14px;
+      background: #f8fafc;
+    }
+
+    .score {
+      display: inline-block;
+      background: #dcfce7;
+      color: #166534;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-weight: 800;
+      font-size: 13px;
+    }
+
+    .result-card h3 {
+      margin: 10px 0 7px;
+    }
+
+    .result-card p {
+      margin: 5px 0;
+      color: #64748b;
+      line-height: 1.5;
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 18px;
+    }
+
+    .feature {
+      background: white;
+      border-radius: 14px;
+      padding: 22px;
+      box-shadow: 0 5px 20px rgba(15, 23, 42, 0.06);
+    }
+
+    .feature h3 {
+      margin-top: 0;
+    }
+
+    .feature p {
+      color: #64748b;
+      line-height: 1.5;
+    }
+
+    footer {
+      text-align: center;
+      padding: 35px 20px;
+      color: #64748b;
+      font-size: 14px;
+    }
+
+    @media (max-width: 650px) {
+      .hero h1 {
+        font-size: 32px;
+      }
+
+      .panel {
+        padding: 20px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="logo">Crowdfunding DeepSearch</div>
+    <div class="tagline">
+      Discover legitimate opportunities to get your campaign in front of the right people and organizations.
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <section class="hero">
+    <h1>Find the right opportunities for your campaign.</h1>
+    <p>
+      Crowdfunding DeepSearch is designed to analyze a campaign,
+      discover relevant organizations and outreach opportunities,
+      and eventually help manage legitimate outreach from one place.
+    </p>
+  </section>
+
+  <section class="panel">
+
+    <h2>Start a Campaign Search</h2>
+
+    <label for="campaignUrl">Crowdfunding Campaign URL</label>
+    <input
+      id="campaignUrl"
+      type="url"
+      placeholder="https://example.com/your-campaign"
+    >
+
+    <label for="campaignDescription">Campaign Description</label>
+    <textarea
+      id="campaignDescription"
+      placeholder="Describe what you are raising money for, who needs help, where you are located, and what the funds will be used for."
+    ></textarea>
+
+    <label for="category">Campaign Category</label>
+    <select id="category">
+      <option>Let DeepSearch determine the category</option>
+      <option>Personal Emergency</option>
+      <option>Medical / Health</option>
+      <option>Housing / Bills</option>
+      <option>Nonprofit / Community</option>
+      <option>Education</option>
+      <option>Disaster / Emergency Relief</option>
+      <option>Other</option>
+    </select>
+
+    <label for="goal">Fundraising Goal</label>
+    <input
+      id="goal"
+      type="number"
+      min="0"
+      placeholder="Example: 10000"
+    >
+
+    <div class="button-row">
+      <button class="primary" onclick="analyzeCampaign()">
+        Analyze Campaign
+      </button>
+
+      <button class="secondary" onclick="clearCampaign()">
+        Clear
+      </button>
+    </div>
+
+  </section>
+
+  <section class="panel results" id="results">
+
+    <h2>DeepSearch Opportunity Preview</h2>
+
+    <p>
+      This is the first interface prototype. The real search engine will
+      eventually replace these demonstration results with live verified sources.
+    </p>
+
+    <div class="result-card">
+      <span class="score">95% Match</span>
+      <h3>Local Assistance Organizations</h3>
+      <p>
+        Organizations that may provide assistance related to the campaign's
+        location and stated need.
+      </p>
+      <strong>Status:</strong> Candidate opportunity
+    </div>
+
+    <div class="result-card">
+      <span class="score">91% Match</span>
+      <h3>Community Organizations</h3>
+      <p>
+        Community groups, nonprofit organizations, and local networks that
+        may be relevant to the campaign.
+      </p>
+      <strong>Status:</strong> Candidate opportunity
+    </div>
+
+    <div class="result-card">
+      <span class="score">87% Match</span>
+      <h3>Media & Publicity Opportunities</h3>
+      <p>
+        Relevant news, radio, podcast, community-media, and other publicity
+        opportunities that could potentially help a campaign reach an audience.
+      </p>
+      <strong>Status:</strong> Candidate opportunity
+    </div>
+
+    <div class="result-card">
+      <span class="score">84% Match</span>
+      <h3>Charitable & Corporate Programs</h3>
+      <p>
+        Potential charitable programs, corporate giving programs, foundations,
+        and assistance resources matching the campaign's needs.
+      </p>
+      <strong>Status:</strong> Candidate opportunity
+    </div>
+
+  </section>
+
+  <section class="feature-grid">
+
+    <div class="feature">
+      <h3>🔎 Deep Discovery</h3>
+      <p>
+        Search beyond ordinary crowdfunding audiences for relevant organizations,
+        communities, media, and assistance resources.
+      </p>
+    </div>
+
+    <div class="feature">
+      <h3>🎯 Smart Matching</h3>
+      <p>
+        Rank opportunities according to location, campaign type, need,
+        eligibility, relevance, and other available information.
+      </p>
+    </div>
+
+    <div class="feature">
+      <h3>✉️ Outreach Management</h3>
+      <p>
+        Organize potential contacts, outreach messages, responses,
+        and follow-ups in one place.
+      </p>
+    </div>
+
+    <div class="feature">
+      <h3>🌎 Global Discovery</h3>
+      <p>
+        The long-term system is designed to support organizations,
+        communities, and opportunities around the world.
+      </p>
+    </div>
+
+  </section>
+
+</main>
+
+<footer>
+  Crowdfunding DeepSearch — Early Development Prototype
+</footer>
+
+<script>
+  function analyzeCampaign() {
+    const description =
+      document.getElementById("campaignDescription").value.trim();
+
+    const goal =
+      document.getElementById("goal").value.trim();
+
+    const results =
+      document.getElementById("results");
+
+    results.style.display = "block";
+
+    if (!description && !goal) {
+      alert("For a useful search, enter a campaign description or fundraising goal.");
+      return;
+    }
+
+    results.scrollIntoView({
+      behavior: "smooth"
+    });
+  }
+
+  function clearCampaign() {
+    document.getElementById("campaignUrl").value = "";
+    document.getElementById("campaignDescription").value = "";
+    document.getElementById("category").selectedIndex = 0;
+    document.getElementById("goal").value = "";
+    document.getElementById("results").style.display = "none";
+  }
+</script>
+
+</body>
+</html>
