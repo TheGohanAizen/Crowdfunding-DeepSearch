@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Crowdfunding DeepSearch - Opportunity Discovery</title>
+
+<style>
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #0f172a;
+    color: #e2e8f0;
+}
+
+header {
+    background: #111827;
+    padding: 28px 20px;
+    text-align: center;
+    border-bottom: 1px solid #334155;
+}
+
+header h1 {
+    margin: 0 0 8px;
+    font-size: 32px;
+}
+
+header p {
+    margin: 0;
+    color: #94a3b8;
+}
+
+.container {
+    max-width: 1100px;
+    margin: 35px auto;
+    padding: 0 20px;
+}
+
+.panel {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 14px;
+    padding: 25px;
+    margin-bottom: 25px;
+}
+
+label {
+    display: block;
+    margin: 17px 0 7px;
+    font-weight: bold;
+}
+
+input,
+select {
+    width: 100%;
+    padding: 13px;
+    border-radius: 8px;
+    border: 1px solid #475569;
+    background: #0f172a;
+    color: white;
+    font-size: 15px;
+}
+
+button {
+    margin-top: 20px;
+    padding: 13px 20px;
+    border: 0;
+    border-radius: 8px;
+    background: #2563eb;
+    color: white;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+button:hover {
+    background: #1d4ed8;
+}
+
+.results {
+    display: none;
+}
+
+.summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px;
+    margin-bottom: 25px;
+}
+
+.summary-card {
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 10px;
+    padding: 17px;
+}
+
+.summary-label {
+    color: #94a3b8;
+    font-size: 13px;
+    margin-bottom: 7px;
+}
+
+.summary-value {
+    font-weight: bold;
+}
+
+.discovery-section {
+    margin-top: 28px;
+}
+
+.opportunity {
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 10px;
+    padding: 18px;
+    margin: 12px 0;
+}
+
+.opportunity h4 {
+    margin: 0 0 8px;
+}
+
+.opportunity p {
+    margin: 5px 0;
+    color: #cbd5e1;
+    line-height: 1.5;
+}
+
+.badge {
+    display: inline-block;
+    background: #334155;
+    padding: 5px 9px;
+    margin: 5px 5px 0 0;
+    border-radius: 14px;
+    font-size: 12px;
+}
+
+.search-query {
+    margin-top: 10px;
+    padding: 10px;
+    background: #172554;
+    border-radius: 7px;
+    color: #bfdbfe;
+    word-break: break-word;
+}
+
+.notice {
+    background: #172554;
+    border: 1px solid #1e40af;
+    color: #bfdbfe;
+    border-radius: 8px;
+    padding: 14px;
+    margin-top: 20px;
+}
+
+</style>
+</head>
+
+<body>
+
+<header>
+    <h1>Crowdfunding DeepSearch</h1>
+    <p>Opportunity Discovery Engine — V1</p>
+</header>
+
+<div class="container">
+
+<div class="panel">
+
+    <h2>Build an Opportunity Search</h2>
+
+    <p>
+        Enter a campaign profile to generate targeted discovery paths
+        for organizations, assistance programs, foundations, media,
+        community resources, and other legitimate opportunities.
+    </p>
+
+    <label for="need">Primary Need</label>
+
+    <select id="need">
+        <option value="General Financial Assistance">
+            General Financial Assistance
+        </option>
+
+        <option value="Transportation">
+            Transportation
+        </option>
+
+        <option value="Medical Assistance">
+            Medical Assistance
+        </option>
+
+        <option value="Housing Assistance">
+            Housing Assistance
+        </option>
+
+        <option value="Education Assistance">
+            Education Assistance
+        </option>
+
+        <option value="Community / Nonprofit Funding">
+            Community / Nonprofit Funding
+        </option>
+    </select>
+
+    <label for="category">Campaign Category</label>
+
+    <select id="category">
+
+        <option value="Personal Emergency">
+            Personal Emergency
+        </option>
+
+        <option value="Medical / Health">
+            Medical / Health
+        </option>
+
+        <option value="Housing / Bills">
+            Housing / Bills
+        </option>
+
+        <option value="Nonprofit / Community">
+            Nonprofit / Community
+        </option>
+
+        <option value="Education">
+            Education
+        </option>
+
+        <option value="Disaster / Emergency Relief">
+            Disaster / Emergency Relief
+        </option>
+
+    </select>
+
+    <label for="location">Campaign Location</label>
+
+    <input
+        id="location"
+        type="text"
+        placeholder="Austin, Texas, United States"
+    >
+
+    <label for="goal">Fundraising Goal</label>
+
+    <input
+        id="goal"
+        type="number"
+        placeholder="10000"
+    >
+
+    <button onclick="discoverOpportunities()">
+        Generate Discovery Plan
+    </button>
+
+    <div class="notice">
+        V1 currently builds targeted discovery queries and opportunity
+        categories locally. The next development stage will connect these
+        searches to live web sources and verify actual organizations,
+        eligibility requirements, application pages, and contact methods.
+    </div>
+
+</div>
+
+
+<div id="results" class="panel results">
+
+    <h2>Opportunity Discovery Plan</h2>
+
+    <div class="summary-grid">
+
+        <div class="summary-card">
+            <div class="summary-label">Primary Need</div>
+            <div id="summaryNeed" class="summary-value">—</div>
+        </div>
+
+        <div class="summary-card">
+            <div class="summary-label">Category</div>
+            <div id="summaryCategory" class="summary-value">—</div>
+        </div>
+
+        <div class="summary-card">
+            <div class="summary-label">Location</div>
+            <div id="summaryLocation" class="summary-value">—</div>
+        </div>
+
+        <div class="summary-card">
+            <div class="summary-label">Goal</div>
+            <div id="summaryGoal" class="summary-value">—</div>
+        </div>
+
+    </div>
+
+    <div id="opportunityResults"></div>
+
+</div>
+
+</div>
+
+
+<script>
+
+function createOpportunity(title, description, badges, query) {
+
+    const div = document.createElement("div");
+
+    div.className = "opportunity";
+
+    let badgeHTML = "";
+
+    badges.forEach(function(badge) {
+        badgeHTML +=
+            '<span class="badge">' +
+            badge +
+            '</span>';
+    });
+
+    div.innerHTML =
+        "<h4>" + title + "</h4>" +
+        "<p>" + description + "</p>" +
+        "<div>" + badgeHTML + "</div>" +
+        '<div class="search-query">' +
+        "<strong>Discovery query:</strong> " +
+        query +
+        "</div>";
+
+    return div;
+}
+
+
+function discoverOpportunities() {
+
+    const need =
+        document.getElementById("need").value;
+
+    const category =
+        document.getElementById("category").value;
+
+    const location =
+        document.getElementById("location").value.trim();
+
+    const goal =
+        document.getElementById("goal").value;
+
+    const locationText =
+        location || "United States";
+
+    document.getElementById("summaryNeed").textContent =
+        need;
+
+    document.getElementById("summaryCategory").textContent =
+        category;
+
+    document.getElementById("summaryLocation").textContent =
+        locationText;
+
+    document.getElementById("summaryGoal").textContent =
+        goal
+        ? "$" + Number(goal).toLocaleString()
+        : "Not specified";
+
+    const results =
+        document.getElementById("opportunityResults");
+
+    results.innerHTML = "";
+
+
+    const localSection =
+        document.createElement("div");
+
+    localSection.className = "discovery-section";
+
+    localSection.innerHTML =
+        "<h3>Local & Community Assistance</h3>";
+
+    localSection.appendChild(
+        createOpportunity(
+            "Local Assistance Organizations",
+            "Search for organizations providing direct assistance related to the campaign's primary need.",
+            [
+                "Local",
+                "Direct Assistance",
+                need
+            ],
+            '"' +
+            locationText +
+            '" "' +
+            need +
+            '" assistance organizations'
+        )
+    );
+
+    localSection.appendChild(
+        createOpportunity(
+            "Community Organizations",
+            "Search community groups, nonprofit organizations, churches, civic organizations, and community assistance networks.",
+            [
+                "Community",
+                "Nonprofit",
+                "Local"
+            ],
+            '"' +
+            locationText +
+            '" community nonprofit assistance "' +
+            need +
+            '"'
+        )
+    );
+
+    results.appendChild(localSection);
+
+
+    const charitySection =
+        document.createElement("div");
+
+    charitySection.className = "discovery-section";
+
+    charitySection.innerHTML =
+        "<h3>Charities & Foundations</h3>";
+
+    charitySection.appendChild(
+        createOpportunity(
+            "Charitable Assistance",
+            "Discover charities that may provide direct help, referrals, resources, or financial assistance.",
+            [
+                "Charity",
+                "Assistance"
+            ],
+            '"' +
+            need +
+            '" charities "' +
+            locationText +
+            '"'
+        )
+    );
+
+    charitySection.appendChild(
+        createOpportunity(
+            "Foundation & Grant Discovery",
+            "Search for foundations, grant programs, and other funding programs relevant to the campaign.",
+            [
+                "Foundation",
+                "Funding",
+                "Grant Research"
+            ],
+            '"' +
+            category +
+            '" foundation grants assistance "' +
+            locationText +
+            '"'
+        )
+    );
+
+    results.appendChild(charitySection);
+
+
+    const mediaSection =
+        document.createElement("div");
+
+    mediaSection.className = "discovery-section";
+
+    mediaSection.innerHTML =
+        "<h3>Media & Publicity</h3>";
+
+    mediaSection.appendChild(
+        createOpportunity(
+            "Local News & Community Media",
+            "Find local media outlets and community publications that may accept human-interest or community assistance stories.",
+            [
+                "Media",
+                "Publicity",
+                "Local"
+            ],
+            '"' +
+            locationText +
+            '" local news community stories "' +
+            category +
+            '"'
+        )
+    );
+
+    mediaSection.appendChild(
+        createOpportunity(
+            "Radio & Community Shows",
+            "Search local radio programs, community shows, podcasts, and public-interest programs relevant to the campaign.",
+            [
+                "Radio",
+                "Podcast",
+                "Community Media"
+            ],
+            '"' +
+            locationText +
+            '" radio podcast community assistance'
+        )
+    );
+
+    results.appendChild(mediaSection);
+
+
+    const corporateSection =
+        document.createElement("div");
+
+    corporateSection.className = "discovery-section";
+
+    corporateSection.innerHTML =
+        "<h3>Corporate & Special Programs</h3>";
+
+    corporateSection.appendChild(
+        createOpportunity(
+            "Corporate Community Programs",
+            "Search for corporate giving, community assistance, sponsorship, and charitable programs.",
+            [
+                "Corporate",
+                "Community Giving"
+            ],
+            '"corporate giving" "' +
+            need +
+            '" assistance "' +
+            locationText +
+            '"'
+        )
+    );
+
+
+    if (need === "Transportation") {
+
+        corporateSection.appendChild(
+            createOpportunity(
+                "Vehicle & Transportation Assistance",
+                "Search for nonprofit vehicle programs, donated vehicle programs, transportation assistance, and organizations helping people overcome transportation barriers.",
+                [
+                    "Transportation",
+                    "Vehicle Assistance",
+                    "Specialized"
+                ],
+                '"' +
+                locationText +
+                '" vehicle assistance donated cars transportation nonprofit'
+            )
+        );
+
+    }
+
+
+    if (need === "Medical Assistance") {
+
+        corporateSection.appendChild(
+            createOpportunity(
+                "Patient Assistance Programs",
+                "Search for patient assistance organizations, medical foundations, treatment assistance, and healthcare-related charitable programs.",
+                [
+                    "Medical",
+                    "Patient Assistance",
+                    "Specialized"
+                ],
+                '"' +
+                locationText +
+                '" patient assistance medical charity treatment foundation'
+            )
+        );
+
+    }
+
+
+    if (need === "Housing Assistance") {
+
+        corporateSection.appendChild(
+            createOpportunity(
+                "Housing & Emergency Relief Programs",
+                "Search for rental assistance, emergency housing programs, utility support, and homelessness-prevention resources.",
+                [
+                    "Housing",
+                    "Emergency Assistance",
+                    "Specialized"
+                ],
+                '"' +
+                locationText +
+                '" rental housing utility emergency assistance nonprofit'
+            )
+        );
+
+    }
+
+
+    results.appendChild(corporateSection);
+
+
+    document.getElementById("results").style.display =
+        "block";
+
+}
+
+</script>
+
+</body>
+</html>
