@@ -1,6 +1,7 @@
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import json
 import os
+import re
 from urllib.parse import quote_plus, urlencode, urlparse
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
@@ -132,6 +133,114 @@ def retrieve_candidates(search_plan, per_lane=5):
     }
 
 
+def fetch_source_page(url, max_bytes=300000):
+    """Fetch a public candidate page for lightweight source-level verification."""
+    parsed = urlparse(url)
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        return {"reachable": False, "error": "unsupported_url"}
+
+    request = Request(
+        url,
+        headers={
+            "User-Agent": "CrowdfundingDeepSearch/0.4 (+source verification)",
+            "Accept": "text/html,application/xhtml+xml"
+        }
+    )
+    try:
+        with urlopen(request, timeout=8) as response:
+            content_type = response.headers.get("Content-Type", "")
+            if "text/html" not in content_type and "application/xhtml+xml" not in content_type:
+                return {"reachable": True, "content_type": content_type, "html": ""}
+            raw = response.read(max_bytes)
+            html = raw.decode(response.headers.get_content_charset() or "utf-8", errors="replace")
+            return {
+                "reachable": True,
+                "final_url": response.geturl(),
+                "content_type": content_type,
+                "html": html
+            }
+    except (HTTPError, URLError, TimeoutError, ValueError) as error:
+        return {"reachable": False, "error": str(error)}
+
+
+def extract_page_signals(html, base_url):
+    """Extract conservative application/contact signals from HTML without form submission."""
+    if not html:
+        return {
+            "application_route_found": False,
+            "contact_route_found": False,
+            "eligibility_language_found": False,
+            "application_links": []
+        }
+
+    clean = re.sub(r"<script\\b[^>]*>.*?</script>", " ", html, flags=re.I | re.S)
+    clean = re.sub(r"<style\\b[^>]*>.*?</style>", " ", clean, flags=re.I | re.S)
+    text = re.sub(r"<[^>]+>", " ", clean)
+    text = re.sub(r"\\s+", " ", text).lower()
+
+    application_language = any(term in text for term in (
+        "apply now", "apply online", "application", "request assistance",
+        "get help", "financial assistance", "assistance program"
+    ))
+    eligibility_language = any(term in text for term in (
+        "eligibility", "eligible", "requirements", "qualify", "qualification"
+    ))
+    contact_language = any(term in text for term in (
+        "contact us", "contact", "call us", "email us"
+    ))
+
+    hrefs = re.findall(r'href=["\\\']([^"\\\']+)["\\\']', html, flags=re.I)
+    links = []
+    for href in hrefs:
+        lowered = href.lower()
+        if any(term in lowered for term in ("apply", "application", "assistance", "get-help", "contact")):
+            links.append(href)
+        if len(links) >= 5:
+            break
+
+    return {
+        "application_route_found": application_language or bool(links),
+        "contact_route_found": contact_language or any("contact" in link.lower() for link in links),
+        "eligibility_language_found": eligibility_language,
+        "application_links": links,
+        "page_base_url": base_url
+    }
+
+
+def enrich_with_source_checks(candidates, max_candidates=8):
+    """Visit a limited number of top candidates and record source-level signals."""
+    enriched = []
+    for index, candidate in enumerate(candidates):
+        item = dict(candidate)
+        if index >= max_candidates:
+            item["source_check"] = {"checked": False, "reason": "verification_limit"}
+            enriched.append(item)
+            continue
+
+        page = fetch_source_page(item.get("url", ""))
+        source_check = {
+            "checked": True,
+            "reachable": page.get("reachable", False)
+        }
+        if page.get("reachable"):
+            source_check.update(extract_page_signals(page.get("html", ""), page.get("final_url", item.get("url", ""))))
+            if source_check.get("application_route_found"):
+                item["verification_score"] = min(100, item.get("verification_score", 0) + 10)
+            if source_check.get("eligibility_language_found"):
+                item["verification_score"] = min(100, item.get("verification_score", 0) + 5)
+            if source_check.get("contact_route_found"):
+                item["verification_score"] = min(100, item.get("verification_score", 0) + 5)
+        else:
+            source_check["error"] = page.get("error", "unreachable")
+            item.setdefault("verification_concerns", []).append("source_page_unreachable")
+
+        item["source_check"] = source_check
+        enriched.append(item)
+
+    enriched.sort(key=lambda item: item.get("verification_score", 0), reverse=True)
+    return enriched
+
+
 def verification_signals(candidate, need, location):
     """Apply conservative source and relevance checks without claiming eligibility."""
     url = candidate.get("url", "")
@@ -251,7 +360,7 @@ class DeepSearchHandler(BaseHTTPRequestHandler):
             self.send_json({
                 "status": "ok",
                 "service": "Crowdfunding DeepSearch Backend",
-                "version": "0.3"
+                "version": "0.4"
             })
             return
 
@@ -293,6 +402,7 @@ class DeepSearchHandler(BaseHTTPRequestHandler):
             search_plan = build_discovery_queries(need, location)
             retrieval = retrieve_candidates(search_plan)
             verified_candidates = verify_candidates(retrieval["candidates"], need, location)
+            source_checked_candidates = enrich_with_source_checks(verified_candidates)
 
             response = {
                 "status": "success",
@@ -302,7 +412,7 @@ class DeepSearchHandler(BaseHTTPRequestHandler):
                     "goal": goal
                 },
                 "discovery": {
-                    "stage": "retrieval-provider-v1",
+                    "stage": "source-verification-v1",
                     "live_search": retrieval["configured"],
                     "verification_enabled": True,
                     "provider": retrieval["provider"]
@@ -318,7 +428,7 @@ class DeepSearchHandler(BaseHTTPRequestHandler):
                     "automatic_official_source_claims": False,
                     "note": "Scores are screening signals only; eligibility and program availability still require source-level verification."
                 },
-                "results": verified_candidates
+                "results": source_checked_candidates
             }
 
             self.send_json(response)
