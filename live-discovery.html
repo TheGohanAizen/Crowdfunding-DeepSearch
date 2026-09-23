@@ -202,9 +202,7 @@ button:hover { background: #1d4ed8; }
     <button id="runButton" onclick="runDiscovery()">Run Discovery</button>
 
     <div class="notice">
-        Backend connection mode: this page now sends the campaign search profile
-        to the Crowdfunding DeepSearch API. The backend currently returns structured
-        discovery data only; live web retrieval and verification are the next stage.
+        Live Discovery mode: the page sends the campaign search profile to the backend, which can retrieve candidates, screen relevance, and inspect public source pages. Results remain screening leads until eligibility and current availability are confirmed.
     </div>
 
 </div>
@@ -279,7 +277,7 @@ async function runDiscovery() {
         if (!data.results || data.results.length === 0) {
             const empty = document.createElement("p");
             empty.textContent =
-                "Connection successful. No live opportunities are returned yet because the next build stage will add real web discovery and verification.";
+                (data.provider_status && data.provider_status.message) || "Connection successful, but no matching candidates were returned.";
             list.appendChild(empty);
             return;
         }
@@ -287,19 +285,41 @@ async function runDiscovery() {
         data.results.forEach(function(item) {
             const card = document.createElement("div");
             card.className = "result-card";
+            const sourceCheck = item.source_check || {};
+            const score = item.verification_score ?? 0;
+            const signals = (item.verification_signals || [])
+                .map(function(signal) { return '<span class="badge">' + escapeHtml(signal) + '</span>'; })
+                .join("");
+            const concerns = (item.verification_concerns || []).join(", ") || "None recorded";
+            const applicationStatus = sourceCheck.application_route_found ? "Route detected" : "Not detected";
+            const contactStatus = sourceCheck.contact_route_found ? "Route detected" : "Not detected";
+            const eligibilityStatus = sourceCheck.eligibility_language_found
+                ? "Eligibility language found — requirements still need confirmation"
+                : "Not confirmed";
+            const sourceLink = item.url
+                ? '<a href="' + escapeHtml(item.url) + '" target="_blank" rel="noopener noreferrer" style="color:#93c5fd">Open source page</a>'
+                : "No source URL";
+
             card.innerHTML =
                 '<div class="result-top"><div><h3>' + escapeHtml(item.name) +
                 '</h3><div class="type">' + escapeHtml(item.type) +
-                '</div></div><div class="score">' + escapeHtml(item.score) +
+                '</div></div><div class="score">' + escapeHtml(score) +
                 '/100</div></div>' +
                 '<div class="info-grid">' +
-                '<div class="info"><div class="info-title">SERVICE AREA</div>' + escapeHtml(item.serviceArea) + '</div>' +
-                '<div class="info"><div class="info-title">ASSISTANCE</div>' + escapeHtml(item.assistance) + '</div>' +
-                '<div class="info"><div class="info-title">ELIGIBILITY</div>' + escapeHtml(item.eligibility) + '</div>' +
-                '<div class="info"><div class="info-title">CONTACT / APPLICATION</div>' + escapeHtml(item.contact) + '</div>' +
+                '<div class="info"><div class="info-title">SOURCE</div>' + sourceLink + '</div>' +
+                '<div class="info"><div class="info-title">APPLICATION</div>' + escapeHtml(applicationStatus) + '</div>' +
+                '<div class="info"><div class="info-title">CONTACT</div>' + escapeHtml(contactStatus) + '</div>' +
+                '<div class="info"><div class="info-title">ELIGIBILITY</div>' + escapeHtml(eligibilityStatus) + '</div>' +
                 '</div>' +
-                '<div class="verification"><strong>Verification status:</strong> ' +
-                escapeHtml(item.verification) + '</div>';
+                '<div class="match-reason"><strong>Search evidence:</strong> ' +
+                escapeHtml(item.snippet || "No search snippet available.") + '</div>' +
+                '<div>' + signals + '</div>' +
+                '<div class="verification"><strong>Screening status:</strong> ' +
+                escapeHtml(item.verification) +
+                '<br><strong>Source page reachable:</strong> ' +
+                (sourceCheck.checked ? (sourceCheck.reachable ? "Yes" : "No") : "Not checked") +
+                '<br><strong>Concerns:</strong> ' + escapeHtml(concerns) +
+                '<br><strong>Eligibility verified:</strong> No — confirm requirements on the official source before outreach or application.</div>';
             list.appendChild(card);
         });
 
