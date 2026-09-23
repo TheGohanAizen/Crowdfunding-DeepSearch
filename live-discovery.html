@@ -199,13 +199,12 @@ button:hover { background: #1d4ed8; }
     <label for="goal">Fundraising Goal</label>
     <input id="goal" type="number" placeholder="10000">
 
-    <button onclick="runDiscovery()">Run Discovery</button>
+    <button id="runButton" onclick="runDiscovery()">Run Discovery</button>
 
     <div class="notice">
-        Development mode: the results below are demonstration records,
-        not claims that these organizations or programs currently exist.
-        This stage tests the result, verification, and ranking architecture
-        before live web sources are connected.
+        Backend connection mode: this page now sends the campaign search profile
+        to the Crowdfunding DeepSearch API. The backend currently returns structured
+        discovery data only; live web retrieval and verification are the next stage.
     </div>
 
 </div>
@@ -224,189 +223,96 @@ button:hover { background: #1d4ed8; }
 
 <script>
 
-const demoOpportunities = [
-    {
-        name: "Example Community Assistance Network",
-        type: "Community Assistance",
-        serviceArea: "Local / Regional",
-        assistance: "Emergency financial and resource assistance",
-        eligibility: "Eligibility must be verified",
-        contact: "Official application or contact page required",
-        verification: "Unverified demonstration record",
-        score: 82,
-        tags: ["Community", "Emergency Assistance"],
-        needs: ["General Financial Assistance"]
-    },
+const API_URL = "http://localhost:8080/api/discover";
 
-    {
-        name: "Example Transportation Support Program",
-        type: "Transportation Assistance",
-        serviceArea: "Local / Regional",
-        assistance: "Transportation or vehicle-related support",
-        eligibility: "Program requirements must be verified",
-        contact: "Official program page required",
-        verification: "Unverified demonstration record",
-        score: 91,
-        tags: ["Transportation", "Vehicle Assistance"],
-        needs: ["Transportation"]
-    },
+function escapeHtml(value) {
+    return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+}
 
-    {
-        name: "Example Patient Relief Foundation",
-        type: "Medical Assistance",
-        serviceArea: "Regional / National",
-        assistance: "Patient financial assistance and referrals",
-        eligibility: "Medical and financial requirements may apply",
-        contact: "Official application page required",
-        verification: "Unverified demonstration record",
-        score: 89,
-        tags: ["Medical", "Patient Assistance"],
-        needs: ["Medical Assistance"]
-    },
-
-    {
-        name: "Example Housing Stability Program",
-        type: "Housing Assistance",
-        serviceArea: "Local",
-        assistance: "Rental, utility, or emergency housing support",
-        eligibility: "Income and residency requirements may apply",
-        contact: "Official program page required",
-        verification: "Unverified demonstration record",
-        score: 87,
-        tags: ["Housing", "Emergency Relief"],
-        needs: ["Housing Assistance"]
-    }
-];
-
-
-function runDiscovery() {
-
-    const need =
-        document.getElementById("need").value;
-
-    const location =
-        document.getElementById("location").value.trim()
+async function runDiscovery() {
+    const need = document.getElementById("need").value;
+    const location = document.getElementById("location").value.trim()
         || "Location not specified";
+    const goal = document.getElementById("goal").value || null;
+    const button = document.getElementById("runButton");
+    const resultsPanel = document.getElementById("results");
+    const summary = document.getElementById("resultSummary");
+    const list = document.getElementById("resultList");
 
-    const goal =
-        document.getElementById("goal").value;
-
-    let matches =
-        demoOpportunities.filter(function(item) {
-            return item.needs.includes(need);
-        });
-
-    matches.sort(function(a, b) {
-        return b.score - a.score;
-    });
-
-    const list =
-        document.getElementById("resultList");
-
+    resultsPanel.style.display = "block";
     list.innerHTML = "";
+    summary.textContent = "Contacting Crowdfunding DeepSearch backend...";
+    button.disabled = true;
+    button.textContent = "Searching...";
 
-    document.getElementById("resultSummary").textContent =
-        "Searching for " +
-        need +
-        " opportunities relevant to " +
-        location +
-        (goal
-            ? " for a $" +
-              Number(goal).toLocaleString() +
-              " campaign."
-            : ".");
-
-
-    if (matches.length === 0) {
-
-        list.innerHTML =
-            "<p>No demonstration records match this need yet.</p>";
-
-    } else {
-
-        matches.forEach(function(item) {
-
-            const card =
-                document.createElement("div");
-
-            card.className = "result-card";
-
-            let tags = "";
-
-            item.tags.forEach(function(tag) {
-                tags +=
-                    '<span class="badge">' +
-                    tag +
-                    "</span>";
-            });
-
-            card.innerHTML =
-                '<div class="result-top">' +
-
-                    "<div>" +
-                        "<h3>" + item.name + "</h3>" +
-                        '<div class="type">' +
-                            item.type +
-                        "</div>" +
-                    "</div>" +
-
-                    '<div class="score">' +
-                        item.score +
-                        "/100" +
-                    "</div>" +
-
-                "</div>" +
-
-                '<div class="info-grid">' +
-
-                    '<div class="info">' +
-                        '<div class="info-title">SERVICE AREA</div>' +
-                        item.serviceArea +
-                    "</div>" +
-
-                    '<div class="info">' +
-                        '<div class="info-title">ASSISTANCE</div>' +
-                        item.assistance +
-                    "</div>" +
-
-                    '<div class="info">' +
-                        '<div class="info-title">ELIGIBILITY</div>' +
-                        item.eligibility +
-                    "</div>" +
-
-                    '<div class="info">' +
-                        '<div class="info-title">CONTACT / APPLICATION</div>' +
-                        item.contact +
-                    "</div>" +
-
-                "</div>" +
-
-                "<div>" +
-                    tags +
-                "</div>" +
-
-                '<div class="verification">' +
-                    "<strong>Verification status:</strong> " +
-                    item.verification +
-                "</div>" +
-
-                '<div class="match-reason">' +
-                    "<strong>Why it matched:</strong> " +
-                    "This opportunity is categorized for " +
-                    need +
-                    ". Live Discovery will later calculate this score " +
-                    "from verified eligibility, geographic coverage, " +
-                    "need compatibility, availability, and source quality." +
-                "</div>";
-
-            list.appendChild(card);
-
+    try {
+        const response = await fetch(API_URL, {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({need, location, goal})
         });
 
-    }
+        const data = await response.json();
 
-    document.getElementById("results").style.display =
-        "block";
+        if (!response.ok || data.status !== "success") {
+            throw new Error(data.message || data.error || "Discovery request failed");
+        }
+
+        summary.textContent =
+            "Backend accepted a " + need +
+            " discovery request for " + location +
+            (goal ? " with a $" + Number(goal).toLocaleString() + " campaign goal." : ".");
+
+        const meta = document.createElement("div");
+        meta.className = "notice";
+        meta.innerHTML =
+            "<strong>Backend stage:</strong> " + escapeHtml(data.discovery.stage) +
+            "<br><strong>Live search:</strong> " + (data.discovery.live_search ? "Enabled" : "Not enabled yet") +
+            "<br><strong>Verification:</strong> " + (data.discovery.verification_enabled ? "Enabled" : "Not enabled yet");
+        list.appendChild(meta);
+
+        if (!data.results || data.results.length === 0) {
+            const empty = document.createElement("p");
+            empty.textContent =
+                "Connection successful. No live opportunities are returned yet because the next build stage will add real web discovery and verification.";
+            list.appendChild(empty);
+            return;
+        }
+
+        data.results.forEach(function(item) {
+            const card = document.createElement("div");
+            card.className = "result-card";
+            card.innerHTML =
+                '<div class="result-top"><div><h3>' + escapeHtml(item.name) +
+                '</h3><div class="type">' + escapeHtml(item.type) +
+                '</div></div><div class="score">' + escapeHtml(item.score) +
+                '/100</div></div>' +
+                '<div class="info-grid">' +
+                '<div class="info"><div class="info-title">SERVICE AREA</div>' + escapeHtml(item.serviceArea) + '</div>' +
+                '<div class="info"><div class="info-title">ASSISTANCE</div>' + escapeHtml(item.assistance) + '</div>' +
+                '<div class="info"><div class="info-title">ELIGIBILITY</div>' + escapeHtml(item.eligibility) + '</div>' +
+                '<div class="info"><div class="info-title">CONTACT / APPLICATION</div>' + escapeHtml(item.contact) + '</div>' +
+                '</div>' +
+                '<div class="verification"><strong>Verification status:</strong> ' +
+                escapeHtml(item.verification) + '</div>';
+            list.appendChild(card);
+        });
+
+    } catch (error) {
+        summary.textContent = "Could not reach the Crowdfunding DeepSearch backend.";
+        list.innerHTML =
+            '<div class="verification"><strong>Connection error:</strong> ' +
+            escapeHtml(error.message) +
+            '<br><br>Make sure backend/server.py is running on port 8080.</div>';
+    } finally {
+        button.disabled = false;
+        button.textContent = "Run Discovery";
+    }
 }
 
 </script>
