@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Crowdfunding DeepSearch - Live Discovery V1</title>
+
+<style>
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #0f172a;
+    color: #e2e8f0;
+}
+
+header {
+    background: #111827;
+    padding: 28px 20px;
+    text-align: center;
+    border-bottom: 1px solid #334155;
+}
+
+header h1 { margin: 0 0 8px; }
+header p { margin: 0; color: #94a3b8; }
+
+.container {
+    max-width: 1100px;
+    margin: 35px auto;
+    padding: 0 20px;
+}
+
+.panel {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 14px;
+    padding: 25px;
+    margin-bottom: 25px;
+}
+
+label {
+    display: block;
+    margin: 16px 0 7px;
+    font-weight: bold;
+}
+
+input, select {
+    width: 100%;
+    padding: 13px;
+    border-radius: 8px;
+    border: 1px solid #475569;
+    background: #0f172a;
+    color: white;
+    font-size: 15px;
+}
+
+button {
+    margin-top: 20px;
+    padding: 13px 20px;
+    border: 0;
+    border-radius: 8px;
+    background: #2563eb;
+    color: white;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+button:hover { background: #1d4ed8; }
+
+.notice {
+    margin-top: 20px;
+    padding: 14px;
+    border-radius: 8px;
+    background: #172554;
+    border: 1px solid #1e40af;
+    color: #bfdbfe;
+}
+
+.results {
+    display: none;
+}
+
+.result-card {
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 12px;
+    padding: 20px;
+    margin: 16px 0;
+}
+
+.result-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 15px;
+    align-items: flex-start;
+}
+
+.result-card h3 {
+    margin: 0 0 6px;
+}
+
+.type {
+    color: #93c5fd;
+    font-size: 14px;
+}
+
+.score {
+    min-width: 90px;
+    text-align: center;
+    background: #14532d;
+    border-radius: 20px;
+    padding: 8px 10px;
+    font-weight: bold;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 12px;
+    margin-top: 18px;
+}
+
+.info {
+    background: #1e293b;
+    border-radius: 8px;
+    padding: 12px;
+}
+
+.info-title {
+    color: #94a3b8;
+    font-size: 12px;
+    margin-bottom: 5px;
+}
+
+.verification {
+    margin-top: 14px;
+    padding: 10px;
+    background: #422006;
+    border-radius: 8px;
+    color: #fde68a;
+}
+
+.match-reason {
+    margin-top: 14px;
+    color: #cbd5e1;
+    line-height: 1.5;
+}
+
+.badge {
+    display: inline-block;
+    padding: 5px 9px;
+    margin: 8px 5px 0 0;
+    background: #334155;
+    border-radius: 15px;
+    font-size: 12px;
+}
+
+@media (max-width: 600px) {
+    .result-top {
+        display: block;
+    }
+
+    .score {
+        display: inline-block;
+        margin-top: 10px;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<header>
+    <h1>Crowdfunding DeepSearch</h1>
+    <p>Live Opportunity Discovery — V1 Development</p>
+</header>
+
+<div class="container">
+
+<div class="panel">
+
+    <h2>Opportunity Search Profile</h2>
+
+    <label for="need">Primary Need</label>
+    <select id="need">
+        <option>General Financial Assistance</option>
+        <option>Transportation</option>
+        <option>Medical Assistance</option>
+        <option>Housing Assistance</option>
+        <option>Education Assistance</option>
+        <option>Community / Nonprofit Funding</option>
+    </select>
+
+    <label for="location">Location</label>
+    <input id="location" placeholder="Austin, Texas, United States">
+
+    <label for="goal">Fundraising Goal</label>
+    <input id="goal" type="number" placeholder="10000">
+
+    <button onclick="runDiscovery()">Run Discovery</button>
+
+    <div class="notice">
+        Development mode: the results below are demonstration records,
+        not claims that these organizations or programs currently exist.
+        This stage tests the result, verification, and ranking architecture
+        before live web sources are connected.
+    </div>
+
+</div>
+
+<div id="results" class="panel results">
+
+    <h2>Discovery Results</h2>
+
+    <p id="resultSummary"></p>
+
+    <div id="resultList"></div>
+
+</div>
+
+</div>
+
+<script>
+
+const demoOpportunities = [
+    {
+        name: "Example Community Assistance Network",
+        type: "Community Assistance",
+        serviceArea: "Local / Regional",
+        assistance: "Emergency financial and resource assistance",
+        eligibility: "Eligibility must be verified",
+        contact: "Official application or contact page required",
+        verification: "Unverified demonstration record",
+        score: 82,
+        tags: ["Community", "Emergency Assistance"],
+        needs: ["General Financial Assistance"]
+    },
+
+    {
+        name: "Example Transportation Support Program",
+        type: "Transportation Assistance",
+        serviceArea: "Local / Regional",
+        assistance: "Transportation or vehicle-related support",
+        eligibility: "Program requirements must be verified",
+        contact: "Official program page required",
+        verification: "Unverified demonstration record",
+        score: 91,
+        tags: ["Transportation", "Vehicle Assistance"],
+        needs: ["Transportation"]
+    },
+
+    {
+        name: "Example Patient Relief Foundation",
+        type: "Medical Assistance",
+        serviceArea: "Regional / National",
+        assistance: "Patient financial assistance and referrals",
+        eligibility: "Medical and financial requirements may apply",
+        contact: "Official application page required",
+        verification: "Unverified demonstration record",
+        score: 89,
+        tags: ["Medical", "Patient Assistance"],
+        needs: ["Medical Assistance"]
+    },
+
+    {
+        name: "Example Housing Stability Program",
+        type: "Housing Assistance",
+        serviceArea: "Local",
+        assistance: "Rental, utility, or emergency housing support",
+        eligibility: "Income and residency requirements may apply",
+        contact: "Official program page required",
+        verification: "Unverified demonstration record",
+        score: 87,
+        tags: ["Housing", "Emergency Relief"],
+        needs: ["Housing Assistance"]
+    }
+];
+
+
+function runDiscovery() {
+
+    const need =
+        document.getElementById("need").value;
+
+    const location =
+        document.getElementById("location").value.trim()
+        || "Location not specified";
+
+    const goal =
+        document.getElementById("goal").value;
+
+    let matches =
+        demoOpportunities.filter(function(item) {
+            return item.needs.includes(need);
+        });
+
+    matches.sort(function(a, b) {
+        return b.score - a.score;
+    });
+
+    const list =
+        document.getElementById("resultList");
+
+    list.innerHTML = "";
+
+    document.getElementById("resultSummary").textContent =
+        "Searching for " +
+        need +
+        " opportunities relevant to " +
+        location +
+        (goal
+            ? " for a $" +
+              Number(goal).toLocaleString() +
+              " campaign."
+            : ".");
+
+
+    if (matches.length === 0) {
+
+        list.innerHTML =
+            "<p>No demonstration records match this need yet.</p>";
+
+    } else {
+
+        matches.forEach(function(item) {
+
+            const card =
+                document.createElement("div");
+
+            card.className = "result-card";
+
+            let tags = "";
+
+            item.tags.forEach(function(tag) {
+                tags +=
+                    '<span class="badge">' +
+                    tag +
+                    "</span>";
+            });
+
+            card.innerHTML =
+                '<div class="result-top">' +
+
+                    "<div>" +
+                        "<h3>" + item.name + "</h3>" +
+                        '<div class="type">' +
+                            item.type +
+                        "</div>" +
+                    "</div>" +
+
+                    '<div class="score">' +
+                        item.score +
+                        "/100" +
+                    "</div>" +
+
+                "</div>" +
+
+                '<div class="info-grid">' +
+
+                    '<div class="info">' +
+                        '<div class="info-title">SERVICE AREA</div>' +
+                        item.serviceArea +
+                    "</div>" +
+
+                    '<div class="info">' +
+                        '<div class="info-title">ASSISTANCE</div>' +
+                        item.assistance +
+                    "</div>" +
+
+                    '<div class="info">' +
+                        '<div class="info-title">ELIGIBILITY</div>' +
+                        item.eligibility +
+                    "</div>" +
+
+                    '<div class="info">' +
+                        '<div class="info-title">CONTACT / APPLICATION</div>' +
+                        item.contact +
+                    "</div>" +
+
+                "</div>" +
+
+                "<div>" +
+                    tags +
+                "</div>" +
+
+                '<div class="verification">' +
+                    "<strong>Verification status:</strong> " +
+                    item.verification +
+                "</div>" +
+
+                '<div class="match-reason">' +
+                    "<strong>Why it matched:</strong> " +
+                    "This opportunity is categorized for " +
+                    need +
+                    ". Live Discovery will later calculate this score " +
+                    "from verified eligibility, geographic coverage, " +
+                    "need compatibility, availability, and source quality." +
+                "</div>";
+
+            list.appendChild(card);
+
+        });
+
+    }
+
+    document.getElementById("results").style.display =
+        "block";
+}
+
+</script>
+
+</body>
+</html>
