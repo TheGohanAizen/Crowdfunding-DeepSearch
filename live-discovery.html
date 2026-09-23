@@ -221,7 +221,13 @@ button:hover { background: #1d4ed8; }
 
 <script>
 
-const API_URL = "http://localhost:8080/api/discover";
+const params = new URLSearchParams(window.location.search);
+const configuredApiBase = params.get("api") || window.CROWDFUNDING_DEEPSEARCH_API || "";
+const API_URL = configuredApiBase
+    ? configuredApiBase.replace(/\/$/, "") + "/api/discover"
+    : (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
+        ? "http://localhost:8080/api/discover"
+        : window.location.origin + "/api/discover";
 
 function escapeHtml(value) {
     return String(value ?? "")
