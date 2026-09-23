@@ -1,7 +1,7 @@
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import json
 import os
-from urllib.parse import quote_plus, urlencode
+from urllib.parse import quote_plus, urlencode, urlparse
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 
@@ -132,6 +132,98 @@ def retrieve_candidates(search_plan, per_lane=5):
     }
 
 
+def verification_signals(candidate, need, location):
+    """Apply conservative source and relevance checks without claiming eligibility."""
+    url = candidate.get("url", "")
+    parsed = urlparse(url)
+    host = (parsed.hostname or "").lower()
+    path = (parsed.path or "").lower()
+    text = " ".join([
+        candidate.get("name", ""),
+        candidate.get("snippet", ""),
+        candidate.get("type", ""),
+    ]).lower()
+
+    signals = []
+    concerns = []
+    score = 0
+
+    if parsed.scheme == "https" and host:
+        score += 10
+        signals.append("https_source")
+    else:
+        concerns.append("non_https_or_missing_host")
+
+    if host.endswith(".gov"):
+        score += 30
+        signals.append("government_domain")
+    elif host.endswith(".org"):
+        score += 18
+        signals.append("organization_domain")
+    elif host.endswith(".edu"):
+        score += 16
+        signals.append("education_domain")
+
+    assistance_terms = (
+        "assistance", "apply", "application", "eligibility", "program",
+        "help", "support", "relief", "grant", "transportation", "vehicle",
+        "housing", "medical", "financial"
+    )
+    term_hits = sorted({term for term in assistance_terms if term in text or term in path})
+    if term_hits:
+        score += min(24, len(term_hits) * 4)
+        signals.append("assistance_language:" + ",".join(term_hits[:6]))
+    else:
+        concerns.append("no_clear_assistance_language")
+
+    need_terms = {
+        "Transportation": ("transportation", "vehicle", "car", "repair", "mobility"),
+        "Medical Assistance": ("medical", "patient", "health", "hospital", "treatment"),
+        "Housing Assistance": ("housing", "rent", "rental", "utility", "shelter"),
+        "Education Assistance": ("education", "school", "tuition", "scholarship", "student"),
+        "Community / Nonprofit Funding": ("nonprofit", "community", "foundation", "grant"),
+        "General Financial Assistance": ("financial", "emergency", "assistance", "relief"),
+    }
+    matched_need_terms = [term for term in need_terms.get(need, ()) if term in text]
+    if matched_need_terms:
+        score += min(24, len(matched_need_terms) * 8)
+        signals.append("need_match:" + ",".join(matched_need_terms))
+    else:
+        concerns.append("weak_need_match")
+
+    location_tokens = [
+        token.strip().lower()
+        for token in (location or "").replace(",", " ").split()
+        if len(token.strip()) > 2 and token.lower() not in {"united", "states"}
+    ]
+    if location_tokens and any(token in text for token in location_tokens):
+        score += 12
+        signals.append("location_language_match")
+
+    score = min(score, 100)
+    if score >= 65:
+        status = "promising_unverified"
+    elif score >= 35:
+        status = "candidate_unverified"
+    else:
+        status = "weak_unverified"
+
+    checked = dict(candidate)
+    checked["verification"] = status
+    checked["verification_score"] = score
+    checked["verification_signals"] = signals
+    checked["verification_concerns"] = concerns
+    checked["eligibility_verified"] = False
+    checked["official_source_verified"] = host.endswith((".gov", ".edu"))
+    return checked
+
+
+def verify_candidates(candidates, need, location):
+    checked = [verification_signals(item, need, location) for item in candidates]
+    checked.sort(key=lambda item: item.get("verification_score", 0), reverse=True)
+    return checked
+
+
 class DeepSearchHandler(BaseHTTPRequestHandler):
 
     def send_json(self, data, status=200):
@@ -159,7 +251,7 @@ class DeepSearchHandler(BaseHTTPRequestHandler):
             self.send_json({
                 "status": "ok",
                 "service": "Crowdfunding DeepSearch Backend",
-                "version": "0.2"
+                "version": "0.3"
             })
             return
 
@@ -200,6 +292,7 @@ class DeepSearchHandler(BaseHTTPRequestHandler):
 
             search_plan = build_discovery_queries(need, location)
             retrieval = retrieve_candidates(search_plan)
+            verified_candidates = verify_candidates(retrieval["candidates"], need, location)
 
             response = {
                 "status": "success",
@@ -211,7 +304,7 @@ class DeepSearchHandler(BaseHTTPRequestHandler):
                 "discovery": {
                     "stage": "retrieval-provider-v1",
                     "live_search": retrieval["configured"],
-                    "verification_enabled": False,
+                    "verification_enabled": True,
                     "provider": retrieval["provider"]
                 },
                 "search_plan": search_plan,
@@ -220,7 +313,12 @@ class DeepSearchHandler(BaseHTTPRequestHandler):
                     "message": retrieval["message"],
                     "errors": retrieval.get("errors", [])
                 },
-                "results": retrieval["candidates"]
+                "verification_policy": {
+                    "eligibility_claims": False,
+                    "automatic_official_source_claims": False,
+                    "note": "Scores are screening signals only; eligibility and program availability still require source-level verification."
+                },
+                "results": verified_candidates
             }
 
             self.send_json(response)
