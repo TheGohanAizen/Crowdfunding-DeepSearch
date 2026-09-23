@@ -1,6 +1,9 @@
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import json
-from urllib.parse import quote_plus
+import os
+from urllib.parse import quote_plus, urlencode
+from urllib.request import Request, urlopen
+from urllib.error import HTTPError, URLError
 
 
 HOST = "localhost"
@@ -56,6 +59,79 @@ def build_discovery_queries(need, location):
     return queries
 
 
+def normalize_candidate(item, lane, query):
+    """Normalize provider output into the internal candidate schema."""
+    url = item.get("link") or item.get("url") or ""
+    title = item.get("title") or "Untitled result"
+    snippet = item.get("snippet") or item.get("description") or ""
+    return {
+        "name": title,
+        "type": lane,
+        "url": url,
+        "snippet": snippet,
+        "source": "google-custom-search",
+        "source_query": query,
+        "verification": "discovered_unverified",
+        "score": None
+    }
+
+
+def deduplicate_candidates(candidates):
+    seen = set()
+    unique = []
+    for item in candidates:
+        key = (item.get("url") or item.get("name") or "").strip().lower()
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        unique.append(item)
+    return unique
+
+
+def retrieve_candidates(search_plan, per_lane=5):
+    """Retrieve candidates when Google Programmable Search credentials are configured."""
+    api_key = os.environ.get("GOOGLE_CSE_API_KEY")
+    engine_id = os.environ.get("GOOGLE_CSE_ID")
+
+    if not api_key or not engine_id:
+        return {
+            "provider": "google-custom-search",
+            "configured": False,
+            "message": "Set GOOGLE_CSE_API_KEY and GOOGLE_CSE_ID on the server to enable live retrieval.",
+            "candidates": []
+        }
+
+    candidates = []
+    errors = []
+
+    for plan in search_plan:
+        params = urlencode({
+            "key": api_key,
+            "cx": engine_id,
+            "q": plan["query"],
+            "num": min(max(int(per_lane), 1), 10)
+        })
+        request = Request(
+            "https://www.googleapis.com/customsearch/v1?" + params,
+            headers={"User-Agent": "CrowdfundingDeepSearch/0.2"}
+        )
+        try:
+            with urlopen(request, timeout=12) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+            for item in payload.get("items", []):
+                candidates.append(normalize_candidate(item, plan["lane"], plan["query"]))
+        except (HTTPError, URLError, TimeoutError, ValueError) as error:
+            errors.append({"lane": plan["lane"], "error": str(error)})
+
+    return {
+        "provider": "google-custom-search",
+        "configured": True,
+        "message": "Live retrieval completed." if not errors else "Live retrieval completed with some provider errors.",
+        "errors": errors,
+        "candidates": deduplicate_candidates(candidates)
+    }
+
+
 class DeepSearchHandler(BaseHTTPRequestHandler):
 
     def send_json(self, data, status=200):
@@ -83,7 +159,7 @@ class DeepSearchHandler(BaseHTTPRequestHandler):
             self.send_json({
                 "status": "ok",
                 "service": "Crowdfunding DeepSearch Backend",
-                "version": "0.1"
+                "version": "0.2"
             })
             return
 
@@ -122,6 +198,9 @@ class DeepSearchHandler(BaseHTTPRequestHandler):
 
             goal = data.get("goal")
 
+            search_plan = build_discovery_queries(need, location)
+            retrieval = retrieve_candidates(search_plan)
+
             response = {
                 "status": "success",
                 "query": {
@@ -130,13 +209,18 @@ class DeepSearchHandler(BaseHTTPRequestHandler):
                     "goal": goal
                 },
                 "discovery": {
-                    "stage": "backend-foundation",
-                    "live_search": False,
+                    "stage": "retrieval-provider-v1",
+                    "live_search": retrieval["configured"],
                     "verification_enabled": False,
-                    "provider": "query-planner-v1"
+                    "provider": retrieval["provider"]
                 },
-                "search_plan": build_discovery_queries(need, location),
-                "results": []
+                "search_plan": search_plan,
+                "provider_status": {
+                    "configured": retrieval["configured"],
+                    "message": retrieval["message"],
+                    "errors": retrieval.get("errors", [])
+                },
+                "results": retrieval["candidates"]
             }
 
             self.send_json(response)
