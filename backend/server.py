@@ -1,9 +1,59 @@
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import json
+from urllib.parse import quote_plus
 
 
 HOST = "localhost"
 PORT = 8080
+
+
+def build_discovery_queries(need, location):
+    """Build targeted search lanes without claiming that a result is verified."""
+    location_term = location if location and location != "Location not specified" else ""
+    lanes = {
+        "Transportation": [
+            ("Vehicle Assistance", "vehicle assistance donated car reliable transportation nonprofit"),
+            ("Transportation Assistance", "transportation assistance emergency financial assistance nonprofit"),
+            ("Community Action", "community action transportation assistance"),
+            ("Local Charities", "charity transportation assistance vehicle repair assistance"),
+        ],
+        "Medical Assistance": [
+            ("Patient Assistance", "patient financial assistance nonprofit"),
+            ("Medical Relief", "medical bill assistance charity"),
+            ("Community Health", "community health financial assistance"),
+        ],
+        "Housing Assistance": [
+            ("Emergency Housing", "emergency housing rental assistance nonprofit"),
+            ("Utility Assistance", "utility bill assistance community action"),
+            ("Housing Stability", "housing stability emergency assistance charity"),
+        ],
+        "Education Assistance": [
+            ("Education Assistance", "education financial assistance scholarship nonprofit"),
+            ("Community Programs", "community education assistance program"),
+        ],
+        "Community / Nonprofit Funding": [
+            ("Foundation Funding", "foundation grants nonprofit community program"),
+            ("Corporate Giving", "corporate community giving program nonprofit"),
+        ],
+        "General Financial Assistance": [
+            ("Emergency Assistance", "emergency financial assistance nonprofit"),
+            ("Community Assistance", "community assistance charity financial help"),
+        ],
+    }
+
+    selected = lanes.get(need, lanes["General Financial Assistance"])
+    queries = []
+
+    for lane, terms in selected:
+        query = " ".join(part for part in [location_term, terms] if part).strip()
+        queries.append({
+            "lane": lane,
+            "query": query,
+            "search_url": "https://www.google.com/search?q=" + quote_plus(query),
+            "status": "ready_for_provider"
+        })
+
+    return queries
 
 
 class DeepSearchHandler(BaseHTTPRequestHandler):
@@ -82,8 +132,10 @@ class DeepSearchHandler(BaseHTTPRequestHandler):
                 "discovery": {
                     "stage": "backend-foundation",
                     "live_search": False,
-                    "verification_enabled": False
+                    "verification_enabled": False,
+                    "provider": "query-planner-v1"
                 },
+                "search_plan": build_discovery_queries(need, location),
                 "results": []
             }
 
