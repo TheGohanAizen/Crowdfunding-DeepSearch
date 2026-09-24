@@ -58,6 +58,9 @@ try:
     assert isinstance(discovery["search_plan"], list)
     assert len(discovery["search_plan"]) >= 1
     assert discovery["results"] == []
+    assert discovery["discovery"]["verification_enabled"] is True
+    assert discovery["verification_policy"]["eligibility_claims"] is False
+    assert discovery["verification_policy"]["automatic_official_source_claims"] is False
 
     bad = Request(
         "http://127.0.0.1:8099/api/discover",
