@@ -11,6 +11,8 @@ services:
         value: 0.0.0.0
       - key: ALLOWED_ORIGIN
         value: "*"
+      - key: MAX_SOURCE_CHECKS
+        value: "8"
       - key: GOOGLE_CSE_API_KEY
         sync: false
       - key: GOOGLE_CSE_ID
