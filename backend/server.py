@@ -6,15 +6,24 @@ import socket
 from html.parser import HTMLParser
 from datetime import datetime, timezone
 from urllib.parse import quote_plus, urlencode, urlparse, urljoin
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener, urlopen
 from urllib.error import HTTPError, URLError
 
 
+def env_int(name, default, minimum, maximum):
+    """Read a bounded integer environment setting without crashing at import time."""
+    try:
+        value = int(os.environ.get(name, str(default)))
+    except (TypeError, ValueError):
+        value = default
+    return max(minimum, min(value, maximum))
+
+
 HOST = os.environ.get("HOST", "0.0.0.0")
-PORT = int(os.environ.get("PORT", "8080"))
-MAX_SOURCE_CHECKS = max(0, min(int(os.environ.get("MAX_SOURCE_CHECKS", "8")), 20))
-MAX_DISCOVERY_RESULTS = max(1, min(int(os.environ.get("MAX_DISCOVERY_RESULTS", "25")), 100))
-MAX_QUERY_LENGTH = max(100, min(int(os.environ.get("MAX_QUERY_LENGTH", "500")), 2000))
+PORT = env_int("PORT", 8080, 1, 65535)
+MAX_SOURCE_CHECKS = env_int("MAX_SOURCE_CHECKS", 8, 0, 20)
+MAX_DISCOVERY_RESULTS = env_int("MAX_DISCOVERY_RESULTS", 25, 1, 100)
+MAX_QUERY_LENGTH = env_int("MAX_QUERY_LENGTH", 500, 100, 2000)
 ALLOWED_ORIGIN = os.environ.get("ALLOWED_ORIGIN", "*")
 ALLOWED_ORIGINS = {origin.strip() for origin in ALLOWED_ORIGIN.split(",") if origin.strip()}
 
@@ -197,53 +206,86 @@ def is_public_hostname(hostname):
     return True
 
 
-def fetch_source_page(url, max_bytes=300000):
-    """Fetch a public candidate page with basic SSRF protection and bounded reads."""
-    parsed = urlparse(url)
-    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
-        return {"reachable": False, "error": "unsupported_url"}
-    if not is_public_hostname(parsed.hostname):
-        return {"reachable": False, "error": "non_public_target"}
+class NoRedirectHandler(HTTPRedirectHandler):
+    """Expose redirects so each destination can be validated before it is followed."""
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
 
-    request = Request(
-        url,
-        headers={
-            "User-Agent": "CrowdfundingDeepSearch/0.9 (+source verification)",
-            "Accept": "text/html,application/xhtml+xml"
-        }
-    )
-    try:
-        with urlopen(request, timeout=8) as response:
-            final_url = response.geturl()
-            final_host = urlparse(final_url).hostname
-            if not is_public_hostname(final_host):
-                return {"reachable": False, "error": "unsafe_redirect_target"}
-            content_type = response.headers.get("Content-Type", "")
-            if "text/html" not in content_type and "application/xhtml+xml" not in content_type:
+
+NO_REDIRECT_OPENER = build_opener(NoRedirectHandler())
+
+
+def fetch_source_page(url, max_bytes=300000, max_redirects=4):
+    """Fetch a public candidate page with bounded, redirect-aware SSRF protection."""
+    current_url = url
+    for _ in range(max_redirects + 1):
+        parsed = urlparse(current_url)
+        if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+            return {"reachable": False, "error": "unsupported_url"}
+        if parsed.username or parsed.password:
+            return {"reachable": False, "error": "userinfo_not_allowed"}
+        if not is_public_hostname(parsed.hostname):
+            return {"reachable": False, "error": "non_public_target"}
+
+        request = Request(
+            current_url,
+            headers={
+                "User-Agent": "CrowdfundingDeepSearch/1.0 (+source verification)",
+                "Accept": "text/html,application/xhtml+xml"
+            }
+        )
+        try:
+            with NO_REDIRECT_OPENER.open(request, timeout=6) as response:
+                content_type = response.headers.get("Content-Type", "")
+                if "text/html" not in content_type and "application/xhtml+xml" not in content_type:
+                    return {
+                        "reachable": True,
+                        "final_url": current_url,
+                        "content_type": content_type,
+                        "html": "",
+                        "last_checked": datetime.now(timezone.utc).isoformat()
+                    }
+                raw = response.read(max_bytes + 1)
+                if len(raw) > max_bytes:
+                    raw = raw[:max_bytes]
+                html = raw.decode(response.headers.get_content_charset() or "utf-8", errors="replace")
                 return {
                     "reachable": True,
-                    "final_url": final_url,
+                    "final_url": current_url,
                     "content_type": content_type,
-                    "html": "",
+                    "html": html,
                     "last_checked": datetime.now(timezone.utc).isoformat()
                 }
-            raw = response.read(max_bytes + 1)
-            if len(raw) > max_bytes:
-                raw = raw[:max_bytes]
-            html = raw.decode(response.headers.get_content_charset() or "utf-8", errors="replace")
+        except HTTPError as error:
+            if error.code in {301, 302, 303, 307, 308}:
+                location = error.headers.get("Location")
+                if not location:
+                    return {"reachable": False, "error": "redirect_without_location"}
+                next_url = urljoin(current_url, location)
+                next_parsed = urlparse(next_url)
+                if next_parsed.scheme not in {"http", "https"} or not next_parsed.hostname:
+                    return {"reachable": False, "error": "unsafe_redirect_target"}
+                if next_parsed.username or next_parsed.password or not is_public_hostname(next_parsed.hostname):
+                    return {"reachable": False, "error": "unsafe_redirect_target"}
+                current_url = next_url
+                continue
             return {
-                "reachable": True,
-                "final_url": final_url,
-                "content_type": content_type,
-                "html": html,
+                "reachable": False,
+                "error": str(error),
                 "last_checked": datetime.now(timezone.utc).isoformat()
             }
-    except (HTTPError, URLError, TimeoutError, ValueError) as error:
-        return {
-            "reachable": False,
-            "error": str(error),
-            "last_checked": datetime.now(timezone.utc).isoformat()
-        }
+        except (URLError, TimeoutError, ValueError) as error:
+            return {
+                "reachable": False,
+                "error": str(error),
+                "last_checked": datetime.now(timezone.utc).isoformat()
+            }
+
+    return {
+        "reachable": False,
+        "error": "too_many_redirects",
+        "last_checked": datetime.now(timezone.utc).isoformat()
+    }
 
 class SourceSignalParser(HTMLParser):
     def __init__(self):
@@ -352,6 +394,7 @@ def enrich_with_source_checks(candidates, max_candidates=None):
         item = dict(candidate)
         if index >= max_candidates:
             item["source_check"] = {"checked": False, "reason": "verification_limit"}
+            item["verification_stage"] = "source_check_skipped"
             enriched.append(item)
             continue
 
@@ -564,7 +607,7 @@ def create_app():
         return jsonify({
             "status": "ok",
             "service": "Crowdfunding DeepSearch Backend",
-            "version": "1.5"
+            "version": "1.6"
         })
 
     @app.route("/api/discover", methods=["POST", "OPTIONS"])
