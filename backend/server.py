@@ -1,4 +1,4 @@
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
 import re
@@ -371,12 +371,16 @@ def verify_candidates(candidates, need, location):
 
 
 class DeepSearchHandler(BaseHTTPRequestHandler):
+    server_version = "CrowdfundingDeepSearch/0.7"
+    sys_version = ""
 
     def send_json(self, data, status=200):
         body = json.dumps(data, indent=2).encode("utf-8")
 
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("Cache-Control", "no-store")
         self.send_header("Access-Control-Allow-Origin", ALLOWED_ORIGIN)
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
@@ -397,7 +401,7 @@ class DeepSearchHandler(BaseHTTPRequestHandler):
             self.send_json({
                 "status": "ok",
                 "service": "Crowdfunding DeepSearch Backend",
-                "version": "0.6"
+                "version": "0.7"
             })
             return
 
@@ -417,6 +421,12 @@ class DeepSearchHandler(BaseHTTPRequestHandler):
             content_length = int(
                 self.headers.get("Content-Length", 0)
             )
+            if content_length <= 0:
+                self.send_json({"status": "error", "message": "Request body is required."}, 400)
+                return
+            if content_length > 65536:
+                self.send_json({"status": "error", "message": "Request body is too large."}, 413)
+                return
 
             raw_body = self.rfile.read(content_length)
 
@@ -481,7 +491,7 @@ class DeepSearchHandler(BaseHTTPRequestHandler):
 
 def run_server():
 
-    server = HTTPServer(
+    server = ThreadingHTTPServer(
         (HOST, PORT),
         DeepSearchHandler
     )
