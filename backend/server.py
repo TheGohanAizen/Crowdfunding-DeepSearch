@@ -12,6 +12,7 @@ from urllib.error import HTTPError, URLError
 
 HOST = os.environ.get("HOST", "0.0.0.0")
 PORT = int(os.environ.get("PORT", "8080"))
+MAX_SOURCE_CHECKS = max(0, min(int(os.environ.get("MAX_SOURCE_CHECKS", "8")), 20))
 ALLOWED_ORIGIN = os.environ.get("ALLOWED_ORIGIN", "*")
 
 
@@ -339,8 +340,10 @@ def extract_page_signals(html, base_url):
         "page_base_url": base_url
     }
 
-def enrich_with_source_checks(candidates, max_candidates=8):
+def enrich_with_source_checks(candidates, max_candidates=None):
     """Visit a limited number of top candidates and record source-level signals."""
+    if max_candidates is None:
+        max_candidates = MAX_SOURCE_CHECKS
     enriched = []
     for index, candidate in enumerate(candidates):
         item = dict(candidate)
@@ -540,7 +543,7 @@ def create_app():
         return jsonify({
             "status": "ok",
             "service": "Crowdfunding DeepSearch Backend",
-            "version": "1.1"
+            "version": "1.2"
         })
 
     @app.route("/api/discover", methods=["POST", "OPTIONS"])
