@@ -1,7 +1,10 @@
 import json
 import os
 import re
-from urllib.parse import quote_plus, urlencode, urlparse
+import ipaddress
+import socket
+from datetime import datetime, timezone
+from urllib.parse import quote_plus, urlencode, urlparse, urljoin
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 
@@ -169,35 +172,73 @@ def retrieve_candidates(search_plan, per_lane=5):
         "attempts": attempts
     }
 
+def is_public_hostname(hostname):
+    """Reject loopback, private, link-local, multicast, reserved, and unspecified targets."""
+    if not hostname or hostname.lower() in {"localhost", "localhost.localdomain"}:
+        return False
+    try:
+        addresses = socket.getaddrinfo(hostname, None, type=socket.SOCK_STREAM)
+    except socket.gaierror:
+        return False
+    if not addresses:
+        return False
+    for entry in addresses:
+        try:
+            address = ipaddress.ip_address(entry[4][0])
+        except ValueError:
+            return False
+        if not address.is_global:
+            return False
+    return True
+
+
 def fetch_source_page(url, max_bytes=300000):
-    """Fetch a public candidate page for lightweight source-level verification."""
+    """Fetch a public candidate page with basic SSRF protection and bounded reads."""
     parsed = urlparse(url)
     if parsed.scheme not in {"http", "https"} or not parsed.hostname:
         return {"reachable": False, "error": "unsupported_url"}
+    if not is_public_hostname(parsed.hostname):
+        return {"reachable": False, "error": "non_public_target"}
 
     request = Request(
         url,
         headers={
-            "User-Agent": "CrowdfundingDeepSearch/0.4 (+source verification)",
+            "User-Agent": "CrowdfundingDeepSearch/0.9 (+source verification)",
             "Accept": "text/html,application/xhtml+xml"
         }
     )
     try:
         with urlopen(request, timeout=8) as response:
+            final_url = response.geturl()
+            final_host = urlparse(final_url).hostname
+            if not is_public_hostname(final_host):
+                return {"reachable": False, "error": "unsafe_redirect_target"}
             content_type = response.headers.get("Content-Type", "")
             if "text/html" not in content_type and "application/xhtml+xml" not in content_type:
-                return {"reachable": True, "content_type": content_type, "html": ""}
-            raw = response.read(max_bytes)
+                return {
+                    "reachable": True,
+                    "final_url": final_url,
+                    "content_type": content_type,
+                    "html": "",
+                    "last_checked": datetime.now(timezone.utc).isoformat()
+                }
+            raw = response.read(max_bytes + 1)
+            if len(raw) > max_bytes:
+                raw = raw[:max_bytes]
             html = raw.decode(response.headers.get_content_charset() or "utf-8", errors="replace")
             return {
                 "reachable": True,
-                "final_url": response.geturl(),
+                "final_url": final_url,
                 "content_type": content_type,
-                "html": html
+                "html": html,
+                "last_checked": datetime.now(timezone.utc).isoformat()
             }
     except (HTTPError, URLError, TimeoutError, ValueError) as error:
-        return {"reachable": False, "error": str(error)}
-
+        return {
+            "reachable": False,
+            "error": str(error),
+            "last_checked": datetime.now(timezone.utc).isoformat()
+        }
 
 def extract_page_signals(html, base_url):
     """Extract conservative application/contact signals from HTML without form submission."""
@@ -238,7 +279,7 @@ def extract_page_signals(html, base_url):
         "application_route_found": application_language or bool(links),
         "contact_route_found": contact_language or any("contact" in link.lower() for link in links),
         "eligibility_language_found": eligibility_language,
-        "application_links": links,
+        "application_links": [urljoin(base_url, link) for link in links],
         "page_base_url": base_url
     }
 
@@ -256,7 +297,8 @@ def enrich_with_source_checks(candidates, max_candidates=8):
         page = fetch_source_page(item.get("url", ""))
         source_check = {
             "checked": True,
-            "reachable": page.get("reachable", False)
+            "reachable": page.get("reachable", False),
+            "last_checked": page.get("last_checked")
         }
         if page.get("reachable"):
             source_check.update(extract_page_signals(page.get("html", ""), page.get("final_url", item.get("url", ""))))
@@ -359,7 +401,8 @@ def verification_signals(candidate, need, location):
     checked["verification_signals"] = signals
     checked["verification_concerns"] = concerns
     checked["eligibility_verified"] = False
-    checked["official_source_verified"] = host.endswith((".gov", ".edu"))
+    checked["official_domain_signal"] = host.endswith((".gov", ".edu"))
+    checked["official_source_verified"] = False
     return checked
 
 
@@ -422,7 +465,7 @@ def create_app():
         return jsonify({
             "status": "ok",
             "service": "Crowdfunding DeepSearch Backend",
-            "version": "0.8"
+            "version": "0.9"
         })
 
     @app.route("/api/discover", methods=["POST", "OPTIONS"])
