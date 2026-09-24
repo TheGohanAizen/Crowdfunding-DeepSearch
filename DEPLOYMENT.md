@@ -30,3 +30,12 @@ Discovery endpoint: `POST /api/discover`
 4. The current website origin when deployed with the backend on the same origin.
 
 For production, restrict `ALLOWED_ORIGIN` to the deployed frontend origin instead of leaving it as `*`.
+
+
+## Production CORS
+
+Set `ALLOWED_ORIGIN` to the deployed frontend origin. Multiple trusted origins can be supplied as a comma-separated list. Use `*` only for development or an intentionally public API.
+
+Example:
+
+`ALLOWED_ORIGIN=https://your-frontend.example,https://www.your-frontend.example`
