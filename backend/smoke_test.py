@@ -86,6 +86,30 @@ try:
     except HTTPError as error:
         assert error.code == 400
 
+    oversized = Request(
+        "http://127.0.0.1:8099/api/discover",
+        data=json.dumps({"need": "x" * 501, "location": "Austin", "goal": 10000}).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        urlopen(oversized, timeout=3)
+        raise AssertionError("Oversized search field should return HTTP 400")
+    except HTTPError as error:
+        assert error.code == 400
+
+    negative_goal = Request(
+        "http://127.0.0.1:8099/api/discover",
+        data=json.dumps({"need": "Transportation", "location": "Austin", "goal": -1}).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        urlopen(negative_goal, timeout=3)
+        raise AssertionError("Negative goal should return HTTP 400")
+    except HTTPError as error:
+        assert error.code == 400
+
     print("Integration smoke test passed: health, discovery fallback, and invalid input handling.")
 finally:
     process.terminate()
