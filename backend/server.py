@@ -377,6 +377,16 @@ def enrich_with_source_checks(candidates, max_candidates=8):
             item["verification_stage"] = "source_reachable"
         else:
             item["verification_stage"] = "discovered_unverified"
+
+        # Recompute the human-readable verification label after source-level boosts.
+        final_score = item.get("verification_score", 0)
+        if final_score >= 65:
+            item["verification"] = "promising_unverified"
+        elif final_score >= 35:
+            item["verification"] = "candidate_unverified"
+        else:
+            item["verification"] = "weak_unverified"
+
         item["source_check"] = source_check
         enriched.append(item)
 
@@ -530,7 +540,7 @@ def create_app():
         return jsonify({
             "status": "ok",
             "service": "Crowdfunding DeepSearch Backend",
-            "version": "1.0"
+            "version": "1.1"
         })
 
     @app.route("/api/discover", methods=["POST", "OPTIONS"])
