@@ -78,7 +78,7 @@ def build_discovery_queries(need, location):
     return queries
 
 
-def normalize_candidate(item, lane, query):
+def normalize_candidate(item, lane, query, source="web-search"):
     """Normalize provider output into the internal candidate schema."""
     url = item.get("link") or item.get("url") or ""
     title = item.get("title") or "Untitled result"
@@ -88,7 +88,7 @@ def normalize_candidate(item, lane, query):
         "type": lane,
         "url": url,
         "snippet": snippet,
-        "source": "google-custom-search",
+        "source": source,
         "source_query": query,
         "verification": "discovered_unverified",
         "score": None
@@ -137,7 +137,7 @@ def retrieve_google_candidates(search_plan, per_lane=5):
             with urlopen(request, timeout=8) as response:
                 payload = json.loads(response.read().decode("utf-8"))
             lane_candidates = [
-                normalize_candidate(item, plan["lane"], plan["query"])
+                normalize_candidate(item, plan["lane"], plan["query"], source="google-custom-search")
                 for item in payload.get("items", [])
             ]
             return lane_candidates, None
@@ -162,11 +162,70 @@ def retrieve_google_candidates(search_plan, per_lane=5):
     }
 
 
+def retrieve_brave_candidates(search_plan, per_lane=5):
+    """Retrieve broad-web candidates from Brave Search API."""
+    api_key = os.environ.get("BRAVE_SEARCH_API_KEY")
+    if not api_key:
+        return {
+            "provider": "brave-search",
+            "configured": False,
+            "message": "Brave Search credentials are not configured.",
+            "errors": [],
+            "candidates": []
+        }
+
+    def fetch_lane(plan):
+        params = urlencode({
+            "q": plan["query"],
+            "count": min(max(int(per_lane), 1), 20),
+            "safesearch": "moderate"
+        })
+        request = Request(
+            "https://api.search.brave.com/res/v1/web/search?" + params,
+            headers={
+                "Accept": "application/json",
+                "X-Subscription-Token": api_key,
+                "User-Agent": "CrowdfundingDeepSearch/1.2"
+            }
+        )
+        try:
+            with urlopen(request, timeout=8) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+            lane_candidates = [
+                normalize_candidate(item, plan["lane"], plan["query"], source="brave-search")
+                for item in payload.get("web", {}).get("results", [])
+            ]
+            return lane_candidates, None
+        except (HTTPError, URLError, TimeoutError, ValueError) as error:
+            return [], {"lane": plan["lane"], "error": str(error)}
+
+    candidates = []
+    errors = []
+    workers = max(1, min(len(search_plan), 4))
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        futures = [executor.submit(fetch_lane, plan) for plan in search_plan]
+        for future in as_completed(futures):
+            lane_candidates, error = future.result()
+            candidates.extend(lane_candidates)
+            if error:
+                errors.append(error)
+
+    return {
+        "provider": "brave-search",
+        "configured": True,
+        "message": "Live retrieval completed." if not errors else "Live retrieval completed with some provider errors.",
+        "errors": errors,
+        "candidates": deduplicate_candidates(candidates)
+    }
+
+
 def retrieve_candidates(search_plan, per_lane=5):
     """Provider router: keeps discovery independent from any single search service."""
     requested = os.environ.get("SEARCH_PROVIDER", "auto").strip().lower()
     providers = []
 
+    if requested in {"auto", "brave", "brave-search"}:
+        providers.append(retrieve_brave_candidates)
     if requested in {"auto", "google", "google-custom-search"}:
         providers.append(retrieve_google_candidates)
 
@@ -631,7 +690,7 @@ def create_app():
         return jsonify({
             "service": "Crowdfunding DeepSearch Backend",
             "status": "ok",
-            "version": "1.7",
+            "version": "1.8",
             "health": "/api/health",
             "discovery": "/api/discover"
         })
@@ -641,7 +700,7 @@ def create_app():
         return jsonify({
             "status": "ok",
             "service": "Crowdfunding DeepSearch Backend",
-            "version": "1.7"
+            "version": "1.8"
         })
 
     @app.route("/api/discover", methods=["POST", "OPTIONS"])
