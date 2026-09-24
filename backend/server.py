@@ -14,6 +14,7 @@ HOST = os.environ.get("HOST", "0.0.0.0")
 PORT = int(os.environ.get("PORT", "8080"))
 MAX_SOURCE_CHECKS = max(0, min(int(os.environ.get("MAX_SOURCE_CHECKS", "8")), 20))
 MAX_DISCOVERY_RESULTS = max(1, min(int(os.environ.get("MAX_DISCOVERY_RESULTS", "25")), 100))
+MAX_QUERY_LENGTH = max(100, min(int(os.environ.get("MAX_QUERY_LENGTH", "500")), 2000))
 ALLOWED_ORIGIN = os.environ.get("ALLOWED_ORIGIN", "*")
 
 
@@ -492,9 +493,19 @@ def verify_candidates(candidates, need, location):
 
 
 def build_discovery_response(data):
-    need = data.get("need", "General Financial Assistance")
-    location = data.get("location", "Location not specified")
+    need = str(data.get("need") or "General Financial Assistance").strip()
+    location = str(data.get("location") or "Location not specified").strip()
     goal = data.get("goal")
+
+    if len(need) > MAX_QUERY_LENGTH or len(location) > MAX_QUERY_LENGTH:
+        raise ValueError("Search fields are too long.")
+    if goal not in (None, ""):
+        try:
+            goal = float(goal)
+        except (TypeError, ValueError):
+            raise ValueError("Goal must be numeric.")
+        if goal < 0 or goal > 1000000000:
+            raise ValueError("Goal is outside the supported range.")
 
     search_plan = build_discovery_queries(need, location)
     retrieval = retrieve_candidates(search_plan)
@@ -545,7 +556,7 @@ def create_app():
         return jsonify({
             "status": "ok",
             "service": "Crowdfunding DeepSearch Backend",
-            "version": "1.3"
+            "version": "1.4"
         })
 
     @app.route("/api/discover", methods=["POST", "OPTIONS"])
@@ -559,6 +570,8 @@ def create_app():
             return jsonify({"status": "error", "message": "A JSON request body is required."}), 400
         try:
             return jsonify(build_discovery_response(data))
+        except ValueError as error:
+            return jsonify({"status": "error", "message": str(error)}), 400
         except Exception:
             app.logger.exception("Discovery request failed")
             return jsonify({"status": "error", "message": "Discovery request failed."}), 500
