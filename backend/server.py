@@ -3,6 +3,7 @@ import os
 import re
 import ipaddress
 import socket
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from html.parser import HTMLParser
 from datetime import datetime, timezone
 from urllib.parse import quote_plus, urlencode, urlparse, urljoin
@@ -120,7 +121,8 @@ def retrieve_google_candidates(search_plan, per_lane=5):
 
     candidates = []
     errors = []
-    for plan in search_plan:
+
+    def fetch_lane(plan):
         params = urlencode({
             "key": api_key,
             "cx": engine_id,
@@ -129,15 +131,27 @@ def retrieve_google_candidates(search_plan, per_lane=5):
         })
         request = Request(
             "https://www.googleapis.com/customsearch/v1?" + params,
-            headers={"User-Agent": "CrowdfundingDeepSearch/0.6"}
+            headers={"User-Agent": "CrowdfundingDeepSearch/1.1"}
         )
         try:
-            with urlopen(request, timeout=12) as response:
+            with urlopen(request, timeout=8) as response:
                 payload = json.loads(response.read().decode("utf-8"))
-            for item in payload.get("items", []):
-                candidates.append(normalize_candidate(item, plan["lane"], plan["query"]))
+            lane_candidates = [
+                normalize_candidate(item, plan["lane"], plan["query"])
+                for item in payload.get("items", [])
+            ]
+            return lane_candidates, None
         except (HTTPError, URLError, TimeoutError, ValueError) as error:
-            errors.append({"lane": plan["lane"], "error": str(error)})
+            return [], {"lane": plan["lane"], "error": str(error)}
+
+    workers = max(1, min(len(search_plan), 4))
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        futures = [executor.submit(fetch_lane, plan) for plan in search_plan]
+        for future in as_completed(futures):
+            lane_candidates, error = future.result()
+            candidates.extend(lane_candidates)
+            if error:
+                errors.append(error)
 
     return {
         "provider": "google-custom-search",
@@ -389,15 +403,14 @@ def enrich_with_source_checks(candidates, max_candidates=None):
     """Visit a limited number of top candidates and record source-level signals."""
     if max_candidates is None:
         max_candidates = MAX_SOURCE_CHECKS
-    enriched = []
-    for index, candidate in enumerate(candidates):
-        item = dict(candidate)
-        if index >= max_candidates:
-            item["source_check"] = {"checked": False, "reason": "verification_limit"}
-            item["verification_stage"] = "source_check_skipped"
-            enriched.append(item)
-            continue
+    enriched = [dict(candidate) for candidate in candidates]
+    to_check = enriched[:max_candidates]
 
+    for item in enriched[max_candidates:]:
+        item["source_check"] = {"checked": False, "reason": "verification_limit"}
+        item["verification_stage"] = "source_check_skipped"
+
+    def check_item(item):
         page = fetch_source_page(item.get("url", ""))
         source_check = {
             "checked": True,
@@ -437,7 +450,18 @@ def enrich_with_source_checks(candidates, max_candidates=None):
             item["verification"] = "weak_unverified"
 
         item["source_check"] = source_check
-        enriched.append(item)
+        return item
+
+    if to_check:
+        workers = max(1, min(len(to_check), 4))
+        with ThreadPoolExecutor(max_workers=workers) as executor:
+            futures = [executor.submit(check_item, item) for item in to_check]
+            checked_items = [future.result() for future in as_completed(futures)]
+        checked_by_url = {(item.get("url") or item.get("name")): item for item in checked_items}
+        for index, item in enumerate(enriched[:max_candidates]):
+            key = item.get("url") or item.get("name")
+            if key in checked_by_url:
+                enriched[index] = checked_by_url[key]
 
     enriched.sort(key=lambda item: item.get("verification_score", 0), reverse=True)
     return enriched
@@ -602,12 +626,22 @@ def create_app():
         response.headers["Cache-Control"] = "no-store"
         return response
 
+    @app.get("/")
+    def root():
+        return jsonify({
+            "service": "Crowdfunding DeepSearch Backend",
+            "status": "ok",
+            "version": "1.7",
+            "health": "/api/health",
+            "discovery": "/api/discover"
+        })
+
     @app.get("/api/health")
     def health():
         return jsonify({
             "status": "ok",
             "service": "Crowdfunding DeepSearch Backend",
-            "version": "1.6"
+            "version": "1.7"
         })
 
     @app.route("/api/discover", methods=["POST", "OPTIONS"])
