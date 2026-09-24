@@ -1,4 +1,3 @@
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
 import re
@@ -370,143 +369,84 @@ def verify_candidates(candidates, need, location):
     return checked
 
 
-class DeepSearchHandler(BaseHTTPRequestHandler):
-    server_version = "CrowdfundingDeepSearch/0.7"
-    sys_version = ""
+def build_discovery_response(data):
+    need = data.get("need", "General Financial Assistance")
+    location = data.get("location", "Location not specified")
+    goal = data.get("goal")
 
-    def send_json(self, data, status=200):
-        body = json.dumps(data, indent=2).encode("utf-8")
+    search_plan = build_discovery_queries(need, location)
+    retrieval = retrieve_candidates(search_plan)
+    verified_candidates = verify_candidates(retrieval["candidates"], need, location)
+    source_checked_candidates = enrich_with_source_checks(verified_candidates)
 
-        self.send_response(status)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("X-Content-Type-Options", "nosniff")
-        self.send_header("Cache-Control", "no-store")
-        self.send_header("Access-Control-Allow-Origin", ALLOWED_ORIGIN)
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.end_headers()
+    return {
+        "status": "success",
+        "query": {"need": need, "location": location, "goal": goal},
+        "discovery": {
+            "stage": "source-verification-v1",
+            "live_search": retrieval["configured"],
+            "verification_enabled": True,
+            "provider": retrieval["provider"]
+        },
+        "search_plan": search_plan,
+        "provider_status": {
+            "configured": retrieval["configured"],
+            "message": retrieval["message"],
+            "errors": retrieval.get("errors", []),
+            "attempts": retrieval.get("attempts", [])
+        },
+        "verification_policy": {
+            "eligibility_claims": False,
+            "automatic_official_source_claims": False,
+            "note": "Scores are screening signals only; eligibility and program availability still require source-level verification."
+        },
+        "results": source_checked_candidates
+    }
 
-        self.wfile.write(body)
 
-    def do_OPTIONS(self):
-        self.send_response(204)
-        self.send_header("Access-Control-Allow-Origin", ALLOWED_ORIGIN)
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.end_headers()
+def create_app():
+    from flask import Flask, jsonify, request
+    app = Flask(__name__)
 
-    def do_GET(self):
+    @app.after_request
+    def security_headers(response):
+        response.headers["Access-Control-Allow-Origin"] = ALLOWED_ORIGIN
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["Cache-Control"] = "no-store"
+        return response
 
-        if self.path == "/api/health":
-            self.send_json({
-                "status": "ok",
-                "service": "Crowdfunding DeepSearch Backend",
-                "version": "0.7"
-            })
-            return
+    @app.get("/api/health")
+    def health():
+        return jsonify({
+            "status": "ok",
+            "service": "Crowdfunding DeepSearch Backend",
+            "version": "0.8"
+        })
 
-        self.send_json({
-            "error": "Not found"
-        }, 404)
-
-    def do_POST(self):
-
-        if self.path != "/api/discover":
-            self.send_json({
-                "error": "Not found"
-            }, 404)
-            return
-
+    @app.route("/api/discover", methods=["POST", "OPTIONS"])
+    def discover():
+        if request.method == "OPTIONS":
+            return ("", 204)
+        if request.content_length is not None and request.content_length > 65536:
+            return jsonify({"status": "error", "message": "Request body is too large."}), 413
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            return jsonify({"status": "error", "message": "A JSON request body is required."}), 400
         try:
-            content_length = int(
-                self.headers.get("Content-Length", 0)
-            )
-            if content_length <= 0:
-                self.send_json({"status": "error", "message": "Request body is required."}, 400)
-                return
-            if content_length > 65536:
-                self.send_json({"status": "error", "message": "Request body is too large."}, 413)
-                return
+            return jsonify(build_discovery_response(data))
+        except Exception:
+            app.logger.exception("Discovery request failed")
+            return jsonify({"status": "error", "message": "Discovery request failed."}), 500
 
-            raw_body = self.rfile.read(content_length)
+    return app
 
-            data = json.loads(
-                raw_body.decode("utf-8") or "{}"
-            )
 
-            need = data.get(
-                "need",
-                "General Financial Assistance"
-            )
-
-            location = data.get(
-                "location",
-                "Location not specified"
-            )
-
-            goal = data.get("goal")
-
-            search_plan = build_discovery_queries(need, location)
-            retrieval = retrieve_candidates(search_plan)
-            verified_candidates = verify_candidates(retrieval["candidates"], need, location)
-            source_checked_candidates = enrich_with_source_checks(verified_candidates)
-
-            response = {
-                "status": "success",
-                "query": {
-                    "need": need,
-                    "location": location,
-                    "goal": goal
-                },
-                "discovery": {
-                    "stage": "source-verification-v1",
-                    "live_search": retrieval["configured"],
-                    "verification_enabled": True,
-                    "provider": retrieval["provider"]
-                },
-                "search_plan": search_plan,
-                "provider_status": {
-                    "configured": retrieval["configured"],
-                    "message": retrieval["message"],
-                    "errors": retrieval.get("errors", []),
-                    "attempts": retrieval.get("attempts", [])
-                },
-                "verification_policy": {
-                    "eligibility_claims": False,
-                    "automatic_official_source_claims": False,
-                    "note": "Scores are screening signals only; eligibility and program availability still require source-level verification."
-                },
-                "results": source_checked_candidates
-            }
-
-            self.send_json(response)
-
-        except Exception as error:
-
-            self.send_json({
-                "status": "error",
-                "message": str(error)
-            }, 400)
-
+app = create_app()
 
 def run_server():
-
-    server = ThreadingHTTPServer(
-        (HOST, PORT),
-        DeepSearchHandler
-    )
-
-    print(
-        f"Crowdfunding DeepSearch backend running "
-        f"at http://{HOST}:{PORT}"
-    )
-
-    print(
-        f"Health check: "
-        f"http://{HOST}:{PORT}/api/health"
-    )
-
-    server.serve_forever()
+    app.run(host=HOST, port=PORT, debug=False, use_reloader=False)
 
 
 if __name__ == "__main__":
