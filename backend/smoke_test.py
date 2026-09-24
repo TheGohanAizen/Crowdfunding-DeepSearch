@@ -74,7 +74,19 @@ try:
     except HTTPError as error:
         assert error.code == 400
 
-    print("Integration smoke test passed: health, discovery fallback, and invalid JSON handling.")
+    bad_goal = Request(
+        "http://127.0.0.1:8099/api/discover",
+        data=json.dumps({"need": "Transportation", "location": "Austin", "goal": "not-a-number"}).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        urlopen(bad_goal, timeout=3)
+        raise AssertionError("Invalid goal should return HTTP 400")
+    except HTTPError as error:
+        assert error.code == 400
+
+    print("Integration smoke test passed: health, discovery fallback, and invalid input handling.")
 finally:
     process.terminate()
     try:
