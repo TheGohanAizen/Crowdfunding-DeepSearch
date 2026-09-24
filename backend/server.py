@@ -13,6 +13,7 @@ from urllib.error import HTTPError, URLError
 HOST = os.environ.get("HOST", "0.0.0.0")
 PORT = int(os.environ.get("PORT", "8080"))
 MAX_SOURCE_CHECKS = max(0, min(int(os.environ.get("MAX_SOURCE_CHECKS", "8")), 20))
+MAX_DISCOVERY_RESULTS = max(1, min(int(os.environ.get("MAX_DISCOVERY_RESULTS", "25")), 100))
 ALLOWED_ORIGIN = os.environ.get("ALLOWED_ORIGIN", "*")
 
 
@@ -498,7 +499,7 @@ def build_discovery_response(data):
     search_plan = build_discovery_queries(need, location)
     retrieval = retrieve_candidates(search_plan)
     verified_candidates = verify_candidates(retrieval["candidates"], need, location)
-    source_checked_candidates = enrich_with_source_checks(verified_candidates)
+    source_checked_candidates = enrich_with_source_checks(verified_candidates)[:MAX_DISCOVERY_RESULTS]
 
     return {
         "status": "success",
@@ -507,7 +508,8 @@ def build_discovery_response(data):
             "stage": "source-verification-v1",
             "live_search": retrieval["configured"],
             "verification_enabled": True,
-            "provider": retrieval["provider"]
+            "provider": retrieval["provider"],
+            "result_limit": MAX_DISCOVERY_RESULTS
         },
         "search_plan": search_plan,
         "provider_status": {
@@ -543,7 +545,7 @@ def create_app():
         return jsonify({
             "status": "ok",
             "service": "Crowdfunding DeepSearch Backend",
-            "version": "1.2"
+            "version": "1.3"
         })
 
     @app.route("/api/discover", methods=["POST", "OPTIONS"])
