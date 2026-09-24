@@ -3,6 +3,7 @@ import os
 import re
 import ipaddress
 import socket
+from html.parser import HTMLParser
 from datetime import datetime, timezone
 from urllib.parse import quote_plus, urlencode, urlparse, urljoin
 from urllib.request import Request, urlopen
@@ -240,49 +241,103 @@ def fetch_source_page(url, max_bytes=300000):
             "last_checked": datetime.now(timezone.utc).isoformat()
         }
 
+class SourceSignalParser(HTMLParser):
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.text_parts = []
+        self.links = []
+        self.title_parts = []
+        self.in_title = False
+        self.skip_depth = 0
+
+    def handle_starttag(self, tag, attrs):
+        tag = tag.lower()
+        if tag in {"script", "style", "noscript"}:
+            self.skip_depth += 1
+        if tag == "title":
+            self.in_title = True
+        if tag == "a":
+            href = dict(attrs).get("href")
+            if href:
+                self.links.append(href)
+
+    def handle_endtag(self, tag):
+        tag = tag.lower()
+        if tag in {"script", "style", "noscript"} and self.skip_depth:
+            self.skip_depth -= 1
+        if tag == "title":
+            self.in_title = False
+
+    def handle_data(self, data):
+        if self.skip_depth:
+            return
+        cleaned = " ".join(data.split())
+        if not cleaned:
+            return
+        self.text_parts.append(cleaned)
+        if self.in_title:
+            self.title_parts.append(cleaned)
+
+
 def extract_page_signals(html, base_url):
-    """Extract conservative application/contact signals from HTML without form submission."""
+    """Extract conservative program/application evidence without submitting anything."""
     if not html:
         return {
+            "page_title": "",
+            "program_evidence_found": False,
             "application_route_found": False,
             "contact_route_found": False,
             "eligibility_language_found": False,
-            "application_links": []
+            "application_links": [],
+            "evidence_terms": []
         }
 
-    clean = re.sub(r"<script\\b[^>]*>.*?</script>", " ", html, flags=re.I | re.S)
-    clean = re.sub(r"<style\\b[^>]*>.*?</style>", " ", clean, flags=re.I | re.S)
-    text = re.sub(r"<[^>]+>", " ", clean)
-    text = re.sub(r"\\s+", " ", text).lower()
+    parser = SourceSignalParser()
+    try:
+        parser.feed(html)
+    except Exception:
+        pass
 
-    application_language = any(term in text for term in (
-        "apply now", "apply online", "application", "request assistance",
-        "get help", "financial assistance", "assistance program"
-    ))
-    eligibility_language = any(term in text for term in (
-        "eligibility", "eligible", "requirements", "qualify", "qualification"
-    ))
-    contact_language = any(term in text for term in (
-        "contact us", "contact", "call us", "email us"
-    ))
+    text = " ".join(parser.text_parts).lower()
+    page_title = " ".join(parser.title_parts).strip()[:300]
+    program_terms = (
+        "assistance program", "financial assistance", "emergency assistance",
+        "transportation assistance", "vehicle assistance", "rental assistance",
+        "patient assistance", "grant program", "get help"
+    )
+    application_terms = ("apply now", "apply online", "application", "request assistance")
+    eligibility_terms = ("eligibility", "eligible", "requirements", "qualify", "qualification")
+    contact_terms = ("contact us", "call us", "email us")
 
-    hrefs = re.findall(r'href=["\\\']([^"\\\']+)["\\\']', html, flags=re.I)
-    links = []
-    for href in hrefs:
+    evidence_terms = [term for term in program_terms if term in text]
+    application_language = any(term in text for term in application_terms)
+    eligibility_language = any(term in text for term in eligibility_terms)
+    contact_language = any(term in text for term in contact_terms)
+
+    application_links = []
+    contact_links = []
+    for href in parser.links:
         lowered = href.lower()
-        if any(term in lowered for term in ("apply", "application", "assistance", "get-help", "contact")):
-            links.append(href)
-        if len(links) >= 5:
-            break
+        absolute = urljoin(base_url, href)
+        if any(term in lowered for term in ("apply", "application", "assistance", "get-help")):
+            application_links.append(absolute)
+        if "contact" in lowered:
+            contact_links.append(absolute)
+
+    application_links = list(dict.fromkeys(application_links))[:5]
+    contact_links = list(dict.fromkeys(contact_links))[:5]
 
     return {
-        "application_route_found": application_language or bool(links),
-        "contact_route_found": contact_language or any("contact" in link.lower() for link in links),
+        "page_title": page_title,
+        "program_evidence_found": bool(evidence_terms),
+        "application_route_found": application_language or bool(application_links),
+        "contact_route_found": contact_language or bool(contact_links),
         "eligibility_language_found": eligibility_language,
-        "application_links": [urljoin(base_url, link) for link in links],
+        "application_links": application_links,
+        "contact_links": contact_links,
+        "evidence_terms": evidence_terms[:8],
         "page_base_url": base_url
     }
-
 
 def enrich_with_source_checks(candidates, max_candidates=8):
     """Visit a limited number of top candidates and record source-level signals."""
@@ -302,6 +357,8 @@ def enrich_with_source_checks(candidates, max_candidates=8):
         }
         if page.get("reachable"):
             source_check.update(extract_page_signals(page.get("html", ""), page.get("final_url", item.get("url", ""))))
+            if source_check.get("program_evidence_found"):
+                item["verification_score"] = min(100, item.get("verification_score", 0) + 10)
             if source_check.get("application_route_found"):
                 item["verification_score"] = min(100, item.get("verification_score", 0) + 10)
             if source_check.get("eligibility_language_found"):
@@ -312,6 +369,14 @@ def enrich_with_source_checks(candidates, max_candidates=8):
             source_check["error"] = page.get("error", "unreachable")
             item.setdefault("verification_concerns", []).append("source_page_unreachable")
 
+        if source_check.get("application_route_found") or source_check.get("contact_route_found"):
+            item["verification_stage"] = "application_or_contact_found"
+        elif source_check.get("program_evidence_found"):
+            item["verification_stage"] = "program_evidence_found"
+        elif source_check.get("reachable"):
+            item["verification_stage"] = "source_reachable"
+        else:
+            item["verification_stage"] = "discovered_unverified"
         item["source_check"] = source_check
         enriched.append(item)
 
@@ -465,7 +530,7 @@ def create_app():
         return jsonify({
             "status": "ok",
             "service": "Crowdfunding DeepSearch Backend",
-            "version": "0.9"
+            "version": "1.0"
         })
 
     @app.route("/api/discover", methods=["POST", "OPTIONS"])
