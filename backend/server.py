@@ -16,6 +16,7 @@ MAX_SOURCE_CHECKS = max(0, min(int(os.environ.get("MAX_SOURCE_CHECKS", "8")), 20
 MAX_DISCOVERY_RESULTS = max(1, min(int(os.environ.get("MAX_DISCOVERY_RESULTS", "25")), 100))
 MAX_QUERY_LENGTH = max(100, min(int(os.environ.get("MAX_QUERY_LENGTH", "500")), 2000))
 ALLOWED_ORIGIN = os.environ.get("ALLOWED_ORIGIN", "*")
+ALLOWED_ORIGINS = {origin.strip() for origin in ALLOWED_ORIGIN.split(",") if origin.strip()}
 
 
 def build_discovery_queries(need, location):
@@ -544,10 +545,17 @@ def create_app():
 
     @app.after_request
     def security_headers(response):
-        response.headers["Access-Control-Allow-Origin"] = ALLOWED_ORIGIN
+        origin = request.headers.get("Origin")
+        if "*" in ALLOWED_ORIGINS:
+            response.headers["Access-Control-Allow-Origin"] = "*"
+        elif origin and origin in ALLOWED_ORIGINS:
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Vary"] = "Origin"
         response.headers["Access-Control-Allow-Headers"] = "Content-Type"
         response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
         response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "no-referrer"
         response.headers["Cache-Control"] = "no-store"
         return response
 
@@ -556,7 +564,7 @@ def create_app():
         return jsonify({
             "status": "ok",
             "service": "Crowdfunding DeepSearch Backend",
-            "version": "1.4"
+            "version": "1.5"
         })
 
     @app.route("/api/discover", methods=["POST", "OPTIONS"])
