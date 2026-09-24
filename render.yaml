@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: crowdfunding-deepsearch-api
+    runtime: python
+    plan: free
+    buildCommand: "python3 -m py_compile backend/server.py backend/smoke_test.py"
+    startCommand: "python3 backend/server.py"
+    healthCheckPath: /api/health
+    envVars:
+      - key: HOST
+        value: 0.0.0.0
+      - key: ALLOWED_ORIGIN
+        value: "*"
+      - key: GOOGLE_CSE_API_KEY
+        sync: false
+      - key: GOOGLE_CSE_ID
+        sync: false
