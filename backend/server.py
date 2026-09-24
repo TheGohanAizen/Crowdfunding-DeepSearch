@@ -90,22 +90,20 @@ def deduplicate_candidates(candidates):
     return unique
 
 
-def retrieve_candidates(search_plan, per_lane=5):
-    """Retrieve candidates when Google Programmable Search credentials are configured."""
+def retrieve_google_candidates(search_plan, per_lane=5):
     api_key = os.environ.get("GOOGLE_CSE_API_KEY")
     engine_id = os.environ.get("GOOGLE_CSE_ID")
-
     if not api_key or not engine_id:
         return {
             "provider": "google-custom-search",
             "configured": False,
-            "message": "Set GOOGLE_CSE_API_KEY and GOOGLE_CSE_ID on the server to enable live retrieval.",
+            "message": "Google search credentials are not configured.",
+            "errors": [],
             "candidates": []
         }
 
     candidates = []
     errors = []
-
     for plan in search_plan:
         params = urlencode({
             "key": api_key,
@@ -115,7 +113,7 @@ def retrieve_candidates(search_plan, per_lane=5):
         })
         request = Request(
             "https://www.googleapis.com/customsearch/v1?" + params,
-            headers={"User-Agent": "CrowdfundingDeepSearch/0.2"}
+            headers={"User-Agent": "CrowdfundingDeepSearch/0.6"}
         )
         try:
             with urlopen(request, timeout=12) as response:
@@ -133,6 +131,44 @@ def retrieve_candidates(search_plan, per_lane=5):
         "candidates": deduplicate_candidates(candidates)
     }
 
+
+def retrieve_candidates(search_plan, per_lane=5):
+    """Provider router: keeps discovery independent from any single search service."""
+    requested = os.environ.get("SEARCH_PROVIDER", "auto").strip().lower()
+    providers = []
+
+    if requested in {"auto", "google", "google-custom-search"}:
+        providers.append(retrieve_google_candidates)
+
+    if not providers:
+        return {
+            "provider": requested,
+            "configured": False,
+            "message": "Requested search provider is not supported by this build.",
+            "errors": [],
+            "candidates": []
+        }
+
+    attempts = []
+    for provider in providers:
+        result = provider(search_plan, per_lane=per_lane)
+        attempts.append({
+            "provider": result["provider"],
+            "configured": result["configured"],
+            "message": result["message"]
+        })
+        if result["configured"]:
+            result["attempts"] = attempts
+            return result
+
+    return {
+        "provider": "none",
+        "configured": False,
+        "message": "No configured live search provider is available.",
+        "errors": [],
+        "candidates": [],
+        "attempts": attempts
+    }
 
 def fetch_source_page(url, max_bytes=300000):
     """Fetch a public candidate page for lightweight source-level verification."""
@@ -361,7 +397,7 @@ class DeepSearchHandler(BaseHTTPRequestHandler):
             self.send_json({
                 "status": "ok",
                 "service": "Crowdfunding DeepSearch Backend",
-                "version": "0.5"
+                "version": "0.6"
             })
             return
 
@@ -422,7 +458,8 @@ class DeepSearchHandler(BaseHTTPRequestHandler):
                 "provider_status": {
                     "configured": retrieval["configured"],
                     "message": retrieval["message"],
-                    "errors": retrieval.get("errors", [])
+                    "errors": retrieval.get("errors", []),
+                    "attempts": retrieval.get("attempts", [])
                 },
                 "verification_policy": {
                     "eligibility_claims": False,
