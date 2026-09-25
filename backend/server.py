@@ -82,7 +82,7 @@ def normalize_candidate(item, lane, query, source="web-search"):
     """Normalize provider output into the internal candidate schema."""
     url = item.get("link") or item.get("url") or ""
     title = item.get("title") or "Untitled result"
-    snippet = item.get("snippet") or item.get("description") or ""
+    snippet = item.get("snippet") or item.get("description") or item.get("content") or ""
     return {
         "name": title,
         "type": lane,
@@ -219,11 +219,78 @@ def retrieve_brave_candidates(search_plan, per_lane=5):
     }
 
 
+
+def retrieve_tavily_candidates(search_plan, per_lane=5):
+    """Retrieve broad-web candidates from Tavily Search API."""
+    api_key = os.environ.get("TAVILY_API_KEY")
+    if not api_key:
+        return {
+            "provider": "tavily-search",
+            "configured": False,
+            "message": "Tavily Search credentials are not configured.",
+            "errors": [],
+            "candidates": []
+        }
+
+    def fetch_lane(plan):
+        body = json.dumps({
+            "query": plan["query"],
+            "search_depth": "basic",
+            "max_results": min(max(int(per_lane), 1), 20),
+            "topic": "general",
+            "include_answer": False,
+            "include_raw_content": False,
+            "include_images": False,
+            "safe_search": True
+        }).encode("utf-8")
+        request = Request(
+            "https://api.tavily.com/search",
+            data=body,
+            method="POST",
+            headers={
+                "Authorization": "Bearer " + api_key,
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "User-Agent": "CrowdfundingDeepSearch/1.9"
+            }
+        )
+        try:
+            with urlopen(request, timeout=8) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+            lane_candidates = [
+                normalize_candidate(item, plan["lane"], plan["query"], source="tavily-search")
+                for item in payload.get("results", [])
+            ]
+            return lane_candidates, None
+        except (HTTPError, URLError, TimeoutError, ValueError) as error:
+            return [], {"lane": plan["lane"], "error": str(error)}
+
+    candidates = []
+    errors = []
+    workers = max(1, min(len(search_plan), 4))
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        futures = [executor.submit(fetch_lane, plan) for plan in search_plan]
+        for future in as_completed(futures):
+            lane_candidates, error = future.result()
+            candidates.extend(lane_candidates)
+            if error:
+                errors.append(error)
+
+    return {
+        "provider": "tavily-search",
+        "configured": True,
+        "message": "Live retrieval completed." if not errors else "Live retrieval completed with some provider errors.",
+        "errors": errors,
+        "candidates": deduplicate_candidates(candidates)
+    }
+
 def retrieve_candidates(search_plan, per_lane=5):
     """Provider router: keeps discovery independent from any single search service."""
     requested = os.environ.get("SEARCH_PROVIDER", "auto").strip().lower()
     providers = []
 
+    if requested in {"auto", "tavily", "tavily-search"}:
+        providers.append(retrieve_tavily_candidates)
     if requested in {"auto", "brave", "brave-search"}:
         providers.append(retrieve_brave_candidates)
     if requested in {"auto", "google", "google-custom-search"}:
@@ -690,7 +757,7 @@ def create_app():
         return jsonify({
             "service": "Crowdfunding DeepSearch Backend",
             "status": "ok",
-            "version": "1.8",
+            "version": "1.9",
             "health": "/api/health",
             "discovery": "/api/discover"
         })
@@ -700,7 +767,7 @@ def create_app():
         return jsonify({
             "status": "ok",
             "service": "Crowdfunding DeepSearch Backend",
-            "version": "1.8"
+            "version": "1.9"
         })
 
     @app.route("/api/discover", methods=["POST", "OPTIONS"])
