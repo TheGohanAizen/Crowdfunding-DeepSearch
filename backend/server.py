@@ -757,7 +757,7 @@ def create_app():
         return jsonify({
             "service": "Crowdfunding DeepSearch Backend",
             "status": "ok",
-            "version": "1.9",
+            "version": "1.10",
             "health": "/api/health",
             "discovery": "/api/discover"
         })
@@ -767,8 +767,20 @@ def create_app():
         return jsonify({
             "status": "ok",
             "service": "Crowdfunding DeepSearch Backend",
-            "version": "1.9"
+            "version": "1.10"
         })
+
+    @app.get("/api/test-discovery")
+    def test_discovery():
+        """Run one bounded browser-accessible live discovery smoke test."""
+        result = build_discovery_response({
+            "need": "Transportation",
+            "location": "Austin, Texas",
+            "goal": None
+        })
+        result["test_mode"] = True
+        result["test_note"] = "Bounded live discovery smoke test; results remain unverified until source checks support them."
+        return jsonify(result)
 
     @app.route("/api/discover", methods=["POST", "OPTIONS"])
     def discover():
