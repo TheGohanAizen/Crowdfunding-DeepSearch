@@ -18,6 +18,6 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
       - name: Compile backend
-        run: python -m py_compile backend/server.py backend/smoke_test.py
+        run: python -m py_compile backend/server.py backend/protected_app.py backend/smoke_test.py
       - name: Run integration smoke test
         run: python backend/smoke_test.py
