@@ -31,15 +31,20 @@ ALLOWED_ORIGIN = os.environ.get("ALLOWED_ORIGIN", "*")
 ALLOWED_ORIGINS = {origin.strip() for origin in ALLOWED_ORIGIN.split(",") if origin.strip()}
 
 
-def build_discovery_queries(need, location):
-    """Build targeted search lanes without claiming that a result is verified."""
+def build_discovery_queries(need, location, scope="local"):
+    """Build bounded geographic search lanes without claiming eligibility."""
     location_term = location if location and location != "Location not specified" else ""
+    scope = str(scope or "local").strip().lower()
+    allowed_scopes = {"local", "state", "national", "worldwide", "automatic"}
+    if scope not in allowed_scopes:
+        scope = "local"
+
     lanes = {
         "Transportation": [
             ("Vehicle Assistance", "vehicle assistance donated car reliable transportation nonprofit"),
             ("Transportation Assistance", "transportation assistance emergency financial assistance nonprofit"),
             ("Community Action", "community action transportation assistance"),
-            ("Local Charities", "charity transportation assistance vehicle repair assistance"),
+            ("Employment Mobility", "employment transportation mobility vehicle repair assistance"),
         ],
         "Medical Assistance": [
             ("Patient Assistance", "patient financial assistance nonprofit"),
@@ -68,11 +73,35 @@ def build_discovery_queries(need, location):
     selected = lanes.get(need, lanes["General Financial Assistance"])
     queries = []
 
-    for lane, terms in selected:
-        query = " ".join(part for part in [location_term, terms] if part).strip()
+    for index, (lane, terms) in enumerate(selected):
+        if scope == "local":
+            geography = location_term
+            geo_stage = "local"
+        elif scope == "state":
+            geography = (location_term + " statewide").strip()
+            geo_stage = "state"
+        elif scope == "national":
+            geography = "United States national"
+            geo_stage = "national"
+        elif scope == "worldwide":
+            geography = "international worldwide"
+            geo_stage = "worldwide"
+        else:
+            # Automatic mode uses the bounded lane budget to sample progressively
+            # broader service areas. Later stages can deepen any promising tier.
+            stages = [
+                ("local", location_term),
+                ("state", (location_term + " statewide").strip()),
+                ("national", "United States national"),
+                ("worldwide", "international worldwide"),
+            ]
+            geo_stage, geography = stages[min(index, len(stages) - 1)]
+
+        query = " ".join(part for part in [geography, terms] if part).strip()
         queries.append({
             "lane": lane,
             "query": query,
+            "geographic_stage": geo_stage,
             "search_url": "https://www.google.com/search?q=" + quote_plus(query),
             "status": "ready_for_provider"
         })
@@ -692,6 +721,10 @@ def build_discovery_response(data):
     need = str(data.get("need") or "General Financial Assistance").strip()
     location = str(data.get("location") or "Location not specified").strip()
     goal = data.get("goal")
+    scope = str(data.get("scope") or "local").strip().lower()
+    allowed_scopes = {"local", "state", "national", "worldwide", "automatic"}
+    if scope not in allowed_scopes:
+        raise ValueError("Unsupported search scope.")
 
     if len(need) > MAX_QUERY_LENGTH or len(location) > MAX_QUERY_LENGTH:
         raise ValueError("Search fields are too long.")
@@ -703,7 +736,7 @@ def build_discovery_response(data):
         if goal < 0 or goal > 1000000000:
             raise ValueError("Goal is outside the supported range.")
 
-    search_plan = build_discovery_queries(need, location)
+    search_plan = build_discovery_queries(need, location, scope)
     search_plan = search_plan[:MAX_SEARCH_LANES]
     retrieval = retrieve_candidates(search_plan, per_lane=MAX_RESULTS_PER_LANE)
     verified_candidates = verify_candidates(retrieval["candidates"], need, location)
@@ -721,7 +754,7 @@ def build_discovery_response(data):
 
     return {
         "status": "success",
-        "query": {"need": need, "location": location, "goal": goal},
+        "query": {"need": need, "location": location, "goal": goal, "scope": scope},
         "discovery": {
             "stage": "source-verification-v1",
             "live_search": retrieval["configured"],
@@ -729,7 +762,8 @@ def build_discovery_response(data):
             "provider": retrieval["provider"],
             "result_limit": MAX_DISCOVERY_RESULTS,
             "search_lane_limit": MAX_SEARCH_LANES,
-            "results_per_lane": MAX_RESULTS_PER_LANE
+            "results_per_lane": MAX_RESULTS_PER_LANE,
+            "geographic_scope": scope
         },
         "search_plan": search_plan,
         "provider_status": {
