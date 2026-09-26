@@ -148,6 +148,15 @@ button:hover { background: #1d4ed8; }
     line-height: 1.5;
 }
 
+.status-row { margin-top: 12px; }
+.review-status { display:inline-block; padding:6px 10px; border-radius:16px; font-size:12px; font-weight:bold; text-transform:uppercase; letter-spacing:.03em; }
+.status-needs_review { background:#78350f; color:#fef3c7; }
+.status-unverified { background:#1e3a8a; color:#dbeafe; }
+.status-low_relevance { background:#3f3f46; color:#e4e4e7; }
+.action-links { margin-top:14px; display:flex; flex-wrap:wrap; gap:8px; }
+.action-links a { color:#bfdbfe; background:#1e3a8a; text-decoration:none; padding:8px 10px; border-radius:8px; font-size:13px; }
+.action-links a:hover { text-decoration:underline; }
+
 .badge {
     display: inline-block;
     padding: 5px 9px;
@@ -174,7 +183,7 @@ button:hover { background: #1d4ed8; }
 
 <header>
     <h1>Crowdfunding DeepSearch</h1>
-    <p>Live Opportunity Discovery — V1 Development</p>
+    <p>Live Opportunity Discovery — V1.12</p>
 </header>
 
 <div class="container">
@@ -277,7 +286,10 @@ async function runDiscovery() {
         meta.innerHTML =
             "<strong>Backend stage:</strong> " + escapeHtml(data.discovery.stage) +
             "<br><strong>Live search:</strong> " + (data.discovery.live_search ? "Enabled" : "Not enabled yet") +
-            "<br><strong>Verification:</strong> " + (data.discovery.verification_enabled ? "Enabled" : "Not enabled yet");
+            "<br><strong>Verification:</strong> " + (data.discovery.verification_enabled ? "Enabled" : "Not enabled yet") +
+            "<br><strong>Provider:</strong> " + escapeHtml(data.discovery.provider || "unknown") +
+            "<br><strong>Search budget:</strong> up to " + escapeHtml(data.discovery.search_lane_limit || "?") +
+            " lanes × " + escapeHtml(data.discovery.results_per_lane || "?") + " results";
         list.appendChild(meta);
 
         if (!data.results || data.results.length === 0) {
@@ -302,6 +314,18 @@ async function runDiscovery() {
             const eligibilityStatus = sourceCheck.eligibility_language_found
                 ? "Eligibility language found — requirements still need confirmation"
                 : "Not confirmed";
+            const reviewStatus = item.review_status || "unverified";
+            const reviewLabel = reviewStatus === "needs_review" ? "Needs review"
+                : reviewStatus === "low_relevance" ? "Low relevance" : "Unverified";
+            const safeStatusClass = ["needs_review", "unverified", "low_relevance"].includes(reviewStatus)
+                ? reviewStatus : "unverified";
+            const actionLinks = [];
+            (sourceCheck.application_links || []).slice(0, 2).forEach(function(url) {
+                actionLinks.push('<a href="' + escapeHtml(url) + '" target="_blank" rel="noopener noreferrer">Application route</a>');
+            });
+            (sourceCheck.contact_links || []).slice(0, 2).forEach(function(url) {
+                actionLinks.push('<a href="' + escapeHtml(url) + '" target="_blank" rel="noopener noreferrer">Contact route</a>');
+            });
             const sourceLink = item.url
                 ? '<a href="' + escapeHtml(item.url) + '" target="_blank" rel="noopener noreferrer" style="color:#93c5fd">Open source page</a>'
                 : "No source URL";
@@ -309,7 +333,8 @@ async function runDiscovery() {
             card.innerHTML =
                 '<div class="result-top"><div><h3>' + escapeHtml(item.name) +
                 '</h3><div class="type">' + escapeHtml(item.type) +
-                '</div></div><div class="score">' + escapeHtml(score) +
+                '</div><div class="status-row"><span class="review-status status-' + safeStatusClass + '">' +
+                escapeHtml(reviewLabel) + '</span></div></div><div class="score">' + escapeHtml(score) +
                 '/100</div></div>' +
                 '<div class="info-grid">' +
                 '<div class="info"><div class="info-title">SOURCE</div>' + sourceLink + '</div>' +
@@ -319,6 +344,7 @@ async function runDiscovery() {
                 '</div>' +
                 '<div class="match-reason"><strong>Search evidence:</strong> ' +
                 escapeHtml(item.snippet || "No search snippet available.") + '</div>' +
+                (actionLinks.length ? '<div class="action-links">' + actionLinks.join("") + '</div>' : '') +
                 '<div>' + signals + '</div>' +
                 '<div class="verification"><strong>Screening status:</strong> ' +
                 escapeHtml(item.verification) +
