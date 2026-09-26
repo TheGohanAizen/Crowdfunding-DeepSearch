@@ -67,6 +67,26 @@ try:
     assert discovery["verification_policy"]["automatic_official_source_claims"] is False
 
 
+    international_payload = json.dumps({
+        "need": "Transportation",
+        "location": "Toronto, Ontario, Canada",
+        "goal": 10000,
+        "scope": "national"
+    }).encode("utf-8")
+    international_request = Request(
+        "http://127.0.0.1:8099/api/discover",
+        data=international_payload,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    status, international = read_json(international_request)
+    assert status == 200
+    assert international["query"]["scope"] == "national"
+    assert international["discovery"]["geographic_scope"] == "national"
+    assert all(item["geographic_stage"] == "national" for item in international["search_plan"])
+    assert all("Toronto, Ontario, Canada" in item["query"] for item in international["search_plan"])
+    assert all("United States national" not in item["query"] for item in international["search_plan"])
+
     invalid_scope = Request(
         "http://127.0.0.1:8099/api/discover",
         data=json.dumps({"need": "Transportation", "location": "Austin", "goal": 10000, "scope": "galaxy"}).encode("utf-8"),
