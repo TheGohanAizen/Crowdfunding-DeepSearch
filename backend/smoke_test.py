@@ -42,7 +42,8 @@ try:
     payload = json.dumps({
         "need": "Transportation",
         "location": "Austin, Texas, United States",
-        "goal": 10000
+        "goal": 10000,
+        "scope": "automatic"
     }).encode("utf-8")
     request = Request(
         "http://127.0.0.1:8099/api/discover",
@@ -54,6 +55,9 @@ try:
     assert status == 200
     assert discovery["status"] == "success"
     assert discovery["query"]["need"] == "Transportation"
+    assert discovery["query"]["scope"] == "automatic"
+    assert discovery["discovery"]["geographic_scope"] == "automatic"
+    assert [item["geographic_stage"] for item in discovery["search_plan"]] == ["local", "state", "national", "worldwide"]
     assert discovery["provider_status"]["configured"] is False
     assert isinstance(discovery["search_plan"], list)
     assert len(discovery["search_plan"]) >= 1
@@ -61,6 +65,19 @@ try:
     assert discovery["discovery"]["verification_enabled"] is True
     assert discovery["verification_policy"]["eligibility_claims"] is False
     assert discovery["verification_policy"]["automatic_official_source_claims"] is False
+
+
+    invalid_scope = Request(
+        "http://127.0.0.1:8099/api/discover",
+        data=json.dumps({"need": "Transportation", "location": "Austin", "goal": 10000, "scope": "galaxy"}).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        urlopen(invalid_scope, timeout=3)
+        raise AssertionError("Unsupported scope should return HTTP 400")
+    except HTTPError as error:
+        assert error.code == 400
 
     bad = Request(
         "http://127.0.0.1:8099/api/discover",
@@ -110,7 +127,7 @@ try:
     except HTTPError as error:
         assert error.code == 400
 
-    print("Integration smoke test passed: health, discovery fallback, and invalid input handling.")
+    print("Integration smoke test passed: health, geographic expansion, discovery fallback, and invalid input handling.")
 finally:
     process.terminate()
     try:
