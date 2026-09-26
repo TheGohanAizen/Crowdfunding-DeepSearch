@@ -15,6 +15,14 @@ services:
         value: "8"
       - key: MAX_DISCOVERY_RESULTS
         value: "25"
+      - key: MAX_SEARCH_LANES
+        value: "4"
+      - key: MAX_RESULTS_PER_LANE
+        value: "4"
+      - key: SEARCH_PROVIDER
+        value: auto
+      - key: TAVILY_API_KEY
+        sync: false
       - key: GOOGLE_CSE_API_KEY
         sync: false
       - key: GOOGLE_CSE_ID
