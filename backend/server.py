@@ -81,7 +81,7 @@ def build_discovery_queries(need, location, scope="local"):
             geography = (location_term + " statewide").strip()
             geo_stage = "state"
         elif scope == "national":
-            geography = "United States national"
+            geography = (location_term + " national nationwide serves applicants").strip()
             geo_stage = "national"
         elif scope == "worldwide":
             geography = "international worldwide"
@@ -92,7 +92,7 @@ def build_discovery_queries(need, location, scope="local"):
             stages = [
                 ("local", location_term),
                 ("state", (location_term + " statewide").strip()),
-                ("national", "United States national"),
+                ("national", (location_term + " national nationwide serves applicants").strip()),
                 ("worldwide", "international worldwide"),
             ]
             geo_stage, geography = stages[min(index, len(stages) - 1)]
