@@ -24,7 +24,9 @@ HOST = os.environ.get("HOST", "0.0.0.0")
 PORT = env_int("PORT", 8080, 1, 65535)
 MAX_SOURCE_CHECKS = env_int("MAX_SOURCE_CHECKS", 8, 0, 20)
 MAX_DISCOVERY_RESULTS = env_int("MAX_DISCOVERY_RESULTS", 25, 1, 100)
-MAX_QUERY_LENGTH = env_int("MAX_QUERY_LENGTH", 500, 100, 2000)\nMAX_SEARCH_LANES = env_int("MAX_SEARCH_LANES", 4, 1, 4)\nMAX_RESULTS_PER_LANE = env_int("MAX_RESULTS_PER_LANE", 4, 1, 10)
+MAX_QUERY_LENGTH = env_int("MAX_QUERY_LENGTH", 500, 100, 2000)
+MAX_SEARCH_LANES = env_int("MAX_SEARCH_LANES", 4, 1, 4)
+MAX_RESULTS_PER_LANE = env_int("MAX_RESULTS_PER_LANE", 4, 1, 10)
 ALLOWED_ORIGIN = os.environ.get("ALLOWED_ORIGIN", "*")
 ALLOWED_ORIGINS = {origin.strip() for origin in ALLOWED_ORIGIN.split(",") if origin.strip()}
 
@@ -702,9 +704,20 @@ def build_discovery_response(data):
             raise ValueError("Goal is outside the supported range.")
 
     search_plan = build_discovery_queries(need, location)
-    search_plan = search_plan[:MAX_SEARCH_LANES]\n    retrieval = retrieve_candidates(search_plan, per_lane=MAX_RESULTS_PER_LANE)
+    search_plan = search_plan[:MAX_SEARCH_LANES]
+    retrieval = retrieve_candidates(search_plan, per_lane=MAX_RESULTS_PER_LANE)
     verified_candidates = verify_candidates(retrieval["candidates"], need, location)
-    source_checked_candidates = enrich_with_source_checks(verified_candidates)[:MAX_DISCOVERY_RESULTS]\n\n    for item in source_checked_candidates:\n        score = item.get("verification_score", 0)\n        source_check = item.get("source_check", {})\n        if source_check.get("checked") and source_check.get("reachable") and score >= 65:\n            item["review_status"] = "needs_review"\n        elif score >= 35:\n            item["review_status"] = "unverified"\n        else:\n            item["review_status"] = "low_relevance"
+    source_checked_candidates = enrich_with_source_checks(verified_candidates)[:MAX_DISCOVERY_RESULTS]
+
+    for item in source_checked_candidates:
+        score = item.get("verification_score", 0)
+        source_check = item.get("source_check", {})
+        if source_check.get("checked") and source_check.get("reachable") and score >= 65:
+            item["review_status"] = "needs_review"
+        elif score >= 35:
+            item["review_status"] = "unverified"
+        else:
+            item["review_status"] = "low_relevance"
 
     return {
         "status": "success",
@@ -714,7 +727,9 @@ def build_discovery_response(data):
             "live_search": retrieval["configured"],
             "verification_enabled": True,
             "provider": retrieval["provider"],
-            "result_limit": MAX_DISCOVERY_RESULTS,\n            "search_lane_limit": MAX_SEARCH_LANES,\n            "results_per_lane": MAX_RESULTS_PER_LANE
+            "result_limit": MAX_DISCOVERY_RESULTS,
+            "search_lane_limit": MAX_SEARCH_LANES,
+            "results_per_lane": MAX_RESULTS_PER_LANE
         },
         "search_plan": search_plan,
         "provider_status": {
