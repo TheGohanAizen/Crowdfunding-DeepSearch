@@ -238,6 +238,30 @@ const API_URL = configuredApiBase
         ? "http://localhost:8080/api/discover"
         : window.location.origin + "/api/discover";
 
+function loadCampaignProfile() {
+    const need = params.get("need");
+    const location = params.get("location");
+    const goal = params.get("goal");
+
+    if (need) {
+        const needSelect = document.getElementById("need");
+        const hasOption = Array.from(needSelect.options).some(function(option) {
+            return option.value === need;
+        });
+        if (hasOption) needSelect.value = need;
+    }
+
+    if (location && location !== "Location not specified") {
+        document.getElementById("location").value = location;
+    }
+
+    if (goal) {
+        document.getElementById("goal").value = goal;
+    }
+}
+
+loadCampaignProfile();
+
 function escapeHtml(value) {
     return String(value ?? "")
         .replaceAll("&", "&amp;")
