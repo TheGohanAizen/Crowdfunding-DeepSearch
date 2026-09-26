@@ -100,6 +100,16 @@
         background: #64748b;
     }
 
+    .deepsearch {
+        display: none;
+        background: #16a34a;
+        margin-left: 8px;
+    }
+
+    .deepsearch:hover {
+        background: #15803d;
+    }
+
     .notice {
         background: #172554;
         border: 1px solid #1e40af;
@@ -211,6 +221,7 @@
             <option value="Personal Emergency">Personal Emergency</option>
             <option value="Medical / Health">Medical / Health</option>
             <option value="Housing / Bills">Housing / Bills</option>
+            <option value="Transportation / Vehicle Assistance">Transportation / Vehicle Assistance</option>
             <option value="Nonprofit / Community">Nonprofit / Community</option>
             <option value="Education">Education</option>
             <option value="Disaster / Emergency Relief">Disaster / Emergency Relief</option>
@@ -232,12 +243,12 @@
         >
 
         <button onclick="analyzeCampaign()">Analyze Campaign</button>
-        <button class="clear" onclick="clearForm()">Clear</button>\n        <button id="deepSearchButton" class="deepsearch" onclick="sendToDeepSearch()">Send to DeepSearch</button>
+        <button class="clear" onclick="clearForm()">Clear</button>
+        <button id="deepSearchButton" class="deepsearch" onclick="sendToDeepSearch()">Send to DeepSearch</button>
 
         <div class="notice">
-            Current version performs local campaign analysis.
-            Future versions will connect this profile to live web discovery,
-            source verification, matching, and outreach tools.
+            Campaign analysis now connects directly to Live Opportunity Discovery.
+            Review the detected profile first, then send it to DeepSearch when ready.
         </div>
 
     </div>
@@ -292,163 +303,74 @@
 <script>
 
 function analyzeCampaign() {
+    const description = document.getElementById("description").value.toLowerCase();
+    const selectedCategory = document.getElementById("category").value;
+    const goal = document.getElementById("goal").value;
+    const location = document.getElementById("location").value.trim();
 
-    const description =
-        document.getElementById("description").value.toLowerCase();
+    const hasAny = function(terms) {
+        return terms.some(function(term) { return description.includes(term); });
+    };
 
-    const selectedCategory =
-        document.getElementById("category").value;
-
-    const goal =
-        document.getElementById("goal").value;
-
-    const location =
-        document.getElementById("location").value.trim();
+    let need = "General Financial Assistance";
+    if (hasAny(["car", "vehicle", "transportation", "truck", "suv", "driver's license", "driver license", "road test", "mobility"])) {
+        need = "Transportation";
+    } else if (hasAny(["medical", "hospital", "treatment", "medicine", "health"])) {
+        need = "Medical Assistance";
+    } else if (hasAny(["rent", "housing", "eviction", "homeless", "utilities"])) {
+        need = "Housing Assistance";
+    } else if (hasAny(["school", "college", "tuition", "education"])) {
+        need = "Education Assistance";
+    } else if (hasAny(["nonprofit", "community program", "charity", "organization"])) {
+        need = "Community / Nonprofit Funding";
+    }
 
     let category = selectedCategory;
-
     if (!category) {
-
-        if (
-            description.includes("medical") ||
-            description.includes("hospital") ||
-            description.includes("surgery") ||
-            description.includes("cancer") ||
-            description.includes("treatment") ||
-            description.includes("health")
-        ) {
+        if (need === "Transportation") {
+            category = "Transportation / Vehicle Assistance";
+        } else if (need === "Medical Assistance") {
             category = "Medical / Health";
-
-        } else if (
-            description.includes("rent") ||
-            description.includes("eviction") ||
-            description.includes("housing") ||
-            description.includes("homeless") ||
-            description.includes("utilities") ||
-            description.includes("electric bill")
-        ) {
+        } else if (need === "Housing Assistance") {
             category = "Housing / Bills";
-
-        } else if (
-            description.includes("nonprofit") ||
-            description.includes("community") ||
-            description.includes("charity") ||
-            description.includes("organization")
-        ) {
-            category = "Nonprofit / Community";
-
-        } else if (
-            description.includes("disaster") ||
-            description.includes("flood") ||
-            description.includes("hurricane") ||
-            description.includes("fire")
-        ) {
-            category = "Disaster / Emergency Relief";
-
-        } else if (
-            description.includes("school") ||
-            description.includes("college") ||
-            description.includes("tuition") ||
-            description.includes("education")
-        ) {
+        } else if (need === "Education Assistance") {
             category = "Education";
-
+        } else if (need === "Community / Nonprofit Funding") {
+            category = "Nonprofit / Community";
+        } else if (hasAny(["disaster", "flood", "hurricane", "wildfire"])) {
+            category = "Disaster / Emergency Relief";
         } else {
             category = "Personal Emergency";
         }
     }
 
     let urgency = "Normal";
-
-    if (
-        description.includes("urgent") ||
-        description.includes("emergency") ||
-        description.includes("immediately") ||
-        description.includes("eviction") ||
-        description.includes("homeless") ||
-        description.includes("critical") ||
-        description.includes("deadline")
-    ) {
+    if (hasAny(["urgent", "emergency", "immediately", "eviction", "homeless", "critical", "deadline"])) {
         urgency = "High";
     }
 
-    let need = "General Financial Assistance";
-
-    if (
-        description.includes("car") ||
-        description.includes("vehicle") ||
-        description.includes("transportation") ||
-        description.includes("truck") ||
-        description.includes("suv")
-    ) {
-        need = "Transportation";
-    }
-    else if (
-        description.includes("medical") ||
-        description.includes("hospital") ||
-        description.includes("treatment") ||
-        description.includes("medicine")
-    ) {
-        need = "Medical Assistance";
-    }
-    else if (
-        description.includes("rent") ||
-        description.includes("housing") ||
-        description.includes("eviction") ||
-        description.includes("homeless")
-    ) {
-        need = "Housing Assistance";
-    }
-    else if (
-        description.includes("school") ||
-        description.includes("college") ||
-        description.includes("tuition") ||
-        description.includes("education")
-    ) {
-        need = "Education Assistance";
-    }
-
     const possibleKeywords = [
-
         "crowdfunding assistance",
         "financial assistance",
         "community assistance",
         "charitable assistance",
         "emergency assistance",
-        "funding programs",
-        "grant programs",
         "nonprofit assistance",
         "local organizations",
-        "community organizations",
         "charities",
         "foundations"
-
     ];
 
     if (category === "Medical / Health") {
-        possibleKeywords.push(
-            "medical grants",
-            "medical charities",
-            "patient assistance",
-            "health foundations"
-        );
+        possibleKeywords.push("medical grants", "medical charities", "patient assistance", "health foundations");
     }
 
     if (category === "Housing / Bills") {
-        possibleKeywords.push(
-            "rental assistance",
-            "utility assistance",
-            "housing assistance",
-            "homeless assistance"
-        );
+        possibleKeywords.push("rental assistance", "utility assistance", "housing assistance", "homeless assistance");
     }
 
     if (category === "Nonprofit / Community") {
-        possibleKeywords.push(
-            "nonprofit grants",
-            "community grants",
-            "foundation funding"
-        );
+        possibleKeywords.push("nonprofit grants", "community grants", "foundation funding");
     }
 
     if (need === "Transportation") {
@@ -456,75 +378,73 @@ function analyzeCampaign() {
             "vehicle assistance",
             "transportation assistance",
             "car assistance programs",
-            "vehicle donation programs"
+            "vehicle donation programs",
+            "reliable transportation assistance",
+            "driver license fee assistance",
+            "driver road test assistance",
+            "employment transportation assistance",
+            "mobility assistance programs",
+            "vehicle repair assistance"
         );
     }
 
     if (location) {
-        possibleKeywords.push(location + " assistance");
-        possibleKeywords.push(location + " charities");
-        possibleKeywords.push(location + " nonprofits");
+        possibleKeywords.push(
+            location + " assistance",
+            location + " vehicle assistance",
+            location + " transportation assistance",
+            location + " charities",
+            location + " nonprofits"
+        );
     }
 
-    const keywordContainer =
-        document.getElementById("keywords");
-
+    const uniqueKeywords = Array.from(new Set(possibleKeywords));
+    const keywordContainer = document.getElementById("keywords");
     keywordContainer.innerHTML = "";
 
-    possibleKeywords.forEach(keyword => {
-
+    uniqueKeywords.forEach(function(keyword) {
         const span = document.createElement("span");
-
         span.className = "keyword";
-
         span.textContent = keyword;
-
         keywordContainer.appendChild(span);
-
     });
 
     let strategy =
-        "The next DeepSearch stage should search for organizations, " +
-        "charities, foundations, assistance programs, community resources, " +
-        "media opportunities, and other legitimate outreach channels " +
-        "matching this campaign.";
+        "DeepSearch should search for legitimate organizations, charities, foundations, assistance programs, community resources, media opportunities, and permitted outreach channels matching this campaign.";
 
     if (location) {
-        strategy +=
-            " Geographic searches should prioritize " +
-            location +
-            " before expanding nationally and internationally.";
+        strategy += " Geographic searches should prioritize " + location + " before expanding nationally and internationally.";
     }
 
     if (need === "Transportation") {
         strategy +=
-            " Transportation-related searches should include vehicle " +
-            "assistance, transportation programs, nonprofit vehicle support, " +
-            "and organizations serving people with transportation barriers.";
+            " Transportation searches should prioritize vehicle assistance, donated-car and vehicle-support programs, transportation grants, driver's-license and road-test assistance, employment transportation, mobility programs, and organizations serving people whose work or stability is limited by transportation barriers.";
     }
 
-    document.getElementById("resultCategory").textContent =
-        category;
+    document.getElementById("resultCategory").textContent = category;
+    document.getElementById("resultGoal").textContent = goal ? "$" + Number(goal).toLocaleString() : "Not specified";
+    document.getElementById("resultLocation").textContent = location || "Not specified";
+    document.getElementById("resultUrgency").textContent = urgency;
+    document.getElementById("resultNeed").textContent = need;
+    document.getElementById("strategy").textContent = strategy;
+    document.getElementById("results").style.display = "block";
 
-    document.getElementById("resultGoal").textContent =
-        goal ? "$" + Number(goal).toLocaleString() : "Not specified";
-
-    document.getElementById("resultLocation").textContent =
-        location || "Not specified";
-
-    document.getElementById("resultUrgency").textContent =
-        urgency;
-
-    document.getElementById("resultNeed").textContent =
-        need;
-
-    document.getElementById("strategy").textContent =
-        strategy;
-
-    document.getElementById("results").style.display =
-        "block";
+    const deepSearchButton = document.getElementById("deepSearchButton");
+    deepSearchButton.dataset.need = need;
+    deepSearchButton.dataset.location = location || "Location not specified";
+    deepSearchButton.dataset.goal = goal || "";
+    deepSearchButton.style.display = "inline-block";
 }
 
+function sendToDeepSearch() {
+    const button = document.getElementById("deepSearchButton");
+    const params = new URLSearchParams({
+        need: button.dataset.need || "General Financial Assistance",
+        location: button.dataset.location || "Location not specified",
+        goal: button.dataset.goal || ""
+    });
+    window.location.href = "/static/live-discovery.html?" + params.toString();
+}
 
 function clearForm() {
 
@@ -536,6 +456,7 @@ function clearForm() {
 
     document.getElementById("results").style.display =
         "none";
+    document.getElementById("deepSearchButton").style.display = "none";
 }
 
 </script>
