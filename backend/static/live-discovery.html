@@ -202,7 +202,16 @@ button:hover { background: #1d4ed8; }
         <option>Community / Nonprofit Funding</option>
     </select>
 
-    <label for="location">Location</label>
+    <label for="scope">Search Scope</label>
+    <select id="scope">
+        <option value="local">Local / campaign area</option>
+        <option value="state">State / province</option>
+        <option value="national">National</option>
+        <option value="worldwide">Worldwide</option>
+        <option value="automatic" selected>Automatic expansion</option>
+    </select>
+
+    <label for="location">Campaign Location</label>
     <input id="location" placeholder="Austin, Texas, United States">
 
     <label for="goal">Fundraising Goal</label>
@@ -211,7 +220,7 @@ button:hover { background: #1d4ed8; }
     <button id="runButton" onclick="runDiscovery()">Run Discovery</button>
 
     <div class="notice">
-        Live Discovery mode: the page sends the campaign search profile to the backend, which can retrieve candidates, screen relevance, and inspect public source pages. Results remain screening leads until eligibility and current availability are confirmed.
+        Live Discovery mode: choose how far DeepSearch should expand from the campaign location. Automatic expansion is designed to begin with the strongest geographic match and later broaden to state, national, and worldwide opportunities that can actually serve the campaign location. Results remain screening leads until eligibility and current availability are confirmed.
     </div>
 
 </div>
@@ -273,6 +282,7 @@ function escapeHtml(value) {
 
 async function runDiscovery() {
     const need = document.getElementById("need").value;
+    const scope = document.getElementById("scope").value;
     const location = document.getElementById("location").value.trim()
         || "Location not specified";
     const goal = document.getElementById("goal").value || null;
@@ -291,7 +301,7 @@ async function runDiscovery() {
         const response = await fetch(API_URL, {
             method: "POST",
             headers: {"Content-Type": "application/json"},
-            body: JSON.stringify({need, location, goal})
+            body: JSON.stringify({need, location, goal, scope})
         });
 
         const data = await response.json();
@@ -303,7 +313,8 @@ async function runDiscovery() {
         summary.textContent =
             "Backend accepted a " + need +
             " discovery request for " + location +
-            (goal ? " with a $" + Number(goal).toLocaleString() + " campaign goal." : ".");
+            (goal ? " with a $" + Number(goal).toLocaleString() + " campaign goal." : ".") +
+            " Search scope: " + document.getElementById("scope").options[document.getElementById("scope").selectedIndex].text + ".";
 
         const meta = document.createElement("div");
         meta.className = "notice";
