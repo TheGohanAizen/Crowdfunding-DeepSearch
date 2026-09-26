@@ -772,7 +772,7 @@ def create_app():
         return jsonify({
             "service": "Crowdfunding DeepSearch Backend",
             "status": "ok",
-            "version": "1.11",
+            "version": "1.12",
             "health": "/api/health",
             "discovery": "/api/discover"
         })
