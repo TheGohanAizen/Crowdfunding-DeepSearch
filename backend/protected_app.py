@@ -36,11 +36,12 @@ def _normalized_payload(raw_body):
 
     need = str(data.get("need") or "General Financial Assistance").strip().lower()
     location = str(data.get("location") or "Location not specified").strip().lower()
+    scope = str(data.get("scope") or "local").strip().lower()
     goal = data.get("goal")
     if goal in ("", None):
         goal = None
     key = json.dumps(
-        {"need": need, "location": location, "goal": goal},
+        {"need": need, "location": location, "goal": goal, "scope": scope},
         sort_keys=True,
         separators=(",", ":"),
     )
