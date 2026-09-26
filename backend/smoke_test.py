@@ -12,6 +12,9 @@ env["HOST"] = "127.0.0.1"
 env["PORT"] = "8099"
 env.pop("GOOGLE_CSE_API_KEY", None)
 env.pop("GOOGLE_CSE_ID", None)
+env.pop("TAVILY_API_KEY", None)
+env.pop("BRAVE_SEARCH_API_KEY", None)
+env["SEARCH_PROVIDER"] = "auto"
 
 process = subprocess.Popen(
     [sys.executable, os.path.join(ROOT, "backend", "server.py")],
