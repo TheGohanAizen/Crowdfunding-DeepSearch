@@ -183,7 +183,7 @@ button:hover { background: #1d4ed8; }
 
 <header>
     <h1>Crowdfunding DeepSearch</h1>
-    <p>Live Opportunity Discovery — V1.12</p>
+    <p>Live Opportunity Discovery — Geographic Expansion</p>
 </header>
 
 <div class="container">
@@ -322,9 +322,11 @@ async function runDiscovery() {
             "<strong>Backend stage:</strong> " + escapeHtml(data.discovery.stage) +
             "<br><strong>Live search:</strong> " + (data.discovery.live_search ? "Enabled" : "Not enabled yet") +
             "<br><strong>Verification:</strong> " + (data.discovery.verification_enabled ? "Enabled" : "Not enabled yet") +
+            "<br><strong>Search scope:</strong> " + escapeHtml(data.discovery.geographic_scope || scope) +
             "<br><strong>Provider:</strong> " + escapeHtml(data.discovery.provider || "unknown") +
             "<br><strong>Search budget:</strong> up to " + escapeHtml(data.discovery.search_lane_limit || "?") +
-            " lanes × " + escapeHtml(data.discovery.results_per_lane || "?") + " results";
+            " lanes × " + escapeHtml(data.discovery.results_per_lane || "?") + " results" +
+            "<br><strong>Geographic stages:</strong> " + escapeHtml((data.search_plan || []).map(function(item) { return item.geographic_stage || "unspecified"; }).join(" → "));
         list.appendChild(meta);
 
         if (!data.results || data.results.length === 0) {
