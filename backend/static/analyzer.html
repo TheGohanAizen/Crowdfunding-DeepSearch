@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Crowdfunding DeepSearch - Campaign Intelligence</title>
+
+<style>
+    * {
+        box-sizing: border-box;
+    }
+
+    body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background: #0f172a;
+        color: #e2e8f0;
+    }
+
+    header {
+        background: #111827;
+        padding: 28px 20px;
+        text-align: center;
+        border-bottom: 1px solid #334155;
+    }
+
+    header h1 {
+        margin: 0 0 8px;
+        font-size: 32px;
+    }
+
+    header p {
+        margin: 0;
+        color: #94a3b8;
+    }
+
+    .container {
+        max-width: 1000px;
+        margin: 35px auto;
+        padding: 0 20px;
+    }
+
+    .panel {
+        background: #1e293b;
+        border: 1px solid #334155;
+        border-radius: 14px;
+        padding: 25px;
+        margin-bottom: 25px;
+    }
+
+    h2 {
+        margin-top: 0;
+    }
+
+    label {
+        display: block;
+        margin: 18px 0 7px;
+        font-weight: bold;
+    }
+
+    input,
+    textarea,
+    select {
+        width: 100%;
+        padding: 13px;
+        border-radius: 8px;
+        border: 1px solid #475569;
+        background: #0f172a;
+        color: white;
+        font-size: 15px;
+    }
+
+    textarea {
+        min-height: 140px;
+        resize: vertical;
+    }
+
+    button {
+        margin-top: 20px;
+        padding: 13px 20px;
+        border: 0;
+        border-radius: 8px;
+        background: #2563eb;
+        color: white;
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+    button:hover {
+        background: #1d4ed8;
+    }
+
+    .clear {
+        background: #475569;
+        margin-left: 8px;
+    }
+
+    .clear:hover {
+        background: #64748b;
+    }
+
+    .notice {
+        background: #172554;
+        border: 1px solid #1e40af;
+        padding: 14px;
+        border-radius: 8px;
+        margin-top: 18px;
+        color: #bfdbfe;
+    }
+
+    .results {
+        display: none;
+    }
+
+    .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 15px;
+        margin-top: 20px;
+    }
+
+    .card {
+        background: #0f172a;
+        border: 1px solid #334155;
+        border-radius: 10px;
+        padding: 18px;
+    }
+
+    .card-title {
+        color: #94a3b8;
+        font-size: 13px;
+        margin-bottom: 8px;
+    }
+
+    .card-value {
+        font-size: 18px;
+        font-weight: bold;
+    }
+
+    .keywords {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 12px;
+    }
+
+    .keyword {
+        background: #334155;
+        border-radius: 20px;
+        padding: 7px 11px;
+        font-size: 13px;
+    }
+
+    .strategy {
+        line-height: 1.6;
+        color: #cbd5e1;
+    }
+
+    @media (max-width: 600px) {
+        header h1 {
+            font-size: 25px;
+        }
+
+        .panel {
+            padding: 18px;
+        }
+
+        .clear {
+            margin-left: 0;
+        }
+    }
+</style>
+</head>
+
+<body>
+
+<header>
+    <h1>Crowdfunding DeepSearch</h1>
+    <p>Campaign Intelligence Engine — V1 Development</p>
+</header>
+
+<div class="container">
+
+    <div class="panel">
+
+        <h2>Campaign Intelligence</h2>
+
+        <p>
+            Enter information about a crowdfunding campaign.
+            The system will build a structured campaign profile
+            that can later power DeepSearch opportunity discovery.
+        </p>
+
+        <label for="campaignUrl">Crowdfunding Campaign URL</label>
+        <input
+            id="campaignUrl"
+            type="url"
+            placeholder="https://example.com/your-campaign"
+        >
+
+        <label for="description">Campaign Description</label>
+        <textarea
+            id="description"
+            placeholder="Describe what happened, what help is needed, where the campaign is located, and what the money will be used for."
+        ></textarea>
+
+        <label for="category">Campaign Category</label>
+        <select id="category">
+            <option value="">Auto-detect</option>
+            <option value="Personal Emergency">Personal Emergency</option>
+            <option value="Medical / Health">Medical / Health</option>
+            <option value="Housing / Bills">Housing / Bills</option>
+            <option value="Nonprofit / Community">Nonprofit / Community</option>
+            <option value="Education">Education</option>
+            <option value="Disaster / Emergency Relief">Disaster / Emergency Relief</option>
+            <option value="Other">Other</option>
+        </select>
+
+        <label for="goal">Fundraising Goal</label>
+        <input
+            id="goal"
+            type="number"
+            placeholder="10000"
+        >
+
+        <label for="location">Campaign Location</label>
+        <input
+            id="location"
+            type="text"
+            placeholder="Austin, Texas, United States"
+        >
+
+        <button onclick="analyzeCampaign()">Analyze Campaign</button>
+        <button class="clear" onclick="clearForm()">Clear</button>\n        <button id="deepSearchButton" class="deepsearch" onclick="sendToDeepSearch()">Send to DeepSearch</button>
+
+        <div class="notice">
+            Current version performs local campaign analysis.
+            Future versions will connect this profile to live web discovery,
+            source verification, matching, and outreach tools.
+        </div>
+
+    </div>
+
+    <div id="results" class="panel results">
+
+        <h2>Campaign Intelligence Profile</h2>
+
+        <div class="grid">
+
+            <div class="card">
+                <div class="card-title">Detected Category</div>
+                <div class="card-value" id="resultCategory">—</div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Fundraising Goal</div>
+                <div class="card-value" id="resultGoal">—</div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Location</div>
+                <div class="card-value" id="resultLocation">—</div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Urgency</div>
+                <div class="card-value" id="resultUrgency">—</div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Primary Need</div>
+                <div class="card-value" id="resultNeed">—</div>
+            </div>
+
+        </div>
+
+        <div style="margin-top:28px;">
+            <h3>Search Keywords</h3>
+            <div id="keywords" class="keywords"></div>
+        </div>
+
+        <div style="margin-top:28px;">
+            <h3>Initial DeepSearch Strategy</h3>
+            <div id="strategy" class="strategy"></div>
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+
+function analyzeCampaign() {
+
+    const description =
+        document.getElementById("description").value.toLowerCase();
+
+    const selectedCategory =
+        document.getElementById("category").value;
+
+    const goal =
+        document.getElementById("goal").value;
+
+    const location =
+        document.getElementById("location").value.trim();
+
+    let category = selectedCategory;
+
+    if (!category) {
+
+        if (
+            description.includes("medical") ||
+            description.includes("hospital") ||
+            description.includes("surgery") ||
+            description.includes("cancer") ||
+            description.includes("treatment") ||
+            description.includes("health")
+        ) {
+            category = "Medical / Health";
+
+        } else if (
+            description.includes("rent") ||
+            description.includes("eviction") ||
+            description.includes("housing") ||
+            description.includes("homeless") ||
+            description.includes("utilities") ||
+            description.includes("electric bill")
+        ) {
+            category = "Housing / Bills";
+
+        } else if (
+            description.includes("nonprofit") ||
+            description.includes("community") ||
+            description.includes("charity") ||
+            description.includes("organization")
+        ) {
+            category = "Nonprofit / Community";
+
+        } else if (
+            description.includes("disaster") ||
+            description.includes("flood") ||
+            description.includes("hurricane") ||
+            description.includes("fire")
+        ) {
+            category = "Disaster / Emergency Relief";
+
+        } else if (
+            description.includes("school") ||
+            description.includes("college") ||
+            description.includes("tuition") ||
+            description.includes("education")
+        ) {
+            category = "Education";
+
+        } else {
+            category = "Personal Emergency";
+        }
+    }
+
+    let urgency = "Normal";
+
+    if (
+        description.includes("urgent") ||
+        description.includes("emergency") ||
+        description.includes("immediately") ||
+        description.includes("eviction") ||
+        description.includes("homeless") ||
+        description.includes("critical") ||
+        description.includes("deadline")
+    ) {
+        urgency = "High";
+    }
+
+    let need = "General Financial Assistance";
+
+    if (
+        description.includes("car") ||
+        description.includes("vehicle") ||
+        description.includes("transportation") ||
+        description.includes("truck") ||
+        description.includes("suv")
+    ) {
+        need = "Transportation";
+    }
+    else if (
+        description.includes("medical") ||
+        description.includes("hospital") ||
+        description.includes("treatment") ||
+        description.includes("medicine")
+    ) {
+        need = "Medical Assistance";
+    }
+    else if (
+        description.includes("rent") ||
+        description.includes("housing") ||
+        description.includes("eviction") ||
+        description.includes("homeless")
+    ) {
+        need = "Housing Assistance";
+    }
+    else if (
+        description.includes("school") ||
+        description.includes("college") ||
+        description.includes("tuition") ||
+        description.includes("education")
+    ) {
+        need = "Education Assistance";
+    }
+
+    const possibleKeywords = [
+
+        "crowdfunding assistance",
+        "financial assistance",
+        "community assistance",
+        "charitable assistance",
+        "emergency assistance",
+        "funding programs",
+        "grant programs",
+        "nonprofit assistance",
+        "local organizations",
+        "community organizations",
+        "charities",
+        "foundations"
+
+    ];
+
+    if (category === "Medical / Health") {
+        possibleKeywords.push(
+            "medical grants",
+            "medical charities",
+            "patient assistance",
+            "health foundations"
+        );
+    }
+
+    if (category === "Housing / Bills") {
+        possibleKeywords.push(
+            "rental assistance",
+            "utility assistance",
+            "housing assistance",
+            "homeless assistance"
+        );
+    }
+
+    if (category === "Nonprofit / Community") {
+        possibleKeywords.push(
+            "nonprofit grants",
+            "community grants",
+            "foundation funding"
+        );
+    }
+
+    if (need === "Transportation") {
+        possibleKeywords.push(
+            "vehicle assistance",
+            "transportation assistance",
+            "car assistance programs",
+            "vehicle donation programs"
+        );
+    }
+
+    if (location) {
+        possibleKeywords.push(location + " assistance");
+        possibleKeywords.push(location + " charities");
+        possibleKeywords.push(location + " nonprofits");
+    }
+
+    const keywordContainer =
+        document.getElementById("keywords");
+
+    keywordContainer.innerHTML = "";
+
+    possibleKeywords.forEach(keyword => {
+
+        const span = document.createElement("span");
+
+        span.className = "keyword";
+
+        span.textContent = keyword;
+
+        keywordContainer.appendChild(span);
+
+    });
+
+    let strategy =
+        "The next DeepSearch stage should search for organizations, " +
+        "charities, foundations, assistance programs, community resources, " +
+        "media opportunities, and other legitimate outreach channels " +
+        "matching this campaign.";
+
+    if (location) {
+        strategy +=
+            " Geographic searches should prioritize " +
+            location +
+            " before expanding nationally and internationally.";
+    }
+
+    if (need === "Transportation") {
+        strategy +=
+            " Transportation-related searches should include vehicle " +
+            "assistance, transportation programs, nonprofit vehicle support, " +
+            "and organizations serving people with transportation barriers.";
+    }
+
+    document.getElementById("resultCategory").textContent =
+        category;
+
+    document.getElementById("resultGoal").textContent =
+        goal ? "$" + Number(goal).toLocaleString() : "Not specified";
+
+    document.getElementById("resultLocation").textContent =
+        location || "Not specified";
+
+    document.getElementById("resultUrgency").textContent =
+        urgency;
+
+    document.getElementById("resultNeed").textContent =
+        need;
+
+    document.getElementById("strategy").textContent =
+        strategy;
+
+    document.getElementById("results").style.display =
+        "block";
+}
+
+
+function clearForm() {
+
+    document.getElementById("campaignUrl").value = "";
+    document.getElementById("description").value = "";
+    document.getElementById("category").value = "";
+    document.getElementById("goal").value = "";
+    document.getElementById("location").value = "";
+
+    document.getElementById("results").style.display =
+        "none";
+}
+
+</script>
+
+</body>
+</html>
