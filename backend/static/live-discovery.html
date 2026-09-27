@@ -369,7 +369,7 @@ async function runDiscovery() {
             const eligibilityStatus = sourceCheck.eligibility_language_found
                 ? "Eligibility language found — requirements still need confirmation"
                 : "Not confirmed";
-            const reviewStatus = item.review_status || "unverified";\n            const geographicStage = item.geographic_stage || "unspecified";
+            const reviewStatus = item.review_status || "unverified";\n            const geographicStage = item.geographic_stage || "unspecified";\n            const serviceAreaStatus = item.service_area_status === "confirmed" ? "Confirmed from source evidence" : item.service_area_status === "possible" ? "Possible — needs confirmation" : "Not confirmed";
             card.dataset.stage = geographicStage;
             card.dataset.status = reviewStatus;
             const reviewLabel = reviewStatus === "needs_review" ? "Needs review"
@@ -397,7 +397,7 @@ async function runDiscovery() {
                 '<div class="info"><div class="info-title">SOURCE</div>' + sourceLink + '</div>' +
                 '<div class="info"><div class="info-title">APPLICATION</div>' + escapeHtml(applicationStatus) + '</div>' +
                 '<div class="info"><div class="info-title">CONTACT</div>' + escapeHtml(contactStatus) + '</div>' +
-                '<div class="info"><div class="info-title">ELIGIBILITY</div>' + escapeHtml(eligibilityStatus) + '</div>' +
+                '<div class="info"><div class="info-title">ELIGIBILITY</div>' + escapeHtml(eligibilityStatus) + '</div>' +\n                '<div class="info"><div class="info-title">DISCOVERY TIER</div>' + escapeHtml(geographicStage) + '</div>' +\n                '<div class="info"><div class="info-title">SERVICE AREA</div>' + escapeHtml(serviceAreaStatus) + '</div>' +
                 '</div>' +
                 '<div class="match-reason"><strong>Search evidence:</strong> ' +
                 escapeHtml(item.snippet || "No search snippet available.") + '</div>' +
