@@ -150,7 +150,34 @@ try:
     except HTTPError as error:
         assert error.code == 400
 
-    print("Integration smoke test passed: health, geographic expansion, discovery fallback, and invalid input handling.")
+    # Static, no-credit source-page checks for service-area language.
+    from backend.server import extract_page_signals
+
+    statewide_html = """
+    <html><head><title>Transportation Help</title></head>
+    <body>
+      <h1>Transportation Assistance Program</h1>
+      <p>Our statewide program is available statewide for residents who qualify.</p>
+      <a href="/apply">Apply now</a>
+    </body></html>
+    """
+    statewide = extract_page_signals(statewide_html, "https://example.org/help")
+    assert statewide["service_area_language_found"] is True
+    assert "available statewide" in statewide["service_area_evidence"]
+    assert statewide["application_route_found"] is True
+
+    neutral_html = """
+    <html><body>
+      <h1>Transportation Assistance Program</h1>
+      <p>Read about our assistance options and eligibility requirements.</p>
+      <a href="/contact">Contact us</a>
+    </body></html>
+    """
+    neutral = extract_page_signals(neutral_html, "https://example.org/help")
+    assert neutral["service_area_language_found"] is False
+    assert neutral["service_area_evidence"] == []
+
+    print("Integration smoke test passed: health, geographic expansion, discovery fallback, service-area evidence, and invalid input handling.")
 finally:
     process.terminate()
     try:
