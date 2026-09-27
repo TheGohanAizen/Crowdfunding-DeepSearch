@@ -505,7 +505,10 @@ def extract_page_signals(html, base_url):
             "application_route_found": False,
             "contact_route_found": False,
             "eligibility_language_found": False,
+            "service_area_language_found": False,
+            "service_area_evidence": [],
             "application_links": [],
+            "contact_links": [],
             "evidence_terms": []
         }
 
@@ -557,6 +560,8 @@ def extract_page_signals(html, base_url):
         "application_route_found": application_language or bool(application_links),
         "contact_route_found": contact_language or bool(contact_links),
         "eligibility_language_found": eligibility_language,
+        "service_area_language_found": bool(service_area_evidence),
+        "service_area_evidence": service_area_evidence[:6],
         "application_links": application_links,
         "contact_links": contact_links,
         "evidence_terms": evidence_terms[:8],
