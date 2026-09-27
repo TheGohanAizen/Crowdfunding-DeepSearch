@@ -157,6 +157,9 @@ button:hover { background: #1d4ed8; }
 .action-links a { color:#bfdbfe; background:#1e3a8a; text-decoration:none; padding:8px 10px; border-radius:8px; font-size:13px; }
 .action-links a:hover { text-decoration:underline; }
 
+.results-toolbar { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin:16px 0; }
+.results-toolbar select { width:auto; min-width:190px; padding:9px 11px; }
+
 .geo-badge { display:inline-block; padding:5px 9px; margin:8px 5px 0 0; background:#312e81; color:#e0e7ff; border-radius:15px; font-size:12px; text-transform:capitalize; }\n\n.badge {
     display: inline-block;
     padding: 5px 9px;
@@ -271,6 +274,21 @@ function loadCampaignProfile() {
 
 loadCampaignProfile();
 
+function applyResultFilter() {
+    const filter = document.getElementById("resultFilter").value;
+    const cards = Array.from(document.querySelectorAll("#resultList .result-card"));
+    let visible = 0;
+    cards.forEach(function(card) {
+        const stage = card.dataset.stage || "unspecified";
+        const status = card.dataset.status || "unverified";
+        const show = filter === "all" || filter === stage || filter === status;
+        card.style.display = show ? "" : "none";
+        if (show) visible += 1;
+    });
+    const counter = document.getElementById("visibleCount");
+    if (counter) counter.textContent = visible + " of " + cards.length + " opportunities shown";
+}
+
 function escapeHtml(value) {
     return String(value ?? "")
         .replaceAll("&", "&amp;")
@@ -352,6 +370,8 @@ async function runDiscovery() {
                 ? "Eligibility language found — requirements still need confirmation"
                 : "Not confirmed";
             const reviewStatus = item.review_status || "unverified";\n            const geographicStage = item.geographic_stage || "unspecified";
+            card.dataset.stage = geographicStage;
+            card.dataset.status = reviewStatus;
             const reviewLabel = reviewStatus === "needs_review" ? "Needs review"
                 : reviewStatus === "low_relevance" ? "Low relevance" : "Unverified";
             const safeStatusClass = ["needs_review", "unverified", "low_relevance"].includes(reviewStatus)
