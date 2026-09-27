@@ -524,12 +524,12 @@ def extract_page_signals(html, base_url):
     )
     application_terms = ("apply now", "apply online", "application", "request assistance")
     eligibility_terms = ("eligibility", "eligible", "requirements", "qualify", "qualification")
-    contact_terms = ("contact us", "call us", "email us")
+    contact_terms = ("contact us", "call us", "email us")\n    service_area_terms = ("service area", "areas we serve", "serving residents", "serves residents", "available statewide", "statewide program", "nationwide", "available nationwide", "throughout the united states", "international applicants", "available worldwide")
 
     evidence_terms = [term for term in program_terms if term in text]
     application_language = any(term in text for term in application_terms)
     eligibility_language = any(term in text for term in eligibility_terms)
-    contact_language = any(term in text for term in contact_terms)
+    contact_language = any(term in text for term in contact_terms)\n    service_area_evidence = [term for term in service_area_terms if term in text]
 
     application_links = []
     contact_links = []
