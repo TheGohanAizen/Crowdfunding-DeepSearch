@@ -3,7 +3,7 @@ services:
     name: crowdfunding-deepsearch-api
     runtime: python
     plan: free
-    buildCommand: "pip install -r requirements.txt && python3 -m py_compile backend/server.py backend/protected_app.py backend/smoke_test.py"
+    buildCommand: "pip install -r requirements.txt && python3 -m py_compile backend/server.py backend/protected_app.py backend/smoke_test.py && python3 backend/smoke_test.py"
     startCommand: "gunicorn --bind 0.0.0.0:$PORT backend.protected_app:app"
     healthCheckPath: /api/health
     envVars:
