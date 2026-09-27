@@ -109,7 +109,7 @@ def build_discovery_queries(need, location, scope="local"):
     return queries
 
 
-def normalize_candidate(item, lane, query, source="web-search"):
+def normalize_candidate(item, lane, query, source="web-search", geographic_stage="unspecified"):
     """Normalize provider output into the internal candidate schema."""
     url = item.get("link") or item.get("url") or ""
     title = item.get("title") or "Untitled result"
@@ -168,7 +168,7 @@ def retrieve_google_candidates(search_plan, per_lane=5):
             with urlopen(request, timeout=8) as response:
                 payload = json.loads(response.read().decode("utf-8"))
             lane_candidates = [
-                normalize_candidate(item, plan["lane"], plan["query"], source="google-custom-search")
+                normalize_candidate(item, plan["lane"], plan["query"], source="google-custom-search", geographic_stage=plan.get("geographic_stage", "unspecified"))
                 for item in payload.get("items", [])
             ]
             return lane_candidates, None
@@ -223,7 +223,7 @@ def retrieve_brave_candidates(search_plan, per_lane=5):
             with urlopen(request, timeout=8) as response:
                 payload = json.loads(response.read().decode("utf-8"))
             lane_candidates = [
-                normalize_candidate(item, plan["lane"], plan["query"], source="brave-search")
+                normalize_candidate(item, plan["lane"], plan["query"], source="brave-search", geographic_stage=plan.get("geographic_stage", "unspecified"))
                 for item in payload.get("web", {}).get("results", [])
             ]
             return lane_candidates, None
@@ -289,7 +289,7 @@ def retrieve_tavily_candidates(search_plan, per_lane=5):
             with urlopen(request, timeout=8) as response:
                 payload = json.loads(response.read().decode("utf-8"))
             lane_candidates = [
-                normalize_candidate(item, plan["lane"], plan["query"], source="tavily-search")
+                normalize_candidate(item, plan["lane"], plan["query"], source="tavily-search", geographic_stage=plan.get("geographic_stage", "unspecified"))
                 for item in payload.get("results", [])
             ]
             return lane_candidates, None
