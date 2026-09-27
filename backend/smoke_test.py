@@ -151,7 +151,12 @@ try:
         assert error.code == 400
 
     # Static, no-credit source-page checks for service-area language.
-    from backend.server import extract_page_signals
+    import importlib.util
+    server_path = os.path.join(ROOT, "backend", "server.py")
+    spec = importlib.util.spec_from_file_location("crowdfunding_server", server_path)
+    crowdfunding_server = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(crowdfunding_server)
+    extract_page_signals = crowdfunding_server.extract_page_signals
 
     statewide_html = """
     <html><head><title>Transportation Help</title></head>
