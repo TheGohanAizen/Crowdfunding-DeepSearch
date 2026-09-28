@@ -256,6 +256,9 @@ button:hover { background: #1d4ed8; }
             <option value="low_relevance">Low relevance</option>
         </select>
         <span id="visibleCount" class="type"></span>
+        <button type="button" onclick="exportTracking()">Export tracking</button>
+        <button type="button" onclick="document.getElementById('trackingImport').click()">Import tracking</button>
+        <input id="trackingImport" type="file" accept="application/json" style="display:none" onchange="importTracking(event)">
     </div>
 
     <div id="resultList"></div>
@@ -323,6 +326,75 @@ function escapeHtml(value) {
         .replaceAll(">", "&gt;")
         .replaceAll('"', "&quot;")
         .replaceAll("'", "&#039;");
+}
+
+const TRACKING_PREFIX = "crowdfunding-deepsearch:";
+
+function readTrackingRecord(key) {
+    try {
+        const raw = localStorage.getItem(key);
+        if (!raw) return null;
+        try {
+            const parsed = JSON.parse(raw);
+            if (parsed && typeof parsed === "object" && parsed.status) return parsed;
+        } catch (error) {}
+        return {status: raw, updated_at: null};
+    } catch (error) {
+        return null;
+    }
+}
+
+function writeTrackingRecord(key, status) {
+    const record = {status: status, updated_at: new Date().toISOString()};
+    try { localStorage.setItem(key, JSON.stringify(record)); } catch (error) {}
+    return record;
+}
+
+function trackingLabel(record) {
+    if (!record || !record.status) return "Tracked status: not started";
+    const when = record.updated_at ? " • updated " + new Date(record.updated_at).toLocaleString() : "";
+    return "Tracked status: " + record.status + when;
+}
+
+function exportTracking() {
+    const records = {};
+    try {
+        for (let i = 0; i < localStorage.length; i += 1) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith(TRACKING_PREFIX)) records[key] = readTrackingRecord(key);
+        }
+    } catch (error) {}
+    const blob = new Blob([JSON.stringify({version: 1, exported_at: new Date().toISOString(), records: records}, null, 2)], {type: "application/json"});
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "crowdfunding-deepsearch-tracking.json";
+    link.click();
+    URL.revokeObjectURL(url);
+}
+
+function importTracking(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function() {
+        try {
+            const payload = JSON.parse(reader.result);
+            const records = payload && payload.records ? payload.records : {};
+            Object.keys(records).forEach(function(key) {
+                if (!key.startsWith(TRACKING_PREFIX)) return;
+                const record = records[key];
+                if (record && ["saved", "contacted", "responded"].includes(record.status)) {
+                    localStorage.setItem(key, JSON.stringify(record));
+                }
+            });
+            alert("Tracking history imported. Run or reopen the matching discovery results to see restored statuses.");
+        } catch (error) {
+            alert("That tracking file could not be imported.");
+        }
+        event.target.value = "";
+    };
+    reader.readAsText(file);
 }
 
 async function runDiscovery() {
@@ -459,16 +531,15 @@ async function runDiscovery() {
             const sourceLink = item.url
                 ? '<a href="' + escapeHtml(item.url) + '" target="_blank" rel="noopener noreferrer" style="color:#93c5fd">Open source page</a>'
                 : "No source URL";
-            const trackingKey = "crowdfunding-deepsearch:" + (item.url || item.name || geographicStage);
-            let trackedState = "";
-            try { trackedState = localStorage.getItem(trackingKey) || ""; } catch (error) {}
+            const trackingKey = TRACKING_PREFIX + (item.url || item.name || geographicStage);
+            const trackedRecord = readTrackingRecord(trackingKey);
             const trackingHtml =
                 '<div class="tracking-actions">' +
                 '<button type="button" data-track="saved">Save for review</button>' +
                 '<button type="button" data-track="contacted">Mark contacted</button>' +
                 '<button type="button" data-track="responded">Mark response</button>' +
                 '</div><div class="tracking-state">' +
-                (trackedState ? 'Tracked status: ' + escapeHtml(trackedState) : 'Tracked status: not started') +
+                escapeHtml(trackingLabel(trackedRecord)) +
                 '</div>';
 
             card.innerHTML =
@@ -504,9 +575,9 @@ async function runDiscovery() {
             card.querySelectorAll("[data-track]").forEach(function(trackButton) {
                 trackButton.addEventListener("click", function() {
                     const state = trackButton.dataset.track || "saved";
-                    try { localStorage.setItem(trackingKey, state); } catch (error) {}
+                    const record = writeTrackingRecord(trackingKey, state);
                     const stateLabel = card.querySelector(".tracking-state");
-                    if (stateLabel) stateLabel.textContent = "Tracked status: " + state;
+                    if (stateLabel) stateLabel.textContent = trackingLabel(record);
                 });
             });
             list.appendChild(card);
