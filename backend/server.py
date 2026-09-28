@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import hashlib
 import ipaddress
 import socket
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -29,6 +30,21 @@ MAX_SEARCH_LANES = env_int("MAX_SEARCH_LANES", 4, 1, 4)
 MAX_RESULTS_PER_LANE = env_int("MAX_RESULTS_PER_LANE", 4, 1, 10)
 ALLOWED_ORIGIN = os.environ.get("ALLOWED_ORIGIN", "*")
 ALLOWED_ORIGINS = {origin.strip() for origin in ALLOWED_ORIGIN.split(",") if origin.strip()}
+
+
+def stable_id(prefix, *parts):
+    """Create a deterministic, non-secret identifier for tracking records."""
+    payload = "\x1f".join(str(part or "").strip().lower() for part in parts)
+    digest = hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
+    return prefix + "_" + digest
+
+
+def campaign_tracking_id(need, location, goal):
+    return stable_id("campaign", need, location, goal)
+
+
+def opportunity_tracking_id(candidate):
+    return stable_id("opportunity", candidate.get("url"), candidate.get("name"), candidate.get("type"))
 
 
 
@@ -138,6 +154,7 @@ def normalize_candidate(item, lane, query, source="web-search", geographic_stage
     title = item.get("title") or "Untitled result"
     snippet = item.get("snippet") or item.get("description") or item.get("content") or ""
     return {
+        "tracking_id": stable_id("opportunity", url, title, lane),
         "name": title,
         "type": lane,
         "url": url,
@@ -897,8 +914,13 @@ def build_discovery_response(data):
         else:
             item["review_status"] = "low_relevance"
 
+    campaign_id = campaign_tracking_id(need, location, goal)
+    for item in source_checked_candidates:
+        item.setdefault("tracking_id", opportunity_tracking_id(item))
+
     return {
         "status": "success",
+        "campaign_tracking_id": campaign_id,
         "query": {"need": need, "location": location, "goal": goal, "scope": scope},
         "discovery": {
             "stage": "source-verification-v1",
