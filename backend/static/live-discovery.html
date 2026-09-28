@@ -378,6 +378,26 @@ async function runDiscovery() {
             return;
         }
 
+        const counts = data.results.reduce(function(acc, item) {
+            const area = item.service_area_status || "not_confirmed";
+            const review = item.review_status || "unverified";
+            if (area === "confirmed") acc.confirmed += 1;
+            else if (area === "possible") acc.possible += 1;
+            else acc.notConfirmed += 1;
+            if (review === "needs_review") acc.needsReview += 1;
+            return acc;
+        }, {confirmed: 0, possible: 0, notConfirmed: 0, needsReview: 0});
+
+        const resultOverview = document.createElement("div");
+        resultOverview.className = "notice";
+        resultOverview.innerHTML =
+            "<strong>Opportunity overview:</strong> " + data.results.length + " results" +
+            " • " + counts.confirmed + " confirmed service-area matches" +
+            " • " + counts.possible + " possible service-area matches" +
+            " • " + counts.needsReview + " needing source review" +
+            "<br><small>These are discovery/screening counts, not eligibility determinations.</small>";
+        list.appendChild(resultOverview);
+
         data.results.forEach(function(item) {
             const card = document.createElement("div");
             card.className = "result-card";
