@@ -31,9 +31,32 @@ ALLOWED_ORIGIN = os.environ.get("ALLOWED_ORIGIN", "*")
 ALLOWED_ORIGINS = {origin.strip() for origin in ALLOWED_ORIGIN.split(",") if origin.strip()}
 
 
+
+def parse_location_parts(location):
+    """Parse a simple comma-delimited campaign location without external geocoding."""
+    raw = str(location or "").strip()
+    if not raw or raw == "Location not specified":
+        return {"raw": raw, "city": "", "region": "", "country": ""}
+    parts = [part.strip() for part in raw.split(",") if part.strip()]
+    if len(parts) >= 3:
+        return {"raw": raw, "city": parts[0], "region": parts[1], "country": ", ".join(parts[2:])}
+    if len(parts) == 2:
+        return {"raw": raw, "city": parts[0], "region": "", "country": parts[1]}
+    return {"raw": raw, "city": parts[0], "region": "", "country": ""}
+
+
+def geographic_terms(location):
+    """Return bounded geographic terms for progressive discovery."""
+    parts = parse_location_parts(location)
+    local = ", ".join(x for x in (parts["city"], parts["region"], parts["country"]) if x)
+    state = ", ".join(x for x in (parts["region"], parts["country"]) if x) or local
+    national = parts["country"] or state or local
+    return {"local": local, "state": state, "national": national, "worldwide": "international worldwide"}
+
 def build_discovery_queries(need, location, scope="local"):
     """Build bounded geographic search lanes without claiming eligibility."""
     location_term = location if location and location != "Location not specified" else ""
+    geo_terms = geographic_terms(location_term)
     scope = str(scope or "local").strip().lower()
     allowed_scopes = {"local", "state", "national", "worldwide", "automatic"}
     if scope not in allowed_scopes:
@@ -90,9 +113,9 @@ def build_discovery_queries(need, location, scope="local"):
             # Automatic mode uses the bounded lane budget to sample progressively
             # broader service areas. Later stages can deepen any promising tier.
             stages = [
-                ("local", location_term),
-                ("state", (location_term + " statewide").strip()),
-                ("national", (location_term + " national nationwide serves applicants").strip()),
+                ("local", geo_terms["local"]),
+                ("state", (geo_terms["state"] + " statewide").strip()),
+                ("national", (geo_terms["national"] + " national nationwide serves applicants").strip()),
                 ("worldwide", "international worldwide"),
             ]
             geo_stage, geography = stages[min(index, len(stages) - 1)]
