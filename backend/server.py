@@ -655,6 +655,14 @@ def enrich_with_source_checks(candidates, location="", max_candidates=None):
             item["service_area_status"] = service_status
             item["service_area_evidence"] = service_evidence
             source_check["service_area_status"] = service_status
+            # Geographic coverage improves ranking only when the source supports it.
+            # This is not an eligibility determination.
+            if service_status == "confirmed":
+                item["verification_score"] = min(100, item.get("verification_score", 0) + 12)
+                item.setdefault("verification_signals", []).append("service_area_confirmed")
+            elif service_status == "possible":
+                item["verification_score"] = min(100, item.get("verification_score", 0) + 4)
+                item.setdefault("verification_signals", []).append("service_area_possible")
             if source_check.get("program_evidence_found"):
                 item["verification_score"] = min(100, item.get("verification_score", 0) + 10)
             if source_check.get("application_route_found"):
