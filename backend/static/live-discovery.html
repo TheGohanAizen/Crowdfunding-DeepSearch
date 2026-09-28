@@ -234,6 +234,23 @@ button:hover { background: #1d4ed8; }
 
     <p id="resultSummary"></p>
 
+    <div id="resultToolbar" style="display:none; margin:14px 0;">
+        <label for="resultFilter">Filter Results</label>
+        <select id="resultFilter" onchange="applyResultFilter()">
+            <option value="all">All opportunities</option>
+            <option value="confirmed_area">Confirmed service area</option>
+            <option value="possible_area">Possible service area</option>
+            <option value="local">Local</option>
+            <option value="state">State / province</option>
+            <option value="national">National</option>
+            <option value="worldwide">Worldwide</option>
+            <option value="needs_review">Needs review</option>
+            <option value="unverified">Unverified</option>
+            <option value="low_relevance">Low relevance</option>
+        </select>
+        <span id="visibleCount" class="type"></span>
+    </div>
+
     <div id="resultList"></div>
 
 </div>
@@ -281,7 +298,10 @@ function applyResultFilter() {
     cards.forEach(function(card) {
         const stage = card.dataset.stage || "unspecified";
         const status = card.dataset.status || "unverified";
-        const show = filter === "all" || filter === stage || filter === status;
+        const serviceArea = card.dataset.serviceArea || "not_confirmed";
+        const show = filter === "all" || filter === stage || filter === status ||
+            (filter === "confirmed_area" && serviceArea === "confirmed") ||
+            (filter === "possible_area" && serviceArea === "possible");
         card.style.display = show ? "" : "none";
         if (show) visible += 1;
     });
@@ -346,6 +366,7 @@ async function runDiscovery() {
             " lanes × " + escapeHtml(data.discovery.results_per_lane || "?") + " results" +
             "<br><strong>Geographic stages:</strong> " + escapeHtml((data.search_plan || []).map(function(item) { return item.geographic_stage || "unspecified"; }).join(" → "));
         list.appendChild(meta);
+        document.getElementById("resultToolbar").style.display = "block";
 
         if (!data.results || data.results.length === 0) {
             const empty = document.createElement("p");
@@ -380,6 +401,7 @@ async function runDiscovery() {
             const rankingExplanation = rankingReasons.length ? rankingReasons.join(" • ") : "Ranking is based on search relevance and available verification signals.";
             card.dataset.stage = geographicStage;
             card.dataset.status = reviewStatus;
+            card.dataset.serviceArea = item.service_area_status || "not_confirmed";
             const reviewLabel = reviewStatus === "needs_review" ? "Needs review"
                 : reviewStatus === "low_relevance" ? "Low relevance" : "Unverified";
             const safeStatusClass = ["needs_review", "unverified", "low_relevance"].includes(reviewStatus)
