@@ -370,6 +370,14 @@ async function runDiscovery() {
                 ? "Eligibility language found — requirements still need confirmation"
                 : "Not confirmed";
             const reviewStatus = item.review_status || "unverified";\n            const geographicStage = item.geographic_stage || "unspecified";\n            const serviceAreaStatus = item.service_area_status === "confirmed" ? "Confirmed from source evidence" : item.service_area_status === "possible" ? "Possible — needs confirmation" : "Not confirmed";\n            const serviceAreaEvidence = (item.service_area_evidence || []).join(", ") || "No service-area language detected";
+            const rankingReasons = [];
+            if ((item.verification_signals || []).includes("service_area_confirmed")) rankingReasons.push("Confirmed geographic service-area evidence");
+            else if ((item.verification_signals || []).includes("service_area_possible")) rankingReasons.push("Possible geographic service-area evidence");
+            if (sourceCheck.program_evidence_found) rankingReasons.push("Program/assistance language found on source");
+            if (sourceCheck.application_route_found) rankingReasons.push("Application route detected");
+            if (sourceCheck.contact_route_found) rankingReasons.push("Contact route detected");
+            if (sourceCheck.eligibility_language_found) rankingReasons.push("Eligibility language detected (requirements not verified)");
+            const rankingExplanation = rankingReasons.length ? rankingReasons.join(" • ") : "Ranking is based on search relevance and available verification signals.";
             card.dataset.stage = geographicStage;
             card.dataset.status = reviewStatus;
             const reviewLabel = reviewStatus === "needs_review" ? "Needs review"
@@ -399,6 +407,8 @@ async function runDiscovery() {
                 '<div class="info"><div class="info-title">CONTACT</div>' + escapeHtml(contactStatus) + '</div>' +
                 '<div class="info"><div class="info-title">ELIGIBILITY</div>' + escapeHtml(eligibilityStatus) + '</div>' +\n                '<div class="info"><div class="info-title">DISCOVERY TIER</div>' + escapeHtml(geographicStage) + '</div>' +\n                '<div class="info"><div class="info-title">SERVICE AREA</div>' + escapeHtml(serviceAreaStatus) + '<br><small>' + escapeHtml(serviceAreaEvidence) + '</small></div>' +
                 '</div>' +
+                '<div class="match-reason"><strong>Why this ranked here:</strong> ' +
+                escapeHtml(rankingExplanation) + '</div>' +
                 '<div class="match-reason"><strong>Search evidence:</strong> ' +
                 escapeHtml(item.snippet || "No search snippet available.") + '</div>' +
                 (actionLinks.length ? '<div class="action-links">' + actionLinks.join("") + '</div>' : '') +
