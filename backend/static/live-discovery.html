@@ -416,6 +416,13 @@ async function runDiscovery() {
             const geographicStage = item.geographic_stage || "unspecified";
             const serviceAreaStatus = item.service_area_status === "confirmed" ? "Confirmed from source evidence" : item.service_area_status === "possible" ? "Possible — needs confirmation" : "Not confirmed";
             const serviceAreaEvidence = (item.service_area_evidence || []).join(", ") || "No service-area language detected";
+            const nextAction = item.recommended_next_action || {};
+            const nextActionUrl = nextAction.url || "";
+            const nextActionHtml = nextActionUrl
+                ? '<a href="' + escapeHtml(nextActionUrl) + '" target="_blank" rel="noopener noreferrer">' +
+                    escapeHtml(nextAction.label || "Review next action") + '</a>' +
+                    '<br><small>Manual review required before any submission or outreach.</small>'
+                : 'Verify the source before outreach';
             const rankingReasons = [];
             if ((item.verification_signals || []).includes("service_area_confirmed")) rankingReasons.push("Confirmed geographic service-area evidence");
             else if ((item.verification_signals || []).includes("service_area_possible")) rankingReasons.push("Possible geographic service-area evidence");
@@ -458,6 +465,7 @@ async function runDiscovery() {
                 '</div>' +
                 '<div class="match-reason"><strong>Why this ranked here:</strong> ' +
                 escapeHtml(rankingExplanation) + '</div>' +
+                '<div class="match-reason"><strong>Recommended next action:</strong> ' + nextActionHtml + '</div>' +
                 '<div class="match-reason"><strong>Search evidence:</strong> ' +
                 escapeHtml(item.snippet || "No search snippet available.") + '</div>' +
                 (actionLinks.length ? '<div class="action-links">' + actionLinks.join("") + '</div>' : '') +
