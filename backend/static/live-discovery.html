@@ -345,9 +345,28 @@ function readTrackingRecord(key) {
 }
 
 function writeTrackingRecord(key, status) {
-    const record = {status: status, updated_at: new Date().toISOString()};
+    const previous = readTrackingRecord(key) || {};
+    const now = new Date().toISOString();
+    const history = Array.isArray(previous.history) ? previous.history.slice(-24) : [];
+    if (!history.length || history[history.length - 1].status !== status) {
+        history.push({status: status, at: now});
+    }
+    const record = {
+        status: status,
+        updated_at: now,
+        first_saved_at: previous.first_saved_at || now,
+        history: history
+    };
     try { localStorage.setItem(key, JSON.stringify(record)); } catch (error) {}
     return record;
+}
+
+function trackingHistoryLabel(record) {
+    if (!record || !Array.isArray(record.history) || !record.history.length) return "History: no activity yet";
+    return "History: " + record.history.map(function(entry) {
+        const when = entry.at ? new Date(entry.at).toLocaleDateString() : "unknown date";
+        return entry.status + " (" + when + ")";
+    }).join(" → ");
 }
 
 function trackingLabel(record) {
@@ -542,6 +561,8 @@ async function runDiscovery() {
                 '<button type="button" data-track="responded">Mark response</button>' +
                 '</div><div class="tracking-state">' +
                 escapeHtml(trackingLabel(trackedRecord)) +
+                '</div><div class="tracking-history">' +
+                escapeHtml(trackingHistoryLabel(trackedRecord)) +
                 '</div>';
 
             card.innerHTML =
@@ -580,6 +601,8 @@ async function runDiscovery() {
                     const record = writeTrackingRecord(trackingKey, state);
                     const stateLabel = card.querySelector(".tracking-state");
                     if (stateLabel) stateLabel.textContent = trackingLabel(record);
+                    const historyLabel = card.querySelector(".tracking-history");
+                    if (historyLabel) historyLabel.textContent = trackingHistoryLabel(record);
                 });
             });
             list.appendChild(card);
