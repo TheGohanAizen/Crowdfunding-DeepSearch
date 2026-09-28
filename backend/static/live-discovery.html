@@ -531,7 +531,9 @@ async function runDiscovery() {
             const sourceLink = item.url
                 ? '<a href="' + escapeHtml(item.url) + '" target="_blank" rel="noopener noreferrer" style="color:#93c5fd">Open source page</a>'
                 : "No source URL";
-            const trackingKey = TRACKING_PREFIX + (item.url || item.name || geographicStage);
+            const campaignTrackingId = data.campaign_tracking_id || "campaign_unknown";
+            const opportunityTrackingId = item.tracking_id || (item.url || item.name || geographicStage);
+            const trackingKey = TRACKING_PREFIX + campaignTrackingId + ":" + opportunityTrackingId;
             const trackedRecord = readTrackingRecord(trackingKey);
             const trackingHtml =
                 '<div class="tracking-actions">' +
