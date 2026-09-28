@@ -568,7 +568,39 @@ def extract_page_signals(html, base_url):
         "page_base_url": base_url
     }
 
-def enrich_with_source_checks(candidates, max_candidates=None):
+def classify_service_area(signals, location):
+    """Conservatively classify source-page service-area evidence for a campaign location."""
+    evidence = list(signals.get("service_area_evidence") or [])
+    if not evidence:
+        return "not_confirmed", []
+
+    page_text = " ".join([
+        signals.get("page_title", ""),
+        " ".join(evidence),
+    ]).lower()
+    tokens = [
+        token.strip().lower()
+        for token in (location or "").replace(",", " ").split()
+        if len(token.strip()) > 2 and token.lower() not in {"united", "states"}
+    ]
+
+    explicit_location = [token for token in tokens if token in page_text]
+    if explicit_location and any(term in evidence for term in (
+        "service area", "areas we serve", "serving residents", "serves residents",
+        "available statewide", "statewide program"
+    )):
+        return "confirmed", evidence[:6]
+
+    if any(term in evidence for term in (
+        "available statewide", "statewide program", "nationwide",
+        "available nationwide", "throughout the united states",
+        "international applicants", "available worldwide"
+    )):
+        return "possible", evidence[:6]
+
+    return "possible", evidence[:6]
+
+def enrich_with_source_checks(candidates, location="", max_candidates=None):
     """Visit a limited number of top candidates and record source-level signals."""
     if max_candidates is None:
         max_candidates = MAX_SOURCE_CHECKS
@@ -588,6 +620,10 @@ def enrich_with_source_checks(candidates, max_candidates=None):
         }
         if page.get("reachable"):
             source_check.update(extract_page_signals(page.get("html", ""), page.get("final_url", item.get("url", ""))))
+            service_status, service_evidence = classify_service_area(source_check, location)
+            item["service_area_status"] = service_status
+            item["service_area_evidence"] = service_evidence
+            source_check["service_area_status"] = service_status
             if source_check.get("program_evidence_found"):
                 item["verification_score"] = min(100, item.get("verification_score", 0) + 10)
             if source_check.get("application_route_found"):
@@ -752,7 +788,7 @@ def build_discovery_response(data):
     search_plan = search_plan[:MAX_SEARCH_LANES]
     retrieval = retrieve_candidates(search_plan, per_lane=MAX_RESULTS_PER_LANE)
     verified_candidates = verify_candidates(retrieval["candidates"], need, location)
-    source_checked_candidates = enrich_with_source_checks(verified_candidates)[:MAX_DISCOVERY_RESULTS]
+    source_checked_candidates = enrich_with_source_checks(verified_candidates, location=location)[:MAX_DISCOVERY_RESULTS]
 
     for item in source_checked_candidates:
         score = item.get("verification_score", 0)
