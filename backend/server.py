@@ -691,6 +691,33 @@ def enrich_with_source_checks(candidates, location="", max_candidates=None):
             source_check["error"] = page.get("error", "unreachable")
             item.setdefault("verification_concerns", []).append("source_page_unreachable")
 
+        application_links = source_check.get("application_links") or []
+        contact_links = source_check.get("contact_links") or []
+        if application_links:
+            item["recommended_next_action"] = {
+                "type": "review_application",
+                "label": "Review application route",
+                "url": application_links[0],
+                "automation_ready": False,
+                "requires_user_review": True
+            }
+        elif contact_links:
+            item["recommended_next_action"] = {
+                "type": "review_contact",
+                "label": "Review contact route",
+                "url": contact_links[0],
+                "automation_ready": False,
+                "requires_user_review": True
+            }
+        else:
+            item["recommended_next_action"] = {
+                "type": "verify_source",
+                "label": "Verify source before outreach",
+                "url": item.get("url", ""),
+                "automation_ready": False,
+                "requires_user_review": True
+            }
+
         if source_check.get("application_route_found") or source_check.get("contact_route_found"):
             item["verification_stage"] = "application_or_contact_found"
         elif source_check.get("program_evidence_found"):
