@@ -566,11 +566,27 @@ def extract_page_signals(html, base_url):
     contact_language = any(term in text for term in contact_terms)
     service_area_evidence = [term for term in service_area_terms if term in text]
 
+    def safe_source_link(href):
+        """Keep only HTTP(S) links on the same source host before showing them to users."""
+        try:
+            absolute = urljoin(base_url, href)
+            parsed_link = urlparse(absolute)
+            parsed_base = urlparse(base_url)
+        except Exception:
+            return ""
+        if parsed_link.scheme not in {"http", "https"} or not parsed_link.hostname:
+            return ""
+        if not parsed_base.hostname or parsed_link.hostname.lower() != parsed_base.hostname.lower():
+            return ""
+        return absolute
+
     application_links = []
     contact_links = []
     for href in parser.links:
         lowered = href.lower()
-        absolute = urljoin(base_url, href)
+        absolute = safe_source_link(href)
+        if not absolute:
+            continue
         if any(term in lowered for term in ("apply", "application", "assistance", "get-help")):
             application_links.append(absolute)
         if "contact" in lowered:
