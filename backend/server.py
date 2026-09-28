@@ -968,14 +968,32 @@ def create_app():
         response.headers["Cache-Control"] = "no-store"
         return response
 
+    def deployment_info():
+        """Expose non-secret deployment identity for automated production verification."""
+        return {
+            "commit": os.environ.get("RENDER_GIT_COMMIT", "unknown"),
+            "service_id": os.environ.get("RENDER_SERVICE_ID", "unknown"),
+        }
+
     @app.get("/")
     def root():
         return jsonify({
             "service": "Crowdfunding DeepSearch Backend",
             "status": "ok",
-            "version": "1.12",
+            "version": "1.13",
             "health": "/api/health",
+            "deployment": "/api/deployment",
             "discovery": "/api/discover"
+        })
+
+    @app.get("/api/deployment")
+    def deployment():
+        info = deployment_info()
+        return jsonify({
+            "status": "ok",
+            "service": "Crowdfunding DeepSearch Backend",
+            "commit": info["commit"],
+            "service_id": info["service_id"]
         })
 
     @app.get("/api/health")
@@ -983,7 +1001,8 @@ def create_app():
         return jsonify({
             "status": "ok",
             "service": "Crowdfunding DeepSearch Backend",
-            "version": "1.11"
+            "version": "1.13",
+            "deployment_commit": deployment_info()["commit"]
         })
 
     @app.get("/api/test-discovery")
