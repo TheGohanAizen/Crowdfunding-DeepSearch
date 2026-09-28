@@ -121,6 +121,7 @@ def normalize_candidate(item, lane, query, source="web-search", geographic_stage
         "snippet": snippet,
         "source": source,
         "source_query": query,
+        "geographic_stage": geographic_stage,
         "verification": "discovered_unverified",
         "score": None
     }
