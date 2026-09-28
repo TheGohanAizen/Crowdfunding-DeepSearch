@@ -531,6 +531,7 @@ def extract_page_signals(html, base_url):
             "eligibility_language_found": False,
             "service_area_language_found": False,
             "service_area_evidence": [],
+            "page_text_excerpt": "",
             "application_links": [],
             "contact_links": [],
             "evidence_terms": []
@@ -586,6 +587,7 @@ def extract_page_signals(html, base_url):
         "eligibility_language_found": eligibility_language,
         "service_area_language_found": bool(service_area_evidence),
         "service_area_evidence": service_area_evidence[:6],
+        "page_text_excerpt": text[:5000],
         "application_links": application_links,
         "contact_links": contact_links,
         "evidence_terms": evidence_terms[:8],
@@ -593,36 +595,41 @@ def extract_page_signals(html, base_url):
     }
 
 def classify_service_area(signals, location):
-    """Conservatively classify source-page service-area evidence for a campaign location."""
+    """Compare source service-area language with structured campaign geography."""
     evidence = list(signals.get("service_area_evidence") or [])
     if not evidence:
         return "not_confirmed", []
 
+    parts = parse_location_parts(location)
     page_text = " ".join([
         signals.get("page_title", ""),
+        signals.get("page_text_excerpt", ""),
         " ".join(evidence),
     ]).lower()
-    tokens = [
-        token.strip().lower()
-        for token in (location or "").replace(",", " ").split()
-        if len(token.strip()) > 2 and token.lower() not in {"united", "states"}
-    ]
+    city = parts.get("city", "").lower()
+    region = parts.get("region", "").lower()
+    country = parts.get("country", "").lower()
+    matched = []
+    for label, value in (("city", city), ("region", region), ("country", country)):
+        if value and value in page_text:
+            matched.append(label + ":" + value)
 
-    explicit_location = [token for token in tokens if token in page_text]
-    if explicit_location and any(term in evidence for term in (
-        "service area", "areas we serve", "serving residents", "serves residents",
-        "available statewide", "statewide program"
-    )):
-        return "confirmed", evidence[:6]
+    local_language = any(term in evidence for term in ("service area", "areas we serve", "serving residents", "serves residents"))
+    statewide_language = any(term in evidence for term in ("available statewide", "statewide program"))
+    national_language = any(term in evidence for term in ("nationwide", "available nationwide", "throughout the united states"))
+    worldwide_language = any(term in evidence for term in ("international applicants", "available worldwide"))
 
-    if any(term in evidence for term in (
-        "available statewide", "statewide program", "nationwide",
-        "available nationwide", "throughout the united states",
-        "international applicants", "available worldwide"
-    )):
+    if city and "city:" + city in matched and local_language:
+        return "confirmed", (evidence + matched)[:8]
+    if region and "region:" + region in matched and (local_language or statewide_language):
+        return "confirmed", (evidence + matched)[:8]
+    if country and "country:" + country in matched and national_language:
+        return "confirmed", (evidence + matched)[:8]
+    if worldwide_language:
         return "possible", evidence[:6]
-
-    return "possible", evidence[:6]
+    if statewide_language or national_language or local_language:
+        return "possible", (evidence + matched)[:8]
+    return "not_confirmed", evidence[:6]
 
 def enrich_with_source_checks(candidates, location="", max_candidates=None):
     """Visit a limited number of top candidates and record source-level signals."""
