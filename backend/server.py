@@ -98,13 +98,13 @@ def build_discovery_queries(need, location, scope="local"):
 
     for index, (lane, terms) in enumerate(selected):
         if scope == "local":
-            geography = location_term
+            geography = geo_terms["local"]
             geo_stage = "local"
         elif scope == "state":
-            geography = (location_term + " statewide").strip()
+            geography = (geo_terms["state"] + " statewide").strip()
             geo_stage = "state"
         elif scope == "national":
-            geography = (location_term + " national nationwide serves applicants").strip()
+            geography = (geo_terms["national"] + " national nationwide serves applicants").strip()
             geo_stage = "national"
         elif scope == "worldwide":
             geography = "international worldwide"
