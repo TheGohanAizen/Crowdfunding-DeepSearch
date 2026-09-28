@@ -693,6 +693,21 @@ def enrich_with_source_checks(candidates, location="", max_candidates=None):
 
         application_links = source_check.get("application_links") or []
         contact_links = source_check.get("contact_links") or []
+        outreach_readiness = {
+            "source_reachable": bool(source_check.get("reachable")),
+            "service_area_confirmed": item.get("service_area_status") == "confirmed",
+            "application_route_found": bool(application_links),
+            "contact_route_found": bool(contact_links),
+            "eligibility_requires_confirmation": True,
+            "safe_for_automatic_submission": False
+        }
+        if application_links and item.get("service_area_status") == "confirmed":
+            outreach_readiness["status"] = "review_application"
+        elif application_links or contact_links:
+            outreach_readiness["status"] = "review_route"
+        else:
+            outreach_readiness["status"] = "verify_source"
+        item["outreach_readiness"] = outreach_readiness
         if application_links:
             item["recommended_next_action"] = {
                 "type": "review_application",
