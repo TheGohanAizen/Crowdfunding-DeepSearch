@@ -417,6 +417,12 @@ async function runDiscovery() {
             const serviceAreaStatus = item.service_area_status === "confirmed" ? "Confirmed from source evidence" : item.service_area_status === "possible" ? "Possible — needs confirmation" : "Not confirmed";
             const serviceAreaEvidence = (item.service_area_evidence || []).join(", ") || "No service-area language detected";
             const nextAction = item.recommended_next_action || {};
+            const outreach = item.outreach_readiness || {};
+            const outreachStatus = outreach.status === "review_application"
+                ? "Application route ready for manual review"
+                : outreach.status === "review_route"
+                    ? "Route found — verify fit before outreach"
+                    : "Source verification still needed";
             const nextActionUrl = nextAction.url || "";
             const nextActionHtml = nextActionUrl
                 ? '<a href="' + escapeHtml(nextActionUrl) + '" target="_blank" rel="noopener noreferrer">' +
@@ -465,6 +471,8 @@ async function runDiscovery() {
                 '</div>' +
                 '<div class="match-reason"><strong>Why this ranked here:</strong> ' +
                 escapeHtml(rankingExplanation) + '</div>' +
+                '<div class="match-reason"><strong>Outreach readiness:</strong> ' + escapeHtml(outreachStatus) +
+                '<br><small>Automatic submission: disabled. Eligibility and destination rules must be confirmed first.</small></div>' +
                 '<div class="match-reason"><strong>Recommended next action:</strong> ' + nextActionHtml + '</div>' +
                 '<div class="match-reason"><strong>Search evidence:</strong> ' +
                 escapeHtml(item.snippet || "No search snippet available.") + '</div>' +
