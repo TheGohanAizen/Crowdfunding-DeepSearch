@@ -206,7 +206,20 @@ try:
     assert neutral["service_area_language_found"] is False
     assert neutral["service_area_evidence"] == []
 
-    print("Integration smoke test passed: health, geographic expansion, discovery fallback, service-area evidence, discovery UI safeguards, and invalid input handling.")
+    unsafe_links_html = """
+    <html><body>
+      <a href="/apply">Apply here</a>
+      <a href="https://evil.example/apply">External application</a>
+      <a href="javascript:alert(1)">Application</a>
+      <a href="mailto:help@example.org">Contact us</a>
+      <a href="/contact">Contact us</a>
+    </body></html>
+    """
+    safe_links = extract_page_signals(unsafe_links_html, "https://example.org/help")
+    assert safe_links["application_links"] == ["https://example.org/apply"]
+    assert safe_links["contact_links"] == ["https://example.org/contact"]
+
+    print("Integration smoke test passed: health, geographic expansion, discovery fallback, service-area evidence, safe action links, discovery UI safeguards, and invalid input handling.")
 finally:
     process.terminate()
     try:
