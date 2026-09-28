@@ -152,6 +152,17 @@ try:
     except HTTPError as error:
         assert error.code == 400
 
+    # Static, no-credit UI checks. Literal backslash-n sequences previously broke
+    # CSS/JavaScript even though the Python backend smoke test still passed.
+    live_discovery_path = os.path.join(ROOT, "backend", "static", "live-discovery.html")
+    with open(live_discovery_path, "r", encoding="utf-8") as handle:
+        live_discovery_html = handle.read()
+    assert "\\n" not in live_discovery_html
+    assert 'id="resultFilter"' in live_discovery_html
+    assert 'value="confirmed_area"' in live_discovery_html
+    assert 'value="possible_area"' in live_discovery_html
+    assert 'card.dataset.serviceArea' in live_discovery_html
+
     # Static, no-credit source-page checks for service-area language.
     import importlib.util
     server_path = os.path.join(ROOT, "backend", "server.py")
@@ -195,7 +206,7 @@ try:
     assert neutral["service_area_language_found"] is False
     assert neutral["service_area_evidence"] == []
 
-    print("Integration smoke test passed: health, geographic expansion, discovery fallback, service-area evidence, and invalid input handling.")
+    print("Integration smoke test passed: health, geographic expansion, discovery fallback, service-area evidence, discovery UI safeguards, and invalid input handling.")
 finally:
     process.terminate()
     try:
