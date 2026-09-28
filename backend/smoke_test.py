@@ -87,7 +87,9 @@ try:
     assert international["query"]["scope"] == "national"
     assert international["discovery"]["geographic_scope"] == "national"
     assert all(item["geographic_stage"] == "national" for item in international["search_plan"])
-    assert all("Toronto, Ontario, Canada" in item["query"] for item in international["search_plan"])
+    assert all("Canada national nationwide serves applicants" in item["query"] for item in international["search_plan"])
+    assert all("Toronto" not in item["query"] for item in international["search_plan"])
+    assert all("Ontario" not in item["query"] for item in international["search_plan"])
     assert all("United States national" not in item["query"] for item in international["search_plan"])
 
     invalid_scope = Request(
@@ -157,6 +159,17 @@ try:
     crowdfunding_server = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(crowdfunding_server)
     extract_page_signals = crowdfunding_server.extract_page_signals
+    parse_location_parts = crowdfunding_server.parse_location_parts
+    build_discovery_queries = crowdfunding_server.build_discovery_queries
+
+    parsed = parse_location_parts("Austin, Texas, United States")
+    assert parsed == {"raw": "Austin, Texas, United States", "city": "Austin", "region": "Texas", "country": "United States"}
+    state_queries = build_discovery_queries("Transportation", "Austin, Texas, United States", "state")
+    assert all("Texas, United States statewide" in item["query"] for item in state_queries)
+    assert all("Austin" not in item["query"] for item in state_queries)
+    national_queries = build_discovery_queries("Transportation", "Austin, Texas, United States", "national")
+    assert all("United States national nationwide serves applicants" in item["query"] for item in national_queries)
+    assert all("Austin" not in item["query"] and "Texas" not in item["query"] for item in national_queries)
 
     statewide_html = """
     <html><head><title>Transportation Help</title></head>
