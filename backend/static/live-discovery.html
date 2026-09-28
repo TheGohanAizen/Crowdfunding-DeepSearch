@@ -147,6 +147,11 @@ button:hover { background: #1d4ed8; }
     color: #cbd5e1;
     line-height: 1.5;
 }
+        .tracking-actions { margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap; }
+        .tracking-actions button { background: #1f2937; border: 1px solid #475569; color: #e5e7eb; padding: 7px 10px; border-radius: 8px; cursor: pointer; }
+        .tracking-actions button:hover { border-color: #93c5fd; }
+        .tracking-state { margin-top: 8px; font-size: 0.86rem; color: #bfdbfe; }
+
 
 .status-row { margin-top: 12px; }
 .review-status { display:inline-block; padding:6px 10px; border-radius:16px; font-size:12px; font-weight:bold; text-transform:uppercase; letter-spacing:.03em; }
@@ -454,6 +459,17 @@ async function runDiscovery() {
             const sourceLink = item.url
                 ? '<a href="' + escapeHtml(item.url) + '" target="_blank" rel="noopener noreferrer" style="color:#93c5fd">Open source page</a>'
                 : "No source URL";
+            const trackingKey = "crowdfunding-deepsearch:" + (item.url || item.name || geographicStage);
+            let trackedState = "";
+            try { trackedState = localStorage.getItem(trackingKey) || ""; } catch (error) {}
+            const trackingHtml =
+                '<div class="tracking-actions">' +
+                '<button type="button" data-track="saved">Save for review</button>' +
+                '<button type="button" data-track="contacted">Mark contacted</button>' +
+                '<button type="button" data-track="responded">Mark response</button>' +
+                '</div><div class="tracking-state">' +
+                (trackedState ? 'Tracked status: ' + escapeHtml(trackedState) : 'Tracked status: not started') +
+                '</div>';
 
             card.innerHTML =
                 '<div class="result-top"><div><h3>' + escapeHtml(item.name) +
@@ -474,6 +490,7 @@ async function runDiscovery() {
                 '<div class="match-reason"><strong>Outreach readiness:</strong> ' + escapeHtml(outreachStatus) +
                 '<br><small>Automatic submission: disabled. Eligibility and destination rules must be confirmed first.</small></div>' +
                 '<div class="match-reason"><strong>Recommended next action:</strong> ' + nextActionHtml + '</div>' +
+                trackingHtml +
                 '<div class="match-reason"><strong>Search evidence:</strong> ' +
                 escapeHtml(item.snippet || "No search snippet available.") + '</div>' +
                 (actionLinks.length ? '<div class="action-links">' + actionLinks.join("") + '</div>' : '') +
@@ -484,6 +501,14 @@ async function runDiscovery() {
                 (sourceCheck.checked ? (sourceCheck.reachable ? "Yes" : "No") : "Not checked") +
                 '<br><strong>Concerns:</strong> ' + escapeHtml(concerns) +
                 '<br><strong>Eligibility verified:</strong> No — confirm requirements on the official source before outreach or application.</div>';
+            card.querySelectorAll("[data-track]").forEach(function(trackButton) {
+                trackButton.addEventListener("click", function() {
+                    const state = trackButton.dataset.track || "saved";
+                    try { localStorage.setItem(trackingKey, state); } catch (error) {}
+                    const stateLabel = card.querySelector(".tracking-state");
+                    if (stateLabel) stateLabel.textContent = "Tracked status: " + state;
+                });
+            });
             list.appendChild(card);
         });
 
