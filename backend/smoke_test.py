@@ -172,6 +172,19 @@ try:
     extract_page_signals = crowdfunding_server.extract_page_signals
     parse_location_parts = crowdfunding_server.parse_location_parts
     build_discovery_queries = crowdfunding_server.build_discovery_queries
+    campaign_tracking_id = crowdfunding_server.campaign_tracking_id
+    opportunity_tracking_id = crowdfunding_server.opportunity_tracking_id
+
+    first_campaign_id = campaign_tracking_id("Transportation", "Austin, Texas, United States", 10000)
+    second_campaign_id = campaign_tracking_id("Transportation", "Austin, Texas, United States", 10000)
+    assert first_campaign_id == second_campaign_id
+    assert first_campaign_id.startswith("campaign_")
+    changed_campaign_id = campaign_tracking_id("Housing Assistance", "Austin, Texas, United States", 10000)
+    assert changed_campaign_id != first_campaign_id
+
+    opportunity = {"url": "https://example.org/help", "name": "Example Help", "type": "Vehicle Assistance"}
+    assert opportunity_tracking_id(opportunity) == opportunity_tracking_id(dict(opportunity))
+    assert opportunity_tracking_id(opportunity).startswith("opportunity_")
 
     parsed = parse_location_parts("Austin, Texas, United States")
     assert parsed == {"raw": "Austin, Texas, United States", "city": "Austin", "region": "Texas", "country": "United States"}
@@ -219,7 +232,7 @@ try:
     assert safe_links["application_links"] == ["https://example.org/apply"]
     assert safe_links["contact_links"] == ["https://example.org/contact"]
 
-    print("Integration smoke test passed: health, geographic expansion, discovery fallback, service-area evidence, safe action links, discovery UI safeguards, and invalid input handling.")
+    print("Integration smoke test passed: health, geographic expansion, discovery fallback, service-area evidence, safe action links, stable tracking IDs, discovery UI safeguards, and invalid input handling.")
 finally:
     process.terminate()
     try:
