@@ -70,6 +70,28 @@ try:
     assert discovery["verification_policy"]["automatic_official_source_claims"] is False
 
 
+    audience_payload = json.dumps({
+        "need": "Transportation",
+        "location": "Austin, Texas, United States",
+        "scope": "automatic"
+    }).encode("utf-8")
+    audience_request = Request(
+        "http://127.0.0.1:8099/api/audience/plan",
+        data=audience_payload,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    status, audience = read_json(audience_request)
+    assert status == 200
+    assert audience["status"] == "success"
+    assert audience["audience"]["stage"] == "audience-planning-v1"
+    assert audience["audience"]["live_search"] is False
+    assert audience["audience"]["credits_used"] == 0
+    assert audience["audience"]["automatic_distribution"] is False
+    assert audience["safety_policy"]["review_required"] is True
+    assert audience["safety_policy"]["automatic_posting"] is False
+    assert [item["geographic_stage"] for item in audience["search_plan"]] == ["local", "state", "national", "worldwide"]
+
     international_payload = json.dumps({
         "need": "Transportation",
         "location": "Toronto, Ontario, Canada",
