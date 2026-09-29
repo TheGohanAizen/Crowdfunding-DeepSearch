@@ -270,6 +270,8 @@ try:
     assert 'data-audience-followup="week"' in live_discovery_html
     assert 'data-audience-followup="clear"' in live_discovery_html
     assert 'id="audienceFollowupCount"' in live_discovery_html
+    assert 'audience-history-state' in live_discovery_html
+    assert 'trackingHistoryLabel(existingAudienceTracking)' in live_discovery_html
 
     # Static, no-credit source-page checks for service-area language.
     import importlib.util
