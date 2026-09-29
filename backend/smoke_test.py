@@ -191,6 +191,11 @@ try:
     assert 'data-followup="week"' in live_discovery_html
     assert 'data-notes="edit"' in live_discovery_html
     assert 'function updateOutreachDashboard()' in live_discovery_html
+    assert 'id="audiencePlanButton"' in live_discovery_html
+    assert 'id="audienceResults"' in live_discovery_html
+    assert 'AUDIENCE_PLAN_URL' in live_discovery_html
+    assert 'function runAudiencePlan()' in live_discovery_html
+    assert 'No automatic posting' in live_discovery_html
 
     # Static, no-credit source-page checks for service-area language.
     import importlib.util
