@@ -249,6 +249,7 @@ button:hover { background: #1d4ed8; }
       <div><strong id="audienceReviewedCount">0</strong><span>Reviewed</span></div>
       <div><strong id="audienceContactedCount">0</strong><span>Contacted</span></div>
       <div><strong id="audienceNotStartedCount">0</strong><span>Not Started</span></div>
+      <div><strong id="audienceReviewProgress">0%</strong><span>Reviewed/Contacted</span></div>
     </div>
     <div class="filters" id="audienceFilters">
       <label>Audience view
@@ -458,6 +459,8 @@ function updateAudienceTrackingDashboard() {
     set("audienceReviewedCount", counts.reviewed);
     set("audienceContactedCount", counts.contacted);
     set("audienceNotStartedCount", counts.notStarted);
+    const reviewedPercent = cards.length ? Math.round(((counts.reviewed + counts.contacted) / cards.length) * 100) : 0;
+    set("audienceReviewProgress", reviewedPercent + "%");
 }
 
 function updateAudienceDashboard(results) {
