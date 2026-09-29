@@ -1220,6 +1220,9 @@ def build_audience_discovery_response(data):
         "provider": retrieval.get("provider", "none"),
         "result_limit": MAX_DISCOVERY_RESULTS,
         "automatic_distribution": False,
+        "credits_used": 0 if not retrieval.get("configured", False) else None,
+        "credit_usage_known": not retrieval.get("configured", False),
+        "credit_usage_note": "No provider call was configured." if not retrieval.get("configured", False) else "Provider usage is provider-dependent; this response does not claim zero credits.",
     })
     base["provider_status"] = {
         "provider": retrieval.get("provider", "none"),
