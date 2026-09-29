@@ -283,6 +283,13 @@ try:
     assert 'function setAudienceReviewQueue()' in live_discovery_html
     assert 'status.value = "actionable_review"' in live_discovery_html
     assert 'sort.value = "rules_first"' in live_discovery_html
+    assert 'id="audienceFollowupQueueButton"' in live_discovery_html
+    assert 'function setAudienceFollowupQueue()' in live_discovery_html
+    assert 'id="audienceRestrictedQueueButton"' in live_discovery_html
+    assert 'function setAudienceRestrictedQueue()' in live_discovery_html
+    assert 'value="high_priority"' in live_discovery_html
+    assert 'audience-priority-state' in live_discovery_html
+    assert 'card.dataset.audiencePriority' in live_discovery_html
 
     # Static, no-credit source-page checks for service-area language.
     import importlib.util
