@@ -148,6 +148,52 @@ def build_discovery_queries(need, location, scope="local"):
     return queries
 
 
+
+def build_audience_queries(need, location, scope="automatic"):
+    """Build public-web audience discovery lanes without automating posting."""
+    geo_terms = geographic_terms(location)
+    scope = str(scope or "automatic").strip().lower()
+    allowed_scopes = {"local", "state", "national", "worldwide", "automatic"}
+    if scope not in allowed_scopes:
+        scope = "automatic"
+
+    lanes = [
+        ("Community Forums", "public community forum discussion support resources"),
+        ("Local Media", "local news human interest community assistance story tips"),
+        ("Creators & Podcasts", "podcast creator community stories assistance interview"),
+        ("Directories & Newsletters", "community newsletter resource directory public submissions"),
+    ]
+    stages = [
+        ("local", geo_terms["local"]),
+        ("state", (geo_terms["state"] + " statewide").strip()),
+        ("national", (geo_terms["national"] + " national").strip()),
+        ("worldwide", "international worldwide"),
+    ]
+    queries = []
+    for index, (lane, terms) in enumerate(lanes):
+        if scope == "automatic":
+            geo_stage, geography = stages[index]
+        else:
+            geo_stage = scope
+            geography = dict(stages).get(scope, geo_terms["local"])
+        topic = str(need or "financial assistance").strip()
+        query = " ".join(part for part in [geography, topic, terms] if part).strip()
+        queries.append({
+            "lane": lane,
+            "query": query,
+            "geographic_stage": geo_stage,
+            "search_url": "https://www.google.com/search?q=" + quote_plus(query),
+            "status": "ready_for_provider",
+            "discovery_kind": "audience",
+            "action_mode": "review_required"
+        })
+    return queries
+
+
+def audience_channel_tracking_id(candidate):
+    return stable_id("audience", candidate.get("url"), candidate.get("name"), candidate.get("type"))
+
+
 def normalize_candidate(item, lane, query, source="web-search", geographic_stage="unspecified"):
     """Normalize provider output into the internal candidate schema."""
     url = item.get("link") or item.get("url") or ""
