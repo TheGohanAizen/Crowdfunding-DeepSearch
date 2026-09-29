@@ -328,11 +328,23 @@ function renderAudienceLead(item) {
     card.dataset.stage = item.geographic_stage || "unspecified";
     const score = item.audience_relevance_score ?? 0;
     const url = item.url && /^https?:\/\//i.test(item.url) ? item.url : "";
+    const rules = item.channel_rules || {status: "not_checked", evidence: {}};
+    const ruleEvidence = Object.entries(rules.evidence || {}).map(function(entry) {
+        return entry[0] + ": " + entry[1].join(", ");
+    }).join(" · ") || "No explicit rule evidence detected yet.";
+    const ruleLabel = rules.status === "restriction_detected"
+        ? "Restriction detected — do not outreach until reviewed"
+        : rules.status === "rules_or_submission_route_found"
+            ? "Rules or submission route found — review required"
+            : rules.status === "source_unreachable"
+                ? "Source could not be inspected"
+                : "No explicit rule found — review still required";
     card.innerHTML =
         '<div class="result-top"><div><h3>' + escapeHtml(item.name || "Untitled audience lead") + '</h3>' +
         '<div class="type">' + escapeHtml(item.channel_type || item.type || "Audience") + ' · ' + escapeHtml(item.geographic_stage || "unspecified") + '</div></div>' +
         '<div class="score">' + escapeHtml(score) + '/100</div></div>' +
         '<div class="match-reason"><strong>Why it may fit:</strong> ' + escapeHtml((item.audience_relevance_signals || []).join(", ") || "Needs review") + '</div>' +
+        '<div class="match-reason"><strong>Channel rules:</strong> ' + escapeHtml(ruleLabel) + '<br><small>' + escapeHtml(ruleEvidence) + '</small></div>' +
         '<div class="verification"><strong>Permission:</strong> Not verified. Review channel rules before contacting or posting.<br><strong>Automatic distribution:</strong> Disabled.</div>' +
         (url ? '<div class="action-links"><a href="' + escapeHtml(url) + '" target="_blank" rel="noopener noreferrer">Review audience source</a></div>' : '');
     return card;
