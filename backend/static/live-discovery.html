@@ -263,6 +263,7 @@ button:hover { background: #1d4ed8; }
           <option value="reviewed">Reviewed</option>
           <option value="contacted">Contacted</option>
           <option value="followup_due">Follow-up due</option>
+          <option value="high_score">High relevance (70+)</option>
         </select>
       </label>
       <label>Channel
@@ -272,6 +273,13 @@ button:hover { background: #1d4ed8; }
           <option value="Local Media">Local Media</option>
           <option value="Creators & Podcasts">Creators & Podcasts</option>
           <option value="Directories & Newsletters">Directories & Newsletters</option>
+        </select>
+      </label>
+      <label>Sort
+        <select id="audienceSort" onchange="applyAudienceFilters()">
+          <option value="score_desc">Highest relevance first</option>
+          <option value="rules_first">Rules/submission routes first</option>
+          <option value="restrictions_first">Restrictions first</option>
         </select>
       </label>
       <span id="audienceVisibleCount"></span>
@@ -364,6 +372,7 @@ function renderAudienceLead(item) {
     card.dataset.stage = item.geographic_stage || "unspecified";
     card.dataset.channelType = item.channel_type || item.type || "Audience";
     card.dataset.ruleStatus = (item.channel_rules && item.channel_rules.status) || "not_checked";
+    card.dataset.audienceScore = String(score);
     const score = item.audience_relevance_score ?? 0;
     const url = item.url && /^https?:\/\//i.test(item.url) ? item.url : "";
     const rules = item.channel_rules || {status: "not_checked", evidence: {}};
@@ -446,7 +455,26 @@ function applyAudienceFilters() {
     const channelFilter = document.getElementById("audienceChannelFilter");
     const status = statusFilter ? statusFilter.value : "all";
     const channel = channelFilter ? channelFilter.value : "all";
-    const cards = Array.from(document.querySelectorAll("#audiencePlanList .result-card"));
+    let cards = Array.from(document.querySelectorAll("#audiencePlanList .result-card"));
+    const sort = document.getElementById("audienceSort");
+    const sortMode = sort ? sort.value : "score_desc";
+    const list = document.getElementById("audiencePlanList");
+    cards.sort(function(a, b) {
+        const aScore = Number(a.dataset.audienceScore || 0);
+        const bScore = Number(b.dataset.audienceScore || 0);
+        if (sortMode === "rules_first") {
+            const aRules = a.dataset.ruleStatus === "rules_or_submission_route_found" ? 1 : 0;
+            const bRules = b.dataset.ruleStatus === "rules_or_submission_route_found" ? 1 : 0;
+            return bRules - aRules || bScore - aScore;
+        }
+        if (sortMode === "restrictions_first") {
+            const aRestricted = a.dataset.ruleStatus === "restriction_detected" ? 1 : 0;
+            const bRestricted = b.dataset.ruleStatus === "restriction_detected" ? 1 : 0;
+            return bRestricted - aRestricted || bScore - aScore;
+        }
+        return bScore - aScore;
+    });
+    if (list) cards.forEach(function(card) { list.appendChild(card); });
     let visible = 0;
     cards.forEach(function(card) {
         const record = card.dataset.audienceTrackingKey ? readTrackingRecord(card.dataset.audienceTrackingKey) : null;
@@ -458,6 +486,7 @@ function applyAudienceFilters() {
             || (status === "needs_review" && !["restriction_detected", "rules_or_submission_route_found"].includes(rule))
             || (status === "restricted" && rule === "restriction_detected")
             || (status === "followup_due" && followupDue)
+            || (status === "high_score" && Number(card.dataset.audienceScore || 0) >= 70)
             || status === tracked;
         const channelMatch = channel === "all" || card.dataset.channelType === channel;
         const show = statusMatch && channelMatch;
