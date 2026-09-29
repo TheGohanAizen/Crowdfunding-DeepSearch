@@ -162,6 +162,13 @@ try:
     assert 'value="confirmed_area"' in live_discovery_html
     assert 'value="possible_area"' in live_discovery_html
     assert 'card.dataset.serviceArea' in live_discovery_html
+    assert 'id="outreachDashboard"' in live_discovery_html
+    assert 'id="dashFollowups"' in live_discovery_html
+    assert 'value="followups_due"' in live_discovery_html
+    assert 'data-followup="tomorrow"' in live_discovery_html
+    assert 'data-followup="week"' in live_discovery_html
+    assert 'data-notes="edit"' in live_discovery_html
+    assert 'function updateOutreachDashboard()' in live_discovery_html
 
     # Static, no-credit source-page checks for service-area language.
     import importlib.util
