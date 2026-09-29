@@ -259,6 +259,7 @@ try:
     normalize_audience_candidate = crowdfunding_server.normalize_audience_candidate
     audience_relevance_signals = crowdfunding_server.audience_relevance_signals
     detect_audience_channel_rules = crowdfunding_server.detect_audience_channel_rules
+    enrich_audience_with_rule_checks = crowdfunding_server.enrich_audience_with_rule_checks
     campaign_tracking_id = crowdfunding_server.campaign_tracking_id
     opportunity_tracking_id = crowdfunding_server.opportunity_tracking_id
 
@@ -314,6 +315,12 @@ try:
     })
     assert submission_rules["status"] == "rules_or_submission_route_found"
     assert submission_rules["automatic_distribution"] is False
+
+    # Source-rule enrichment is tested without network access by setting the bounded check budget to zero.
+    uninspected = enrich_audience_with_rule_checks([ranked_audience], max_candidates=0)
+    assert uninspected[0]["channel_rules"]["status"] == "not_checked"
+    assert uninspected[0]["channel_rules"]["permission_verified"] is False
+    assert uninspected[0]["channel_rules"]["automatic_distribution"] is False
 
     statewide_html = """
     <html><head><title>Transportation Help</title></head>
