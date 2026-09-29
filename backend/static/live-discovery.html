@@ -360,7 +360,7 @@ function renderAudienceLead(item) {
         '<div class="tracking-actions"><button type="button" data-audience-track="saved">Save lead</button><button type="button" data-audience-track="reviewed">Mark reviewed</button><button type="button" data-audience-track="contacted">Mark contacted</button></div>' +
         '<div class="tracking-state audience-tracking-state">Audience tracking: not started</div>' +
         (url ? '<div class="action-links"><a href="' + escapeHtml(url) + '" target="_blank" rel="noopener noreferrer">Review audience source</a></div>' : '');
-    const audienceTrackingKey = TRACKING_PREFIX + (item.tracking_id || ("audience:" + (item.url || item.name || "lead")));
+    const audienceTrackingKey = TRACKING_PREFIX + "audience:" + (item.tracking_id || (item.url || item.name || "lead"));
     const existingAudienceTracking = readTrackingRecord(audienceTrackingKey);
     const audienceState = card.querySelector(".audience-tracking-state");
     if (existingAudienceTracking && audienceState) audienceState.textContent = "Audience tracking: " + existingAudienceTracking.status;
