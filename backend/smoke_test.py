@@ -272,6 +272,13 @@ try:
     assert 'id="audienceFollowupCount"' in live_discovery_html
     assert 'audience-history-state' in live_discovery_html
     assert 'trackingHistoryLabel(existingAudienceTracking)' in live_discovery_html
+    assert 'value="high_score"' in live_discovery_html
+    assert 'id="audienceSort"' in live_discovery_html
+    assert 'value="rules_first"' in live_discovery_html
+    assert 'value="restrictions_first"' in live_discovery_html
+    assert 'id="exportAudienceCsvButton"' in live_discovery_html
+    assert 'function exportAudienceCsv()' in live_discovery_html
+    assert 'crowdfunding-deepsearch-audience-leads.csv' in live_discovery_html
 
     # Static, no-credit source-page checks for service-area language.
     import importlib.util
