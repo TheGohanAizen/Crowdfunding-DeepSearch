@@ -369,6 +369,7 @@ function writeTrackingRecord(key, status) {
         status: status,
         updated_at: now,
         first_saved_at: previous.first_saved_at || now,
+        notes: previous.notes || "",
         follow_up_at: status === "contacted"
             ? (previous.follow_up_at || new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString())
             : (status === "responded" ? null : (previous.follow_up_at || null)),
@@ -606,10 +607,13 @@ async function runDiscovery() {
                 '<button type="button" data-track="responded">Mark response</button>' +
                 '<button type="button" data-followup="tomorrow">Follow up tomorrow</button>' +
                 '<button type="button" data-followup="week">Follow up in 7 days</button>' +
+                '<button type="button" data-notes="edit">Add / edit notes</button>' +
                 '</div><div class="tracking-state">' +
                 escapeHtml(trackingLabel(trackedRecord)) +
                 '</div><div class="tracking-history">' +
                 escapeHtml(trackingHistoryLabel(trackedRecord)) +
+                '</div><div class="tracking-notes">' +
+                escapeHtml(trackedRecord && trackedRecord.notes ? "Notes: " + trackedRecord.notes : "Notes: none") +
                 '</div>';
 
             card.innerHTML =
@@ -642,6 +646,19 @@ async function runDiscovery() {
                 (sourceCheck.checked ? (sourceCheck.reachable ? "Yes" : "No") : "Not checked") +
                 '<br><strong>Concerns:</strong> ' + escapeHtml(concerns) +
                 '<br><strong>Eligibility verified:</strong> No — confirm requirements on the official source before outreach or application.</div>';
+            card.querySelectorAll("[data-notes]").forEach(function(noteButton) {
+                noteButton.addEventListener("click", function() {
+                    const previous = readTrackingRecord(trackingKey) || {status: "saved", history: []};
+                    const value = window.prompt("Private outreach notes for this opportunity:", previous.notes || "");
+                    if (value === null) return;
+                    previous.notes = value.trim().slice(0, 1000);
+                    previous.updated_at = new Date().toISOString();
+                    try { localStorage.setItem(trackingKey, JSON.stringify(previous)); } catch (error) {}
+                    const notesLabel = card.querySelector(".tracking-notes");
+                    if (notesLabel) notesLabel.textContent = previous.notes ? "Notes: " + previous.notes : "Notes: none";
+                    updateOutreachDashboard();
+                });
+            });
             card.querySelectorAll("[data-followup]").forEach(function(followButton) {
                 followButton.addEventListener("click", function() {
                     const previous = readTrackingRecord(trackingKey) || {status: "contacted", history: []};
