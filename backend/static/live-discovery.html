@@ -910,6 +910,9 @@ async function runDiscovery() {
             "<br><strong>Search budget:</strong> up to " + escapeHtml(data.discovery.search_lane_limit || "?") +
             " lanes × " + escapeHtml(data.discovery.results_per_lane || "?") + " results" +
             "<br><strong>Geographic stages:</strong> " + escapeHtml((data.search_plan || []).map(function(item) { return item.geographic_stage || "unspecified"; }).join(" → "));
+        if (data.audience && typeof data.audience.duplicates_merged === "number") {
+            audiencePlanSummary.innerHTML += "<br><strong>Duplicate discoveries merged:</strong> " + escapeHtml(String(data.audience.duplicates_merged));
+        }
         list.appendChild(meta);
         document.getElementById("resultToolbar").style.display = "block";
 
