@@ -249,6 +249,10 @@ try:
     assert 'data-audience-track="reviewed"' in live_discovery_html
     assert 'data-audience-track="contacted"' in live_discovery_html
     assert 'audience-tracking-state' in live_discovery_html
+    assert 'Recommended next action:</strong>' in live_discovery_html
+    assert 'id="audienceDashboard"' in live_discovery_html
+    assert 'id="audienceRestrictionCount"' in live_discovery_html
+    assert 'function updateAudienceDashboard(results)' in live_discovery_html
 
     # Static, no-credit source-page checks for service-area language.
     import importlib.util
