@@ -1098,6 +1098,58 @@ def retrieve_audience_candidates(search_plan, per_lane=2):
     retrieval["candidates"] = normalized
     return retrieval
 
+
+def enrich_audience_with_rule_checks(candidates, max_candidates=None):
+    """Inspect a bounded set of audience sources for rules/restrictions without posting."""
+    if max_candidates is None:
+        max_candidates = MAX_SOURCE_CHECKS
+    enriched = [dict(item) for item in candidates]
+    for item in enriched:
+        item.setdefault("channel_rules", {
+            "status": "not_checked",
+            "evidence": {},
+            "permission_verified": False,
+            "automatic_distribution": False,
+            "requires_review": True,
+        })
+    to_check = enriched[:max_candidates]
+
+    def check(item):
+        page = fetch_source_page(item.get("url", ""))
+        if not page.get("reachable"):
+            item["channel_rules"] = {
+                "status": "source_unreachable",
+                "evidence": {},
+                "permission_verified": False,
+                "automatic_distribution": False,
+                "requires_review": True,
+            }
+            return item
+        signals = extract_page_signals(page.get("html", ""), page.get("final_url", item.get("url", "")))
+        rules = detect_audience_channel_rules(signals)
+        rules["source_reachable"] = True
+        rules["last_checked"] = page.get("last_checked")
+        item["channel_rules"] = rules
+        if rules["status"] == "restriction_detected":
+            item["review_status"] = "restricted_review"
+        elif rules["status"] == "rules_or_submission_route_found":
+            item["review_status"] = "rules_found_review"
+        else:
+            item["review_status"] = "needs_review"
+        return item
+
+    if to_check:
+        workers = max(1, min(len(to_check), 4))
+        with ThreadPoolExecutor(max_workers=workers) as executor:
+            futures = [executor.submit(check, item) for item in to_check]
+            checked = [future.result() for future in as_completed(futures)]
+        checked_by_id = {item.get("tracking_id"): item for item in checked}
+        for index, item in enumerate(enriched[:max_candidates]):
+            if item.get("tracking_id") in checked_by_id:
+                enriched[index] = checked_by_id[item.get("tracking_id")]
+    return enriched
+
+
 def build_audience_discovery_response(data):
     """Run bounded Audience DeepSearch retrieval; all resulting actions require review."""
     base = build_audience_plan_response(data)
@@ -1107,6 +1159,11 @@ def build_audience_discovery_response(data):
         for item in retrieval.get("candidates", [])
     ]
     results.sort(key=lambda item: item.get("audience_relevance_score", 0), reverse=True)
+    results = enrich_audience_with_rule_checks(results)
+    results.sort(key=lambda item: (
+        item.get("review_status") != "restricted_review",
+        item.get("audience_relevance_score", 0)
+    ), reverse=True)
     base["audience"].update({
         "stage": "audience-discovery-v1",
         "live_search": retrieval.get("configured", False),
