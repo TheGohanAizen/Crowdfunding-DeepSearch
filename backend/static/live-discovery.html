@@ -283,6 +283,7 @@ button:hover { background: #1d4ed8; }
         </select>
       </label>
       <span id="audienceVisibleCount"></span>
+      <button type="button" id="exportAudienceCsvButton" onclick="exportAudienceCsv()">Export visible CSV</button>
     </div>
     <div id="audiencePlanList"></div>
     <div class="notice">This preview uses zero live-search credits. It plans relevant public-web discovery lanes first; posting or contacting remains disabled until channel rules and permissions are reviewed.</div>
@@ -495,6 +496,43 @@ function applyAudienceFilters() {
     });
     const counter = document.getElementById("audienceVisibleCount");
     if (counter) counter.textContent = visible + " of " + cards.length + " audience leads shown";
+}
+
+function csvCell(value) {
+    const text = String(value == null ? "" : value).replaceAll('"', '""');
+    return '"' + text + '"';
+}
+
+function exportAudienceCsv() {
+    const cards = Array.from(document.querySelectorAll("#audiencePlanList .result-card")).filter(function(card) {
+        return card.style.display !== "none";
+    });
+    const rows = [["Name", "Channel", "Geographic stage", "Relevance score", "Rule status", "Tracking status", "Follow-up", "Private note", "URL"]];
+    cards.forEach(function(card) {
+        const key = card.dataset.audienceTrackingKey;
+        const record = key ? readTrackingRecord(key) : null;
+        const link = card.querySelector('.action-links a[href]');
+        const title = card.querySelector('h3');
+        rows.push([
+            title ? title.textContent : "",
+            card.dataset.channelType || "",
+            card.dataset.stage || "",
+            card.dataset.audienceScore || "",
+            card.dataset.ruleStatus || "",
+            record && record.status ? record.status : "not_started",
+            record && record.follow_up_at ? record.follow_up_at : "",
+            record && record.notes ? record.notes : "",
+            link ? link.href : ""
+        ]);
+    });
+    const csv = rows.map(function(row) { return row.map(csvCell).join(","); }).join("\n");
+    const blob = new Blob([csv], {type: "text/csv;charset=utf-8"});
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "crowdfunding-deepsearch-audience-leads.csv";
+    link.click();
+    URL.revokeObjectURL(url);
 }
 
 function updateAudienceTrackingDashboard() {
