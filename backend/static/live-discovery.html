@@ -241,6 +241,13 @@ button:hover { background: #1d4ed8; }
 
     <p id="resultSummary"></p>
 
+    <div id="outreachDashboard" class="info-grid" style="display:none; margin:14px 0;">
+        <div class="info"><div class="info-title">SAVED</div><strong id="dashSaved">0</strong></div>
+        <div class="info"><div class="info-title">CONTACTED / AWAITING RESPONSE</div><strong id="dashContacted">0</strong></div>
+        <div class="info"><div class="info-title">RESPONSES</div><strong id="dashResponded">0</strong></div>
+        <div class="info"><div class="info-title">NOT STARTED</div><strong id="dashNotStarted">0</strong></div>
+    </div>
+
     <div id="resultToolbar" style="display:none; margin:14px 0;">
         <label for="resultFilter">Filter Results</label>
         <select id="resultFilter" onchange="applyResultFilter()">
@@ -373,6 +380,25 @@ function trackingLabel(record) {
     if (!record || !record.status) return "Tracked status: not started";
     const when = record.updated_at ? " • updated " + new Date(record.updated_at).toLocaleString() : "";
     return "Tracked status: " + record.status + when;
+}
+
+function updateOutreachDashboard() {
+    const cards = Array.from(document.querySelectorAll("#resultList .result-card"));
+    const counts = {saved: 0, contacted: 0, responded: 0, notStarted: 0};
+    cards.forEach(function(card) {
+        const key = card.dataset.trackingKey;
+        const record = key ? readTrackingRecord(key) : null;
+        if (!record || !record.status) counts.notStarted += 1;
+        else if (record.status === "responded") counts.responded += 1;
+        else if (record.status === "contacted") counts.contacted += 1;
+        else if (record.status === "saved") counts.saved += 1;
+        else counts.notStarted += 1;
+    });
+    document.getElementById("dashSaved").textContent = counts.saved;
+    document.getElementById("dashContacted").textContent = counts.contacted;
+    document.getElementById("dashResponded").textContent = counts.responded;
+    document.getElementById("dashNotStarted").textContent = counts.notStarted;
+    document.getElementById("outreachDashboard").style.display = cards.length ? "grid" : "none";
 }
 
 function exportTracking() {
@@ -553,6 +579,7 @@ async function runDiscovery() {
             const campaignTrackingId = data.campaign_tracking_id || "campaign_unknown";
             const opportunityTrackingId = item.tracking_id || (item.url || item.name || geographicStage);
             const trackingKey = TRACKING_PREFIX + campaignTrackingId + ":" + opportunityTrackingId;
+            card.dataset.trackingKey = trackingKey;
             const trackedRecord = readTrackingRecord(trackingKey);
             const trackingHtml =
                 '<div class="tracking-actions">' +
@@ -603,10 +630,12 @@ async function runDiscovery() {
                     if (stateLabel) stateLabel.textContent = trackingLabel(record);
                     const historyLabel = card.querySelector(".tracking-history");
                     if (historyLabel) historyLabel.textContent = trackingHistoryLabel(record);
+                    updateOutreachDashboard();
                 });
             });
             list.appendChild(card);
         });
+        updateOutreachDashboard();
 
     } catch (error) {
         summary.textContent = "Could not reach the Crowdfunding DeepSearch backend.";
