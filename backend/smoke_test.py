@@ -117,6 +117,24 @@ try:
     assert audience_preview["results"][0]["permission_verified"] is False
     assert audience_preview["results"][0]["automatic_distribution"] is False
 
+    audience_discovery_request = Request(
+        "http://127.0.0.1:8099/api/audience/discover",
+        data=json.dumps({
+            "need": "Transportation",
+            "location": "Austin, Texas, United States",
+            "scope": "automatic"
+        }).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    status, audience_discovery = read_json(audience_discovery_request)
+    assert status == 200
+    assert audience_discovery["audience"]["stage"] == "audience-discovery-v1"
+    assert audience_discovery["audience"]["live_search"] is False
+    assert audience_discovery["provider_status"]["configured"] is False
+    assert audience_discovery["results"] == []
+    assert audience_discovery["safety_policy"]["automatic_posting"] is False
+
     international_payload = json.dumps({
         "need": "Transportation",
         "location": "Toronto, Ontario, Canada",
