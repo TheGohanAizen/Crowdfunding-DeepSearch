@@ -229,6 +229,7 @@ button:hover { background: #1d4ed8; }
 
     <button id="runButton" onclick="runDiscovery()">Run Opportunity Discovery</button>
     <button id="audiencePlanButton" type="button" onclick="runAudiencePlan()">Preview Audience DeepSearch</button>
+    <button id="audienceDiscoverButton" type="button" onclick="runAudienceDiscovery()">Run Audience DeepSearch</button>
 
     <div class="notice">
         Live Discovery mode: choose how far DeepSearch should expand from the campaign location. Automatic expansion is designed to begin with the strongest geographic match and later broaden to state, national, and worldwide opportunities that can actually serve the campaign location. Results remain screening leads until eligibility and current availability are confirmed.
@@ -295,6 +296,7 @@ const apiRoot = configuredApiBase
         : window.location.origin;
 const API_URL = apiRoot + "/api/discover";
 const AUDIENCE_PLAN_URL = apiRoot + "/api/audience/plan";
+const AUDIENCE_DISCOVER_URL = apiRoot + "/api/audience/discover";
 
 function loadCampaignProfile() {
     const need = params.get("need");
@@ -319,6 +321,58 @@ function loadCampaignProfile() {
 }
 
 loadCampaignProfile();
+
+function renderAudienceLead(item) {
+    const card = document.createElement("div");
+    card.className = "result-card";
+    card.dataset.stage = item.geographic_stage || "unspecified";
+    const score = item.audience_relevance_score ?? 0;
+    const url = item.url && /^https?:\/\//i.test(item.url) ? item.url : "";
+    card.innerHTML =
+        '<div class="result-top"><div><h3>' + escapeHtml(item.name || "Untitled audience lead") + '</h3>' +
+        '<div class="type">' + escapeHtml(item.channel_type || item.type || "Audience") + ' · ' + escapeHtml(item.geographic_stage || "unspecified") + '</div></div>' +
+        '<div class="score">' + escapeHtml(score) + '/100</div></div>' +
+        '<div class="match-reason"><strong>Why it may fit:</strong> ' + escapeHtml((item.audience_relevance_signals || []).join(", ") || "Needs review") + '</div>' +
+        '<div class="verification"><strong>Permission:</strong> Not verified. Review channel rules before contacting or posting.<br><strong>Automatic distribution:</strong> Disabled.</div>' +
+        (url ? '<div class="action-links"><a href="' + escapeHtml(url) + '" target="_blank" rel="noopener noreferrer">Review audience source</a></div>' : '');
+    return card;
+}
+
+async function runAudienceDiscovery() {
+    const panel = document.getElementById("audienceResults");
+    const summary = document.getElementById("audienceSummary");
+    const list = document.getElementById("audiencePlanList");
+    const button = document.getElementById("audienceDiscoverButton");
+    panel.style.display = "block";
+    summary.textContent = "Running bounded Audience DeepSearch...";
+    list.innerHTML = "";
+    button.disabled = true;
+    try {
+        const response = await fetch(AUDIENCE_DISCOVER_URL, {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({
+                need: document.getElementById("need").value,
+                location: document.getElementById("location").value.trim(),
+                scope: document.getElementById("scope").value
+            })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || "Audience discovery failed.");
+        const provider = data.provider_status && data.provider_status.provider ? data.provider_status.provider : data.audience.provider;
+        summary.textContent = data.results.length + " audience leads found · provider: " + (provider || "none") + ". Every lead requires review before outreach.";
+        if (!data.results.length) {
+            list.innerHTML = '<div class="verification">No live audience leads were returned. The planner remains available without search-provider credits.</div>';
+        } else {
+            data.results.forEach(function(item) { list.appendChild(renderAudienceLead(item)); });
+        }
+    } catch (error) {
+        summary.textContent = "Audience DeepSearch could not complete.";
+        list.innerHTML = '<div class="verification">' + escapeHtml(error.message) + '</div>';
+    } finally {
+        button.disabled = false;
+    }
+}
 
 async function runAudiencePlan() {
     const panel = document.getElementById("audienceResults");
