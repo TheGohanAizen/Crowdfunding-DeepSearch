@@ -284,6 +284,7 @@ button:hover { background: #1d4ed8; }
       </label>
       <span id="audienceVisibleCount"></span>
       <button type="button" id="exportAudienceCsvButton" onclick="exportAudienceCsv()">Export visible CSV</button>
+      <button type="button" id="audienceReviewQueueButton" onclick="setAudienceReviewQueue()">Review queue</button>
     </div>
     <div id="audiencePlanList"></div>
     <div class="notice">This preview uses zero live-search credits. It plans relevant public-web discovery lanes first; posting or contacting remains disabled until channel rules and permissions are reviewed.</div>
@@ -496,6 +497,14 @@ function applyAudienceFilters() {
     });
     const counter = document.getElementById("audienceVisibleCount");
     if (counter) counter.textContent = visible + " of " + cards.length + " audience leads shown";
+}
+
+function setAudienceReviewQueue() {
+    const status = document.getElementById("audienceStatusFilter");
+    const sort = document.getElementById("audienceSort");
+    if (status) status.value = "actionable_review";
+    if (sort) sort.value = "rules_first";
+    applyAudienceFilters();
 }
 
 function csvCell(value) {
