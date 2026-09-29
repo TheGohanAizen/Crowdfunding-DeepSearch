@@ -1075,6 +1075,55 @@ def detect_audience_channel_rules(signals):
 
 
 
+
+def retrieve_audience_candidates(search_plan, per_lane=2):
+    """Reuse the configured provider under a smaller audience-specific budget."""
+    bounded_plan = list(search_plan)[:MAX_SEARCH_LANES]
+    retrieval = retrieve_candidates(bounded_plan, per_lane=min(max(int(per_lane), 1), 2))
+    normalized = []
+    plan_by_lane = {item["lane"]: item for item in bounded_plan}
+    for item in retrieval.get("candidates", [])[:MAX_DISCOVERY_RESULTS]:
+        lane = item.get("type") or "Community Forums"
+        plan = plan_by_lane.get(lane, {})
+        raw = {
+            "url": item.get("url", ""),
+            "title": item.get("name", ""),
+            "snippet": item.get("snippet", ""),
+        }
+        normalized.append(normalize_audience_candidate(
+            raw, lane, plan.get("query", item.get("source_query", "")),
+            source=item.get("source", retrieval.get("provider", "web-search")),
+            geographic_stage=item.get("geographic_stage", plan.get("geographic_stage", "unspecified"))
+        ))
+    retrieval["candidates"] = normalized
+    return retrieval
+
+def build_audience_discovery_response(data):
+    """Run bounded Audience DeepSearch retrieval; all resulting actions require review."""
+    base = build_audience_plan_response(data)
+    retrieval = retrieve_audience_candidates(base["search_plan"], per_lane=2)
+    results = [
+        audience_relevance_signals(item, base["query"]["need"], base["query"]["location"])
+        for item in retrieval.get("candidates", [])
+    ]
+    results.sort(key=lambda item: item.get("audience_relevance_score", 0), reverse=True)
+    base["audience"].update({
+        "stage": "audience-discovery-v1",
+        "live_search": retrieval.get("configured", False),
+        "provider": retrieval.get("provider", "none"),
+        "result_limit": MAX_DISCOVERY_RESULTS,
+        "automatic_distribution": False,
+    })
+    base["provider_status"] = {
+        "configured": retrieval.get("configured", False),
+        "message": retrieval.get("message", ""),
+        "errors": retrieval.get("errors", []),
+        "attempts": retrieval.get("attempts", []),
+    }
+    base["results"] = results
+    return base
+
+
 def build_audience_preview_response(data):
     """Normalize supplied search-result-shaped leads without making a paid provider call."""
     base = build_audience_plan_response(data)
@@ -1202,6 +1251,23 @@ def create_app():
         result["test_mode"] = True
         result["test_note"] = "Bounded live discovery smoke test; results remain unverified until source checks support them."
         return jsonify(result)
+
+    @app.route("/api/audience/discover", methods=["POST", "OPTIONS"])
+    def audience_discover():
+        if request.method == "OPTIONS":
+            return ("", 204)
+        if request.content_length is not None and request.content_length > 65536:
+            return jsonify({"status": "error", "message": "Request body is too large."}), 413
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            return jsonify({"status": "error", "message": "A JSON request body is required."}), 400
+        try:
+            return jsonify(build_audience_discovery_response(data))
+        except ValueError as error:
+            return jsonify({"status": "error", "message": str(error)}), 400
+        except Exception:
+            app.logger.exception("Audience discovery request failed")
+            return jsonify({"status": "error", "message": "Audience discovery request failed."}), 500
 
     @app.route("/api/audience/preview", methods=["POST", "OPTIONS"])
     def audience_preview():
