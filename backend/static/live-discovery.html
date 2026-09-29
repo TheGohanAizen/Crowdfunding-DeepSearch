@@ -245,6 +245,10 @@ button:hover { background: #1d4ed8; }
       <div><strong id="audienceRestrictionCount">0</strong><span>Restrictions</span></div>
       <div><strong id="audienceRulesCount">0</strong><span>Rules Found</span></div>
       <div><strong id="audienceReviewCount">0</strong><span>Need Review</span></div>
+      <div><strong id="audienceSavedCount">0</strong><span>Saved</span></div>
+      <div><strong id="audienceReviewedCount">0</strong><span>Reviewed</span></div>
+      <div><strong id="audienceContactedCount">0</strong><span>Contacted</span></div>
+      <div><strong id="audienceNotStartedCount">0</strong><span>Not Started</span></div>
     </div>
     <div id="audiencePlanList"></div>
     <div class="notice">This preview uses zero live-search credits. It plans relevant public-web discovery lanes first; posting or contacting remains disabled until channel rules and permissions are reviewed.</div>
@@ -360,14 +364,34 @@ function renderAudienceLead(item) {
     const existingAudienceTracking = readTrackingRecord(audienceTrackingKey);
     const audienceState = card.querySelector(".audience-tracking-state");
     if (existingAudienceTracking && audienceState) audienceState.textContent = "Audience tracking: " + existingAudienceTracking.status;
+    card.dataset.audienceTrackingKey = audienceTrackingKey;
     card.querySelectorAll("[data-audience-track]").forEach(function(trackButton) {
         trackButton.addEventListener("click", function() {
             const status = trackButton.dataset.audienceTrack;
             const record = writeTrackingRecord(audienceTrackingKey, status);
             if (audienceState) audienceState.textContent = "Audience tracking: " + record.status;
+            updateAudienceTrackingDashboard();
         });
     });
     return card;
+}
+
+function updateAudienceTrackingDashboard() {
+    const cards = Array.from(document.querySelectorAll("#audiencePlanList .result-card"));
+    const counts = {saved: 0, reviewed: 0, contacted: 0, notStarted: 0};
+    cards.forEach(function(card) {
+        const record = card.dataset.audienceTrackingKey ? readTrackingRecord(card.dataset.audienceTrackingKey) : null;
+        if (!record || !record.status) counts.notStarted += 1;
+        else if (record.status === "saved") counts.saved += 1;
+        else if (record.status === "reviewed") counts.reviewed += 1;
+        else if (record.status === "contacted") counts.contacted += 1;
+        else counts.notStarted += 1;
+    });
+    const set = function(id, value) { const el = document.getElementById(id); if (el) el.textContent = value; };
+    set("audienceSavedCount", counts.saved);
+    set("audienceReviewedCount", counts.reviewed);
+    set("audienceContactedCount", counts.contacted);
+    set("audienceNotStartedCount", counts.notStarted);
 }
 
 function updateAudienceDashboard(results) {
@@ -407,6 +431,7 @@ async function runAudienceDiscovery() {
             list.innerHTML = '<div class="verification">No live audience leads were returned. The planner remains available without search-provider credits.</div>';
         } else {
             data.results.forEach(function(item) { list.appendChild(renderAudienceLead(item)); });
+            updateAudienceTrackingDashboard();
         }
     } catch (error) {
         summary.textContent = "Audience DeepSearch could not complete.";
