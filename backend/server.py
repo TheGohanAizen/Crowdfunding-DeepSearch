@@ -158,12 +158,36 @@ def build_audience_queries(need, location, scope="automatic"):
     if scope not in allowed_scopes:
         scope = "automatic"
 
-    lanes = [
-        ("Community Forums", "public community forum discussion support resources"),
-        ("Local Media", "local news human interest community assistance story tips"),
-        ("Creators & Podcasts", "podcast creator community stories assistance interview"),
-        ("Directories & Newsletters", "community newsletter resource directory public submissions"),
-    ]
+    topic = str(need or "financial assistance").strip()
+    topic_lower = topic.lower()
+    if "transport" in topic_lower or "vehicle" in topic_lower:
+        lanes = [
+            ("Community Forums", "public community forum transportation vehicle assistance resources"),
+            ("Local Media", "local news transportation hardship human interest story tips"),
+            ("Creators & Podcasts", "podcast creator transportation hardship community assistance interview"),
+            ("Directories & Newsletters", "transportation assistance community newsletter resource directory submissions"),
+        ]
+    elif "medical" in topic_lower or "health" in topic_lower:
+        lanes = [
+            ("Community Forums", "public community forum medical financial assistance patient support resources"),
+            ("Local Media", "local news medical hardship human interest story tips"),
+            ("Creators & Podcasts", "podcast creator patient medical hardship community stories interview"),
+            ("Directories & Newsletters", "medical assistance patient support newsletter resource directory submissions"),
+        ]
+    elif "housing" in topic_lower or "rent" in topic_lower or "utility" in topic_lower:
+        lanes = [
+            ("Community Forums", "public community forum housing rental utility assistance resources"),
+            ("Local Media", "local news housing hardship human interest story tips"),
+            ("Creators & Podcasts", "podcast creator housing stability community assistance interview"),
+            ("Directories & Newsletters", "housing assistance community newsletter resource directory submissions"),
+        ]
+    else:
+        lanes = [
+            ("Community Forums", "public community forum discussion support resources"),
+            ("Local Media", "local news human interest community assistance story tips"),
+            ("Creators & Podcasts", "podcast creator community stories assistance interview"),
+            ("Directories & Newsletters", "community newsletter resource directory public submissions"),
+        ]
     stages = [
         ("local", geo_terms["local"]),
         ("state", (geo_terms["state"] + " statewide").strip()),
@@ -177,7 +201,6 @@ def build_audience_queries(need, location, scope="automatic"):
         else:
             geo_stage = scope
             geography = dict(stages).get(scope, geo_terms["local"])
-        topic = str(need or "financial assistance").strip()
         query = " ".join(part for part in [geography, topic, terms] if part).strip()
         queries.append({
             "lane": lane,
