@@ -506,7 +506,7 @@ function applyAudienceFilters() {
         const record = card.dataset.audienceTrackingKey ? readTrackingRecord(card.dataset.audienceTrackingKey) : null;
         const tracked = record && record.status ? record.status : "not_started";
         const rule = card.dataset.ruleStatus || "not_checked";
-        const followupDue = !!(record && record.follow_up_at && new Date(record.follow_up_at) <= new Date());
+        const followupDue = !!(record && record.status !== "closed" && record.follow_up_at && new Date(record.follow_up_at) <= new Date());
         const statusMatch = status === "all"
             || (status === "actionable_review" && rule === "rules_or_submission_route_found")
             || (status === "needs_review" && !["restriction_detected", "rules_or_submission_route_found"].includes(rule))
@@ -607,7 +607,7 @@ function updateAudienceTrackingDashboard() {
         else if (record.status === "responded") counts.responded += 1;
         else if (record.status === "closed") counts.closed += 1;
         else counts.notStarted += 1;
-        if (record && record.follow_up_at && new Date(record.follow_up_at) <= now) counts.followups += 1;
+        if (record && record.status !== "closed" && record.follow_up_at && new Date(record.follow_up_at) <= now) counts.followups += 1;
     });
     const set = function(id, value) { const el = document.getElementById(id); if (el) el.textContent = value; };
     set("audienceSavedCount", counts.saved);
