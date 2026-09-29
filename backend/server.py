@@ -1182,7 +1182,7 @@ def deduplicate_audience_candidates(candidates):
 def enrich_audience_with_rule_checks(candidates, max_candidates=None):
     """Inspect a bounded set of audience sources for rules/restrictions without posting."""
     if max_candidates is None:
-        max_candidates = MAX_SOURCE_CHECKS
+        max_candidates = MAX_AUDIENCE_RULE_CHECKS
     enriched = [dict(item) for item in candidates]
     for item in enriched:
         item.setdefault("channel_rules", {
