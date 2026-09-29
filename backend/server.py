@@ -7,7 +7,7 @@ import socket
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from html.parser import HTMLParser
 from datetime import datetime, timezone
-from urllib.parse import quote_plus, urlencode, urlparse, urljoin
+from urllib.parse import quote_plus, urlencode, urlparse, urljoin, parse_qsl
 from urllib.request import HTTPRedirectHandler, Request, build_opener, urlopen
 from urllib.error import HTTPError, URLError
 
@@ -1154,7 +1154,13 @@ def deduplicate_audience_candidates(candidates):
         if host.startswith("www."):
             host = host[4:]
         path = (parsed.path or "/").rstrip("/") or "/"
-        key = (host, path.lower()) if host else ("", (item.get("name") or "").strip().lower())
+        ignored_query_keys = {"utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "gclid", "fbclid", "ref", "source"}
+        clean_query = tuple(sorted(
+            (key_name.lower(), value)
+            for key_name, value in parse_qsl(parsed.query, keep_blank_values=False)
+            if key_name.lower() not in ignored_query_keys
+        ))
+        key = (host, path.lower(), clean_query) if host else ("", (item.get("name") or "").strip().lower())
         if key not in merged:
             item["discovered_in_lanes"] = [item.get("type")] if item.get("type") else []
             item["discovered_in_stages"] = [item.get("geographic_stage")] if item.get("geographic_stage") else []
