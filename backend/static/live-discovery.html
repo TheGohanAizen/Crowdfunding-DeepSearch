@@ -264,6 +264,7 @@ button:hover { background: #1d4ed8; }
           <option value="contacted">Contacted</option>
           <option value="followup_due">Follow-up due</option>
           <option value="high_score">High relevance (70+)</option>
+          <option value="high_priority">High priority (80+)</option>
         </select>
       </label>
       <label>Channel
@@ -377,6 +378,7 @@ function renderAudienceLead(item) {
     card.dataset.channelType = item.channel_type || item.type || "Audience";
     card.dataset.ruleStatus = (item.channel_rules && item.channel_rules.status) || "not_checked";
     card.dataset.audienceScore = String(score);
+    card.dataset.audiencePriority = score >= 80 ? "high" : score >= 60 ? "medium" : "standard";
     const score = item.audience_relevance_score ?? 0;
     const url = item.url && /^https?:\/\//i.test(item.url) ? item.url : "";
     const rules = item.channel_rules || {status: "not_checked", evidence: {}};
@@ -398,6 +400,7 @@ function renderAudienceLead(item) {
         '<div class="match-reason"><strong>Channel rules:</strong> ' + escapeHtml(ruleLabel) + '<br><small>' + escapeHtml(ruleEvidence) + '</small></div>' +
         '<div class="verification"><strong>Permission:</strong> Not verified. Review channel rules before contacting or posting.<br><strong>Automatic distribution:</strong> Disabled.</div>' +
         '<div class="match-reason"><strong>Recommended next action:</strong> ' + escapeHtml((item.recommended_next_action && item.recommended_next_action.label) || "Verify channel rules") + '</div>' +
+        '<div class="match-reason audience-priority-state"><strong>Priority:</strong> ' + escapeHtml(score >= 80 ? "High" : score >= 60 ? "Medium" : "Standard") + '</div>' +
         '<div class="tracking-actions"><button type="button" data-audience-track="saved">Save lead</button><button type="button" data-audience-track="reviewed">Mark reviewed</button><button type="button" data-audience-track="contacted">Mark contacted</button><button type="button" data-audience-followup="tomorrow">Follow up tomorrow</button><button type="button" data-audience-followup="week">Follow up +7 days</button><button type="button" data-audience-followup="clear">Clear follow-up</button><button type="button" data-audience-note="true">Add note</button></div>' +
         '<div class="tracking-state audience-tracking-state">Audience tracking: not started</div>' +
         '<div class="tracking-state audience-note-state">Private note: none</div>' +
@@ -491,6 +494,7 @@ function applyAudienceFilters() {
             || (status === "restricted" && rule === "restriction_detected")
             || (status === "followup_due" && followupDue)
             || (status === "high_score" && Number(card.dataset.audienceScore || 0) >= 70)
+            || (status === "high_priority" && card.dataset.audiencePriority === "high")
             || status === tracked;
         const channelMatch = channel === "all" || card.dataset.channelType === channel;
         const show = statusMatch && channelMatch;
