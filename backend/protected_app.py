@@ -26,7 +26,7 @@ def _client_key(environ):
     return environ.get("REMOTE_ADDR", "unknown")
 
 
-def _normalized_payload(raw_body):
+def _normalized_payload(raw_body, namespace="opportunity"):
     try:
         data = json.loads(raw_body.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError):
@@ -41,7 +41,7 @@ def _normalized_payload(raw_body):
     if goal in ("", None):
         goal = None
     key = json.dumps(
-        {"need": need, "location": location, "goal": goal, "scope": scope},
+        {"namespace": namespace, "need": need, "location": location, "goal": goal, "scope": scope},
         sort_keys=True,
         separators=(",", ":"),
     )
@@ -84,12 +84,13 @@ class DiscoveryGuard:
             )
             return response(environ, start_response)
 
-        if path != "/api/discover" or method != "POST":
+        protected_paths = {"/api/discover": "opportunity", "/api/audience/discover": "audience"}
+        if path not in protected_paths or method != "POST":
             return self.app(environ, start_response)
 
         request = Request(environ)
         raw_body = request.get_data(cache=False)
-        cache_key, _ = _normalized_payload(raw_body)
+        cache_key, _ = _normalized_payload(raw_body, protected_paths[path])
         now = time.monotonic()
 
         if cache_key:
@@ -100,7 +101,7 @@ class DiscoveryGuard:
                 if entry:
                     _cache.pop(cache_key, None)
 
-        key = _client_key(environ)
+        key = protected_paths[path] + ":" + _client_key(environ)
         with _lock:
             recent = _requests[key]
             while recent and now - recent[0] >= WINDOW_SECONDS:
