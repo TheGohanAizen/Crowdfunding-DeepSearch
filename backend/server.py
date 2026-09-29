@@ -1074,6 +1074,32 @@ def detect_audience_channel_rules(signals):
     }
 
 
+
+def build_audience_preview_response(data):
+    """Normalize supplied search-result-shaped leads without making a paid provider call."""
+    base = build_audience_plan_response(data)
+    raw = data.get("candidates") or []
+    if not isinstance(raw, list):
+        raise ValueError("Audience candidates must be a list.")
+    raw = raw[:MAX_DISCOVERY_RESULTS]
+    plan_by_lane = {item["lane"]: item for item in base["search_plan"]}
+    results = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        lane = str(item.get("lane") or item.get("channel_type") or "Community Forums")
+        plan = plan_by_lane.get(lane, {"query": "", "geographic_stage": "unspecified"})
+        normalized = normalize_audience_candidate(
+            item, lane, plan.get("query", ""), source=str(item.get("source") or "preview"),
+            geographic_stage=str(item.get("geographic_stage") or plan.get("geographic_stage", "unspecified"))
+        )
+        results.append(audience_relevance_signals(normalized, base["query"]["need"], base["query"]["location"]))
+    results.sort(key=lambda item: item.get("audience_relevance_score", 0), reverse=True)
+    base["audience"]["stage"] = "audience-normalization-v1"
+    base["results"] = results
+    return base
+
+
 def build_audience_plan_response(data):
     """Return a no-credit Audience DeepSearch plan for review before live retrieval."""
     if not isinstance(data, dict):
@@ -1176,6 +1202,21 @@ def create_app():
         result["test_mode"] = True
         result["test_note"] = "Bounded live discovery smoke test; results remain unverified until source checks support them."
         return jsonify(result)
+
+    @app.route("/api/audience/preview", methods=["POST", "OPTIONS"])
+    def audience_preview():
+        if request.method == "OPTIONS":
+            return ("", 204)
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            return jsonify({"status": "error", "message": "A JSON request body is required."}), 400
+        try:
+            return jsonify(build_audience_preview_response(data))
+        except ValueError as error:
+            return jsonify({"status": "error", "message": str(error)}), 400
+        except Exception:
+            app.logger.exception("Audience preview request failed")
+            return jsonify({"status": "error", "message": "Audience preview request failed."}), 500
 
     @app.route("/api/audience/plan", methods=["POST", "OPTIONS"])
     def audience_plan():
