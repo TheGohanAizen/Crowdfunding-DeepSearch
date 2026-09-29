@@ -410,15 +410,25 @@ function renderAudienceLead(item) {
         '<div class="tracking-state audience-tracking-state">Audience tracking: not started</div>' +
         '<div class="tracking-state audience-note-state">Private note: none</div>' +
         '<div class="tracking-state audience-history-state">History: no activity yet</div>' +
+        '<div class="tracking-state audience-next-state">Next step: review channel rules</div>' +
         (url ? '<div class="action-links"><a href="' + escapeHtml(url) + '" target="_blank" rel="noopener noreferrer">Review audience source</a></div>' : '');
     const audienceTrackingKey = TRACKING_PREFIX + "audience:" + (item.tracking_id || (item.url || item.name || "lead"));
     const existingAudienceTracking = readTrackingRecord(audienceTrackingKey);
     const audienceState = card.querySelector(".audience-tracking-state");
     const audienceNoteState = card.querySelector(".audience-note-state");
     const audienceHistoryState = card.querySelector(".audience-history-state");
+    const audienceNextState = card.querySelector(".audience-next-state");
     if (existingAudienceTracking && audienceState) audienceState.textContent = "Audience tracking: " + existingAudienceTracking.status;
     if (existingAudienceTracking && existingAudienceTracking.notes && audienceNoteState) audienceNoteState.textContent = "Private note: " + existingAudienceTracking.notes;
     if (audienceHistoryState) audienceHistoryState.textContent = trackingHistoryLabel(existingAudienceTracking);
+    if (audienceNextState) {
+        const currentStatus = existingAudienceTracking && existingAudienceTracking.status;
+        audienceNextState.textContent = currentStatus === "responded" ? "Next step: review response and decide next action" :
+            currentStatus === "contacted" ? "Next step: await response or follow up when due" :
+            currentStatus === "reviewed" ? "Next step: contact through the reviewed route if appropriate" :
+            currentStatus === "saved" ? "Next step: review channel rules and submission route" :
+            "Next step: review channel rules";
+    }
     card.dataset.audienceTrackingKey = audienceTrackingKey;
     card.querySelectorAll("[data-audience-followup]").forEach(function(followButton) {
         followButton.addEventListener("click", function() {
@@ -455,6 +465,7 @@ function renderAudienceLead(item) {
             const record = writeTrackingRecord(audienceTrackingKey, status);
             if (audienceState) audienceState.textContent = "Audience tracking: " + record.status;
             if (audienceHistoryState) audienceHistoryState.textContent = trackingHistoryLabel(record);
+            if (audienceNextState) audienceNextState.textContent = record.status === "responded" ? "Next step: review response and decide next action" : record.status === "contacted" ? "Next step: await response or follow up when due" : record.status === "reviewed" ? "Next step: contact through the reviewed route if appropriate" : "Next step: review channel rules and submission route";
             updateAudienceTrackingDashboard();
             applyAudienceFilters();
         });
