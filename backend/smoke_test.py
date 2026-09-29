@@ -290,6 +290,12 @@ try:
     assert 'value="high_priority"' in live_discovery_html
     assert 'audience-priority-state' in live_discovery_html
     assert 'card.dataset.audiencePriority' in live_discovery_html
+    assert 'value="contact_ready"' in live_discovery_html
+    assert 'id="audienceContactReadyButton"' in live_discovery_html
+    assert 'function setAudienceContactReadyQueue()' in live_discovery_html
+    assert 'audience-permission-state' in live_discovery_html
+    assert 'human review required' in live_discovery_html
+    assert 'Not verified — verify before outreach' in live_discovery_html
 
     # Static, no-credit source-page checks for service-area language.
     import importlib.util
