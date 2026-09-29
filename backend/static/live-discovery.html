@@ -401,6 +401,8 @@ function renderAudienceLead(item) {
     card.innerHTML =
         '<div class="result-top"><div><h3>' + escapeHtml(item.name || "Untitled audience lead") + '</h3>' +
         '<div class="type">' + escapeHtml(item.channel_type || item.type || "Audience") + ' · ' + escapeHtml(item.geographic_stage || "unspecified") + '</div></div>' +
+        ((item.discovered_in_lanes && item.discovered_in_lanes.length > 1) ? '<div class="match-reason"><strong>Found across channels:</strong> ' + escapeHtml(item.discovered_in_lanes.join(", ")) + '</div>' : '') +
+        ((item.discovered_in_stages && item.discovered_in_stages.length > 1) ? '<div class="match-reason"><strong>Found across search stages:</strong> ' + escapeHtml(item.discovered_in_stages.join(", ")) + '</div>' : '') +
         '<div class="score">' + escapeHtml(score) + '/100</div></div>' +
         '<div class="match-reason"><strong>Why it may fit:</strong> ' + escapeHtml((item.audience_relevance_signals || []).join(", ") || "Needs review") + '</div>' +
         '<div class="match-reason"><strong>Channel rules:</strong> ' + escapeHtml(ruleLabel) + '<br><small>' + escapeHtml(ruleEvidence) + '</small></div>' +
