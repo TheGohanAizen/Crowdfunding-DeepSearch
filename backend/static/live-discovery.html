@@ -248,6 +248,7 @@ button:hover { background: #1d4ed8; }
       <div><strong id="audienceSavedCount">0</strong><span>Saved</span></div>
       <div><strong id="audienceReviewedCount">0</strong><span>Reviewed</span></div>
       <div><strong id="audienceContactedCount">0</strong><span>Contacted</span></div>
+      <div><strong id="audienceFollowupCount">0</strong><span>Follow-ups Due</span></div>
       <div><strong id="audienceNotStartedCount">0</strong><span>Not Started</span></div>
       <div><strong id="audienceReviewProgress">0%</strong><span>Reviewed/Contacted</span></div>
     </div>
@@ -261,6 +262,7 @@ button:hover { background: #1d4ed8; }
           <option value="saved">Saved</option>
           <option value="reviewed">Reviewed</option>
           <option value="contacted">Contacted</option>
+          <option value="followup_due">Follow-up due</option>
         </select>
       </label>
       <label>Channel
@@ -383,7 +385,7 @@ function renderAudienceLead(item) {
         '<div class="match-reason"><strong>Channel rules:</strong> ' + escapeHtml(ruleLabel) + '<br><small>' + escapeHtml(ruleEvidence) + '</small></div>' +
         '<div class="verification"><strong>Permission:</strong> Not verified. Review channel rules before contacting or posting.<br><strong>Automatic distribution:</strong> Disabled.</div>' +
         '<div class="match-reason"><strong>Recommended next action:</strong> ' + escapeHtml((item.recommended_next_action && item.recommended_next_action.label) || "Verify channel rules") + '</div>' +
-        '<div class="tracking-actions"><button type="button" data-audience-track="saved">Save lead</button><button type="button" data-audience-track="reviewed">Mark reviewed</button><button type="button" data-audience-track="contacted">Mark contacted</button><button type="button" data-audience-note="true">Add note</button></div>' +
+        '<div class="tracking-actions"><button type="button" data-audience-track="saved">Save lead</button><button type="button" data-audience-track="reviewed">Mark reviewed</button><button type="button" data-audience-track="contacted">Mark contacted</button><button type="button" data-audience-followup="tomorrow">Follow up tomorrow</button><button type="button" data-audience-followup="week">Follow up +7 days</button><button type="button" data-audience-followup="clear">Clear follow-up</button><button type="button" data-audience-note="true">Add note</button></div>' +
         '<div class="tracking-state audience-tracking-state">Audience tracking: not started</div>' +
         '<div class="tracking-state audience-note-state">Private note: none</div>' +
         (url ? '<div class="action-links"><a href="' + escapeHtml(url) + '" target="_blank" rel="noopener noreferrer">Review audience source</a></div>' : '');
@@ -394,6 +396,23 @@ function renderAudienceLead(item) {
     if (existingAudienceTracking && audienceState) audienceState.textContent = "Audience tracking: " + existingAudienceTracking.status;
     if (existingAudienceTracking && existingAudienceTracking.notes && audienceNoteState) audienceNoteState.textContent = "Private note: " + existingAudienceTracking.notes;
     card.dataset.audienceTrackingKey = audienceTrackingKey;
+    card.querySelectorAll("[data-audience-followup]").forEach(function(followButton) {
+        followButton.addEventListener("click", function() {
+            const previous = readTrackingRecord(audienceTrackingKey) || {};
+            const baseStatus = previous.status || "saved";
+            const record = writeTrackingRecord(audienceTrackingKey, baseStatus);
+            if (followButton.dataset.audienceFollowup === "clear") {
+                record.follow_up_at = null;
+            } else {
+                const days = followButton.dataset.audienceFollowup === "tomorrow" ? 1 : 7;
+                record.follow_up_at = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+            }
+            try { localStorage.setItem(audienceTrackingKey, JSON.stringify(record)); } catch (error) {}
+            if (audienceState) audienceState.textContent = "Audience tracking: " + record.status + (record.follow_up_at ? " · follow up " + new Date(record.follow_up_at).toLocaleDateString() : "");
+            updateAudienceTrackingDashboard();
+            applyAudienceFilters();
+        });
+    });
     const noteButton = card.querySelector("[data-audience-note]");
     if (noteButton) noteButton.addEventListener("click", function() {
         const previous = readTrackingRecord(audienceTrackingKey) || {};
@@ -429,10 +448,12 @@ function applyAudienceFilters() {
         const record = card.dataset.audienceTrackingKey ? readTrackingRecord(card.dataset.audienceTrackingKey) : null;
         const tracked = record && record.status ? record.status : "not_started";
         const rule = card.dataset.ruleStatus || "not_checked";
+        const followupDue = !!(record && record.follow_up_at && new Date(record.follow_up_at) <= new Date());
         const statusMatch = status === "all"
             || (status === "actionable_review" && rule === "rules_or_submission_route_found")
             || (status === "needs_review" && !["restriction_detected", "rules_or_submission_route_found"].includes(rule))
             || (status === "restricted" && rule === "restriction_detected")
+            || (status === "followup_due" && followupDue)
             || status === tracked;
         const channelMatch = channel === "all" || card.dataset.channelType === channel;
         const show = statusMatch && channelMatch;
@@ -445,7 +466,8 @@ function applyAudienceFilters() {
 
 function updateAudienceTrackingDashboard() {
     const cards = Array.from(document.querySelectorAll("#audiencePlanList .result-card"));
-    const counts = {saved: 0, reviewed: 0, contacted: 0, notStarted: 0};
+    const counts = {saved: 0, reviewed: 0, contacted: 0, followups: 0, notStarted: 0};
+    const now = new Date();
     cards.forEach(function(card) {
         const record = card.dataset.audienceTrackingKey ? readTrackingRecord(card.dataset.audienceTrackingKey) : null;
         if (!record || !record.status) counts.notStarted += 1;
@@ -453,12 +475,14 @@ function updateAudienceTrackingDashboard() {
         else if (record.status === "reviewed") counts.reviewed += 1;
         else if (record.status === "contacted") counts.contacted += 1;
         else counts.notStarted += 1;
+        if (record && record.follow_up_at && new Date(record.follow_up_at) <= now) counts.followups += 1;
     });
     const set = function(id, value) { const el = document.getElementById(id); if (el) el.textContent = value; };
     set("audienceSavedCount", counts.saved);
     set("audienceReviewedCount", counts.reviewed);
     set("audienceContactedCount", counts.contacted);
     set("audienceNotStartedCount", counts.notStarted);
+    set("audienceFollowupCount", counts.followups);
     const reviewedPercent = cards.length ? Math.round(((counts.reviewed + counts.contacted) / cards.length) * 100) : 0;
     set("audienceReviewProgress", reviewedPercent + "%");
 }
