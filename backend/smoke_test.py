@@ -265,6 +265,8 @@ try:
     audience_relevance_signals = crowdfunding_server.audience_relevance_signals
     detect_audience_channel_rules = crowdfunding_server.detect_audience_channel_rules
     enrich_audience_with_rule_checks = crowdfunding_server.enrich_audience_with_rule_checks
+    audience_next_action = crowdfunding_server.audience_next_action
+    finalize_audience_actions = crowdfunding_server.finalize_audience_actions
     campaign_tracking_id = crowdfunding_server.campaign_tracking_id
     opportunity_tracking_id = crowdfunding_server.opportunity_tracking_id
 
@@ -326,6 +328,17 @@ try:
     assert uninspected[0]["channel_rules"]["status"] == "not_checked"
     assert uninspected[0]["channel_rules"]["permission_verified"] is False
     assert uninspected[0]["channel_rules"]["automatic_distribution"] is False
+
+    restricted_candidate = dict(ranked_audience)
+    restricted_candidate["channel_rules"] = {"status": "restriction_detected"}
+    restricted_action = audience_next_action(restricted_candidate)
+    assert restricted_action["type"] == "do_not_contact_until_reviewed"
+    assert restricted_action["blocked_by_rules"] is True
+    assert restricted_action["automation_ready"] is False
+
+    finalized_audience = finalize_audience_actions(uninspected)
+    assert finalized_audience[0]["outreach_readiness"]["permission_verified"] is False
+    assert finalized_audience[0]["outreach_readiness"]["safe_for_automatic_distribution"] is False
 
     statewide_html = """
     <html><head><title>Transportation Help</title></head>
