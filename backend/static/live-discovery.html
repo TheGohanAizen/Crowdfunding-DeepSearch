@@ -525,7 +525,7 @@ function exportAudienceCsv() {
             link ? link.href : ""
         ]);
     });
-    const csv = rows.map(function(row) { return row.map(csvCell).join(","); }).join("\n");
+    const csv = rows.map(function(row) { return row.map(csvCell).join(","); }).join(String.fromCharCode(10));
     const blob = new Blob([csv], {type: "text/csv;charset=utf-8"});
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
