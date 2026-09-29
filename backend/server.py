@@ -24,6 +24,7 @@ def env_int(name, default, minimum, maximum):
 HOST = os.environ.get("HOST", "0.0.0.0")
 PORT = env_int("PORT", 8080, 1, 65535)
 MAX_SOURCE_CHECKS = env_int("MAX_SOURCE_CHECKS", 8, 0, 20)
+MAX_AUDIENCE_RULE_CHECKS = env_int("MAX_AUDIENCE_RULE_CHECKS", 4, 0, 12)
 MAX_DISCOVERY_RESULTS = env_int("MAX_DISCOVERY_RESULTS", 25, 1, 100)
 MAX_QUERY_LENGTH = env_int("MAX_QUERY_LENGTH", 500, 100, 2000)
 MAX_SEARCH_LANES = env_int("MAX_SEARCH_LANES", 4, 1, 4)
@@ -713,7 +714,7 @@ def classify_service_area(signals, location):
 def enrich_with_source_checks(candidates, location="", max_candidates=None):
     """Visit a limited number of top candidates and record source-level signals."""
     if max_candidates is None:
-        max_candidates = MAX_SOURCE_CHECKS
+        max_candidates = MAX_AUDIENCE_RULE_CHECKS
     enriched = [dict(candidate) for candidate in candidates]
     to_check = enriched[:max_candidates]
 
