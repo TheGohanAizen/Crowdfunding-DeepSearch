@@ -265,6 +265,7 @@ button:hover { background: #1d4ed8; }
           <option value="followup_due">Follow-up due</option>
           <option value="high_score">High relevance (70+)</option>
           <option value="high_priority">High priority (80+)</option>
+          <option value="contact_ready">Contact-ready candidates</option>
         </select>
       </label>
       <label>Channel
@@ -288,6 +289,7 @@ button:hover { background: #1d4ed8; }
       <button type="button" id="audienceReviewQueueButton" onclick="setAudienceReviewQueue()">Review queue</button>
       <button type="button" id="audienceFollowupQueueButton" onclick="setAudienceFollowupQueue()">Follow-up queue</button>
       <button type="button" id="audienceRestrictedQueueButton" onclick="setAudienceRestrictedQueue()">Restrictions queue</button>
+      <button type="button" id="audienceContactReadyButton" onclick="setAudienceContactReadyQueue()">Contact-ready queue</button>
     </div>
     <div id="audiencePlanList"></div>
     <div class="notice">This preview uses zero live-search credits. It plans relevant public-web discovery lanes first; posting or contacting remains disabled until channel rules and permissions are reviewed.</div>
@@ -495,6 +497,7 @@ function applyAudienceFilters() {
             || (status === "followup_due" && followupDue)
             || (status === "high_score" && Number(card.dataset.audienceScore || 0) >= 70)
             || (status === "high_priority" && card.dataset.audiencePriority === "high")
+            || (status === "contact_ready" && rule === "rules_or_submission_route_found" && card.dataset.audiencePriority !== "standard")
             || status === tracked;
         const channelMatch = channel === "all" || card.dataset.channelType === channel;
         const show = statusMatch && channelMatch;
@@ -503,6 +506,14 @@ function applyAudienceFilters() {
     });
     const counter = document.getElementById("audienceVisibleCount");
     if (counter) counter.textContent = visible + " of " + cards.length + " audience leads shown";
+}
+
+function setAudienceContactReadyQueue() {
+    const status = document.getElementById("audienceStatusFilter");
+    const sort = document.getElementById("audienceSort");
+    if (status) status.value = "contact_ready";
+    if (sort) sort.value = "rules_first";
+    applyAudienceFilters();
 }
 
 function setAudienceFollowupQueue() {
