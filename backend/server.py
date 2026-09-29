@@ -994,6 +994,40 @@ def build_discovery_response(data):
     }
 
 
+
+def build_audience_plan_response(data):
+    """Return a no-credit Audience DeepSearch plan for review before live retrieval."""
+    if not isinstance(data, dict):
+        raise ValueError("A JSON request body is required.")
+    need = str(data.get("need") or "General Financial Assistance").strip()
+    location = str(data.get("location") or "").strip()
+    scope = str(data.get("scope") or "automatic").strip().lower()
+    if len(need) > MAX_QUERY_LENGTH or len(location) > MAX_QUERY_LENGTH:
+        raise ValueError("Audience search fields are too long.")
+    if scope not in {"local", "state", "national", "worldwide", "automatic"}:
+        raise ValueError("Unsupported geographic scope.")
+    plan = build_audience_queries(need, location, scope)
+    return {
+        "status": "success",
+        "query": {"need": need, "location": location, "scope": scope},
+        "audience": {
+            "stage": "audience-planning-v1",
+            "live_search": False,
+            "credits_used": 0,
+            "geographic_scope": scope,
+            "automatic_distribution": False
+        },
+        "safety_policy": {
+            "review_required": True,
+            "automatic_posting": False,
+            "fake_accounts": False,
+            "captcha_bypass": False,
+            "note": "Discovery identifies possible public channels. Permission, channel rules, and relevance must be reviewed before outreach."
+        },
+        "search_plan": plan
+    }
+
+
 def create_app():
     from flask import Flask, jsonify, request
     app = Flask(__name__)
@@ -1029,7 +1063,8 @@ def create_app():
             "version": "1.13",
             "health": "/api/health",
             "deployment": "/api/deployment",
-            "discovery": "/api/discover"
+            "discovery": "/api/discover",
+            "audience_plan": "/api/audience/plan"
         })
 
     @app.get("/api/deployment")
@@ -1062,6 +1097,23 @@ def create_app():
         result["test_mode"] = True
         result["test_note"] = "Bounded live discovery smoke test; results remain unverified until source checks support them."
         return jsonify(result)
+
+    @app.route("/api/audience/plan", methods=["POST", "OPTIONS"])
+    def audience_plan():
+        if request.method == "OPTIONS":
+            return ("", 204)
+        if request.content_length is not None and request.content_length > 65536:
+            return jsonify({"status": "error", "message": "Request body is too large."}), 413
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            return jsonify({"status": "error", "message": "A JSON request body is required."}), 400
+        try:
+            return jsonify(build_audience_plan_response(data))
+        except ValueError as error:
+            return jsonify({"status": "error", "message": str(error)}), 400
+        except Exception:
+            app.logger.exception("Audience planning request failed")
+            return jsonify({"status": "error", "message": "Audience planning request failed."}), 500
 
     @app.route("/api/discover", methods=["POST", "OPTIONS"])
     def discover():
