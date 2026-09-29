@@ -316,6 +316,10 @@ try:
     assert 'does not claim zero credits' in server_source
     assert 'MAX_AUDIENCE_RULE_CHECKS = env_int("MAX_AUDIENCE_RULE_CHECKS", 4, 0, 12)' in server_source
     assert 'max_candidates = MAX_AUDIENCE_RULE_CHECKS' in server_source
+    assert 'def deduplicate_audience_candidates(candidates):' in server_source
+    assert 'results = deduplicate_audience_candidates(results)' in server_source
+    assert 'discovered_in_lanes' in server_source
+    assert 'discovered_in_stages' in server_source
 
     # Static, no-credit source-page checks for service-area language.
     import importlib.util
