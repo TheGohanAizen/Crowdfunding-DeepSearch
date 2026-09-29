@@ -208,6 +208,9 @@ try:
     build_discovery_queries = crowdfunding_server.build_discovery_queries
     build_audience_queries = crowdfunding_server.build_audience_queries
     audience_channel_tracking_id = crowdfunding_server.audience_channel_tracking_id
+    normalize_audience_candidate = crowdfunding_server.normalize_audience_candidate
+    audience_relevance_signals = crowdfunding_server.audience_relevance_signals
+    detect_audience_channel_rules = crowdfunding_server.detect_audience_channel_rules
     campaign_tracking_id = crowdfunding_server.campaign_tracking_id
     opportunity_tracking_id = crowdfunding_server.opportunity_tracking_id
 
@@ -238,6 +241,31 @@ try:
     assert all(item["action_mode"] == "review_required" for item in audience_queries)
     audience_candidate = {"url": "https://example.org/community", "name": "Example Community", "type": "Community Forums"}
     assert audience_channel_tracking_id(audience_candidate).startswith("audience_")
+
+    normalized_audience = normalize_audience_candidate(
+        {"url": "https://example.org/austin-transportation", "title": "Austin Transportation Community", "snippet": "Austin vehicle and mobility resources"},
+        "Community Forums", "Austin transportation community", geographic_stage="local"
+    )
+    ranked_audience = audience_relevance_signals(normalized_audience, "Transportation", "Austin, Texas, United States")
+    assert ranked_audience["discovery_kind"] == "audience"
+    assert ranked_audience["audience_relevance_score"] >= 55
+    assert ranked_audience["permission_verified"] is False
+    assert ranked_audience["automatic_distribution"] is False
+
+    restricted_rules = detect_audience_channel_rules({
+        "page_title": "Community Rules",
+        "page_text_excerpt": "Please read our community rules. No crowdfunding or self-promotion is permitted."
+    })
+    assert restricted_rules["status"] == "restriction_detected"
+    assert restricted_rules["permission_verified"] is False
+    assert restricted_rules["requires_review"] is True
+
+    submission_rules = detect_audience_channel_rules({
+        "page_title": "Story Tips",
+        "page_text_excerpt": "Read our submission guidelines and send us your story tip."
+    })
+    assert submission_rules["status"] == "rules_or_submission_route_found"
+    assert submission_rules["automatic_distribution"] is False
 
     statewide_html = """
     <html><head><title>Transportation Help</title></head>
