@@ -1301,7 +1301,9 @@ def build_audience_discovery_response(data):
         audience_relevance_signals(item, base["query"]["need"], base["query"]["location"])
         for item in retrieval.get("candidates", [])
     ]
+    before_dedup_count = len(results)
     results = deduplicate_audience_candidates(results)
+    after_dedup_count = len(results)
     for item in results:
         lane_count = len(item.get("discovered_in_lanes") or [])
         stage_count = len(item.get("discovered_in_stages") or [])
