@@ -244,6 +244,11 @@ try:
     assert 'function runAudienceDiscovery()' in live_discovery_html
     assert 'function renderAudienceLead(item)' in live_discovery_html
     assert 'Automatic distribution:</strong> Disabled.' in live_discovery_html
+    assert 'Channel rules:</strong>' in live_discovery_html
+    assert 'data-audience-track="saved"' in live_discovery_html
+    assert 'data-audience-track="reviewed"' in live_discovery_html
+    assert 'data-audience-track="contacted"' in live_discovery_html
+    assert 'audience-tracking-state' in live_discovery_html
 
     # Static, no-credit source-page checks for service-area language.
     import importlib.util
