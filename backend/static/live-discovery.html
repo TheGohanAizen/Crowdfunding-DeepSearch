@@ -382,14 +382,29 @@ function renderAudienceLead(item) {
         '<div class="match-reason"><strong>Channel rules:</strong> ' + escapeHtml(ruleLabel) + '<br><small>' + escapeHtml(ruleEvidence) + '</small></div>' +
         '<div class="verification"><strong>Permission:</strong> Not verified. Review channel rules before contacting or posting.<br><strong>Automatic distribution:</strong> Disabled.</div>' +
         '<div class="match-reason"><strong>Recommended next action:</strong> ' + escapeHtml((item.recommended_next_action && item.recommended_next_action.label) || "Verify channel rules") + '</div>' +
-        '<div class="tracking-actions"><button type="button" data-audience-track="saved">Save lead</button><button type="button" data-audience-track="reviewed">Mark reviewed</button><button type="button" data-audience-track="contacted">Mark contacted</button></div>' +
+        '<div class="tracking-actions"><button type="button" data-audience-track="saved">Save lead</button><button type="button" data-audience-track="reviewed">Mark reviewed</button><button type="button" data-audience-track="contacted">Mark contacted</button><button type="button" data-audience-note="true">Add note</button></div>' +
         '<div class="tracking-state audience-tracking-state">Audience tracking: not started</div>' +
+        '<div class="tracking-state audience-note-state">Private note: none</div>' +
         (url ? '<div class="action-links"><a href="' + escapeHtml(url) + '" target="_blank" rel="noopener noreferrer">Review audience source</a></div>' : '');
     const audienceTrackingKey = TRACKING_PREFIX + "audience:" + (item.tracking_id || (item.url || item.name || "lead"));
     const existingAudienceTracking = readTrackingRecord(audienceTrackingKey);
     const audienceState = card.querySelector(".audience-tracking-state");
+    const audienceNoteState = card.querySelector(".audience-note-state");
     if (existingAudienceTracking && audienceState) audienceState.textContent = "Audience tracking: " + existingAudienceTracking.status;
+    if (existingAudienceTracking && existingAudienceTracking.notes && audienceNoteState) audienceNoteState.textContent = "Private note: " + existingAudienceTracking.notes;
     card.dataset.audienceTrackingKey = audienceTrackingKey;
+    const noteButton = card.querySelector("[data-audience-note]");
+    if (noteButton) noteButton.addEventListener("click", function() {
+        const previous = readTrackingRecord(audienceTrackingKey) || {};
+        const note = prompt("Private note for this audience lead:", previous.notes || "");
+        if (note === null) return;
+        const cleanNote = String(note).trim().slice(0, 1000);
+        const record = previous.status ? writeTrackingRecord(audienceTrackingKey, previous.status) : writeTrackingRecord(audienceTrackingKey, "saved");
+        record.notes = cleanNote;
+        try { localStorage.setItem(audienceTrackingKey, JSON.stringify(record)); } catch (error) {}
+        if (audienceNoteState) audienceNoteState.textContent = cleanNote ? "Private note: " + cleanNote : "Private note: none";
+        updateAudienceTrackingDashboard();
+    });
     card.querySelectorAll("[data-audience-track]").forEach(function(trackButton) {
         trackButton.addEventListener("click", function() {
             const status = trackButton.dataset.audienceTrack;
