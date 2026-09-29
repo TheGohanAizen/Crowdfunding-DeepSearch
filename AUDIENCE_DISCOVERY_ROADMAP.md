@@ -89,3 +89,18 @@ A later dashboard can separately track:
 7. Add durable tracking, deduplication, analytics, and follow-up workflows.
 
 This roadmap is additive: the existing opportunity-discovery engine remains the foundation rather than being replaced.
+
+
+## V1 implementation status
+
+Audience DeepSearch V1 is now under active implementation.
+
+The first backend planner defines four bounded public-web discovery lanes:
+- Community Forums
+- Local Media
+- Creators & Podcasts
+- Directories & Newsletters
+
+Automatic scope progressively samples local, state/province, national, and worldwide discovery. Audience candidates use a separate stable tracking namespace from institutional opportunities. V1 discovery actions default to `review_required`; discovery does not imply permission to post, submit, or contact automatically.
+
+Next implementation stages are candidate normalization/ranking, channel-rule evidence, a dedicated audience API response, and frontend audience results/tracking.
