@@ -1068,6 +1068,15 @@ def audience_relevance_signals(candidate, need, location):
     if parsed.scheme == "https" and parsed.hostname:
         score += 10
         signals.append("https_source")
+    intent_terms = ("submit", "submission", "story tip", "pitch", "contact", "community", "resource", "assistance", "support")
+    intent_hits = [term for term in intent_terms if term in text]
+    if intent_hits:
+        score += min(15, len(intent_hits) * 5)
+        signals.append("outreach_intent:" + ",".join(intent_hits[:3]))
+    low_signal_terms = ("login", "sign in", "privacy policy", "cookie policy", "terms only")
+    if any(term in text for term in low_signal_terms) and not hits and not intent_hits:
+        score = max(0, score - 15)
+        signals.append("low_signal_page")
     checked = dict(candidate)
     checked["audience_relevance_score"] = min(score, 100)
     checked["audience_relevance_signals"] = signals
