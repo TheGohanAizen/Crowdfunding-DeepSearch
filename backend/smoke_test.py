@@ -302,6 +302,11 @@ try:
     assert 'audience-next-state' in live_discovery_html
     assert 'review response and decide next action' in live_discovery_html
     assert 'await response or follow up when due' in live_discovery_html
+    assert 'data-audience-track="closed"' in live_discovery_html
+    assert 'value="closed"' in live_discovery_html
+    assert 'id="audienceClosedCount"' in live_discovery_html
+    assert 'closed — no further outreach scheduled' in live_discovery_html
+    assert 'record.status !== "closed"' in live_discovery_html
 
     # Static, no-credit source-page checks for service-area language.
     import importlib.util
