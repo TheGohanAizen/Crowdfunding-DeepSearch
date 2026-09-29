@@ -324,6 +324,10 @@ try:
     assert 'transportation vehicle assistance resources' in server_source
     assert '"medical" in topic_lower or "health" in topic_lower' in server_source
     assert '"housing" in topic_lower or "rent" in topic_lower' in server_source
+    assert 'outreach_intent:' in server_source
+    assert 'low_signal_page' in server_source
+    assert 'cross_search_corroboration' in server_source
+    assert '"boost": corroboration_boost' in server_source
 
     # Static, no-credit source-page checks for service-area language.
     import importlib.util
