@@ -296,6 +296,12 @@ try:
     assert 'audience-permission-state' in live_discovery_html
     assert 'human review required' in live_discovery_html
     assert 'Not verified — verify before outreach' in live_discovery_html
+    assert 'data-audience-track="responded"' in live_discovery_html
+    assert 'value="responded"' in live_discovery_html
+    assert 'id="audienceRespondedCount"' in live_discovery_html
+    assert 'audience-next-state' in live_discovery_html
+    assert 'review response and decide next action' in live_discovery_html
+    assert 'await response or follow up when due' in live_discovery_html
 
     # Static, no-credit source-page checks for service-area language.
     import importlib.util
