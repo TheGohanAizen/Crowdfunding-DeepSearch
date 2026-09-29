@@ -1100,6 +1100,43 @@ def retrieve_audience_candidates(search_plan, per_lane=2):
     return retrieval
 
 
+def deduplicate_audience_candidates(candidates):
+    """Merge repeated audience leads by normalized destination URL while preserving strongest evidence."""
+    merged = {}
+    order = []
+    for candidate in candidates:
+        item = dict(candidate)
+        raw_url = (item.get("url") or "").strip()
+        parsed = urlparse(raw_url)
+        host = (parsed.hostname or "").lower()
+        if host.startswith("www."):
+            host = host[4:]
+        path = (parsed.path or "/").rstrip("/") or "/"
+        key = (host, path.lower()) if host else ("", (item.get("name") or "").strip().lower())
+        if key not in merged:
+            item["discovered_in_lanes"] = [item.get("type")] if item.get("type") else []
+            item["discovered_in_stages"] = [item.get("geographic_stage")] if item.get("geographic_stage") else []
+            merged[key] = item
+            order.append(key)
+            continue
+        current = merged[key]
+        lane = item.get("type")
+        stage = item.get("geographic_stage")
+        if lane and lane not in current["discovered_in_lanes"]:
+            current["discovered_in_lanes"].append(lane)
+        if stage and stage not in current["discovered_in_stages"]:
+            current["discovered_in_stages"].append(stage)
+        if len(item.get("snippet") or "") > len(current.get("snippet") or ""):
+            current["snippet"] = item.get("snippet")
+        if item.get("audience_relevance_score", 0) > current.get("audience_relevance_score", 0):
+            preserved_lanes = current["discovered_in_lanes"]
+            preserved_stages = current["discovered_in_stages"]
+            current.update(item)
+            current["discovered_in_lanes"] = preserved_lanes
+            current["discovered_in_stages"] = preserved_stages
+    return [merged[key] for key in order]
+
+
 def enrich_audience_with_rule_checks(candidates, max_candidates=None):
     """Inspect a bounded set of audience sources for rules/restrictions without posting."""
     if max_candidates is None:
@@ -1208,6 +1245,7 @@ def build_audience_discovery_response(data):
         audience_relevance_signals(item, base["query"]["need"], base["query"]["location"])
         for item in retrieval.get("candidates", [])
     ]
+    results = deduplicate_audience_candidates(results)
     results.sort(key=lambda item: item.get("audience_relevance_score", 0), reverse=True)
     results = enrich_audience_with_rule_checks(results)
     results = finalize_audience_actions(results)
