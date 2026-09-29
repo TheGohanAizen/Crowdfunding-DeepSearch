@@ -240,6 +240,12 @@ button:hover { background: #1d4ed8; }
 <div id="audienceResults" class="panel results">
     <h2>Audience DeepSearch V1</h2>
     <p id="audienceSummary"></p>
+    <div class="dashboard" id="audienceDashboard">
+      <div><strong id="audienceLeadCount">0</strong><span>Audience Leads</span></div>
+      <div><strong id="audienceRestrictionCount">0</strong><span>Restrictions</span></div>
+      <div><strong id="audienceRulesCount">0</strong><span>Rules Found</span></div>
+      <div><strong id="audienceReviewCount">0</strong><span>Need Review</span></div>
+    </div>
     <div id="audiencePlanList"></div>
     <div class="notice">This preview uses zero live-search credits. It plans relevant public-web discovery lanes first; posting or contacting remains disabled until channel rules and permissions are reviewed.</div>
 </div>
@@ -364,6 +370,15 @@ function renderAudienceLead(item) {
     return card;
 }
 
+function updateAudienceDashboard(results) {
+    const items = Array.isArray(results) ? results : [];
+    const set = function(id, value) { const el = document.getElementById(id); if (el) el.textContent = value; };
+    set("audienceLeadCount", items.length);
+    set("audienceRestrictionCount", items.filter(function(item) { return item.channel_rules && item.channel_rules.status === "restriction_detected"; }).length);
+    set("audienceRulesCount", items.filter(function(item) { return item.channel_rules && item.channel_rules.status === "rules_or_submission_route_found"; }).length);
+    set("audienceReviewCount", items.filter(function(item) { return !item.channel_rules || !["restriction_detected", "rules_or_submission_route_found"].includes(item.channel_rules.status); }).length);
+}
+
 async function runAudienceDiscovery() {
     const panel = document.getElementById("audienceResults");
     const summary = document.getElementById("audienceSummary");
@@ -387,6 +402,7 @@ async function runAudienceDiscovery() {
         if (!response.ok) throw new Error(data.message || "Audience discovery failed.");
         const provider = data.provider_status && data.provider_status.provider ? data.provider_status.provider : data.audience.provider;
         summary.textContent = data.results.length + " audience leads found · provider: " + (provider || "none") + ". Every lead requires review before outreach.";
+        updateAudienceDashboard(data.results);
         if (!data.results.length) {
             list.innerHTML = '<div class="verification">No live audience leads were returned. The planner remains available without search-provider credits.</div>';
         } else {
