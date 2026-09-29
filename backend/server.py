@@ -995,6 +995,85 @@ def build_discovery_response(data):
 
 
 
+
+AUDIENCE_CHANNEL_RULE_TERMS = {
+    "submission_allowed": ("submit", "submission", "send us", "story tip", "pitch us", "contact us"),
+    "rules_present": ("community rules", "posting rules", "submission guidelines", "editorial guidelines", "terms of use"),
+    "fundraising_restricted": ("no fundraising", "no crowdfunding", "no solicitation", "no self promotion", "no self-promotion"),
+}
+
+def normalize_audience_candidate(item, lane, query, source="web-search", geographic_stage="unspecified"):
+    """Normalize an audience lead separately from institutional opportunities."""
+    candidate = normalize_candidate(item, lane, query, source=source, geographic_stage=geographic_stage)
+    candidate["tracking_id"] = audience_channel_tracking_id(candidate)
+    candidate["discovery_kind"] = "audience"
+    candidate["channel_type"] = lane
+    candidate["review_status"] = "needs_review"
+    candidate["automatic_distribution"] = False
+    return candidate
+
+def audience_relevance_signals(candidate, need, location):
+    """Rank audience leads as discovery signals, never as permission to post."""
+    text = " ".join([
+        candidate.get("name", ""), candidate.get("snippet", ""),
+        candidate.get("channel_type", candidate.get("type", ""))
+    ]).lower()
+    score = 0
+    signals = []
+    topic_terms = {
+        "Transportation": ("transportation", "vehicle", "car", "mobility", "commute"),
+        "Medical Assistance": ("medical", "health", "patient", "care"),
+        "Housing Assistance": ("housing", "rent", "shelter", "community"),
+        "Education Assistance": ("education", "school", "student", "scholarship"),
+        "Community / Nonprofit Funding": ("nonprofit", "community", "fundraising", "charity"),
+        "General Financial Assistance": ("assistance", "community", "financial", "support"),
+    }
+    hits = [term for term in topic_terms.get(need, ()) if term in text]
+    if hits:
+        score += min(40, len(hits) * 10)
+        signals.append("topic_match:" + ",".join(hits[:4]))
+    location_tokens = [x.lower() for x in re.findall(r"[A-Za-z]{3,}", location or "") if x.lower() not in {"united", "states"}]
+    if location_tokens and any(token in text for token in location_tokens):
+        score += 25
+        signals.append("location_match")
+    channel = candidate.get("channel_type", candidate.get("type", ""))
+    if channel in {"Local Media", "Community Forums", "Creators & Podcasts", "Directories & Newsletters"}:
+        score += 20
+        signals.append("supported_channel")
+    parsed = urlparse(candidate.get("url", ""))
+    if parsed.scheme == "https" and parsed.hostname:
+        score += 10
+        signals.append("https_source")
+    checked = dict(candidate)
+    checked["audience_relevance_score"] = min(score, 100)
+    checked["audience_relevance_signals"] = signals
+    checked["permission_verified"] = False
+    checked["channel_rules_status"] = "not_checked"
+    checked["automatic_distribution"] = False
+    return checked
+
+def detect_audience_channel_rules(signals):
+    """Classify source text conservatively; restrictions always require human review."""
+    text = " ".join([
+        signals.get("page_title", ""),
+        signals.get("page_text_excerpt", ""),
+    ]).lower()
+    found = {key: [term for term in terms if term in text] for key, terms in AUDIENCE_CHANNEL_RULE_TERMS.items()}
+    if found["fundraising_restricted"]:
+        status = "restriction_detected"
+    elif found["rules_present"] or found["submission_allowed"]:
+        status = "rules_or_submission_route_found"
+    else:
+        status = "not_found"
+    return {
+        "status": status,
+        "evidence": {key: values[:5] for key, values in found.items() if values},
+        "permission_verified": False,
+        "automatic_distribution": False,
+        "requires_review": True
+    }
+
+
 def build_audience_plan_response(data):
     """Return a no-credit Audience DeepSearch plan for review before live retrieval."""
     if not isinstance(data, dict):
