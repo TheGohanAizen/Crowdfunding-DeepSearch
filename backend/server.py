@@ -1077,6 +1077,16 @@ def audience_relevance_signals(candidate, need, location):
     if any(term in text for term in low_signal_terms) and not hits and not intent_hits:
         score = max(0, score - 15)
         signals.append("low_signal_page")
+    noise_terms = ("jobs", "careers", "employment opportunities", "advertise with us", "sponsored content", "press release distribution", "seo service", "marketing agency")
+    noise_hits = [term for term in noise_terms if term in text]
+    if noise_hits and not intent_hits:
+        score = max(0, score - min(30, len(noise_hits) * 10))
+        signals.append("commercial_or_irrelevant_noise:" + ",".join(noise_hits[:3]))
+    crowdfunding_terms = ("crowdfunding", "fundraiser", "fundraising", "donation", "donate", "gofundme")
+    crowdfunding_hits = [term for term in crowdfunding_terms if term in text]
+    if crowdfunding_hits:
+        score += min(15, len(crowdfunding_hits) * 5)
+        signals.append("fundraising_context:" + ",".join(crowdfunding_hits[:3]))
     checked = dict(candidate)
     checked["audience_relevance_score"] = min(score, 100)
     checked["audience_relevance_signals"] = signals
