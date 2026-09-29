@@ -250,6 +250,29 @@ button:hover { background: #1d4ed8; }
       <div><strong id="audienceContactedCount">0</strong><span>Contacted</span></div>
       <div><strong id="audienceNotStartedCount">0</strong><span>Not Started</span></div>
     </div>
+    <div class="filters" id="audienceFilters">
+      <label>Audience view
+        <select id="audienceStatusFilter" onchange="applyAudienceFilters()">
+          <option value="all">All leads</option>
+          <option value="actionable_review">Rules/submission route found</option>
+          <option value="needs_review">Needs rule review</option>
+          <option value="restricted">Restrictions detected</option>
+          <option value="saved">Saved</option>
+          <option value="reviewed">Reviewed</option>
+          <option value="contacted">Contacted</option>
+        </select>
+      </label>
+      <label>Channel
+        <select id="audienceChannelFilter" onchange="applyAudienceFilters()">
+          <option value="all">All channels</option>
+          <option value="Community Forums">Community Forums</option>
+          <option value="Local Media">Local Media</option>
+          <option value="Creators & Podcasts">Creators & Podcasts</option>
+          <option value="Directories & Newsletters">Directories & Newsletters</option>
+        </select>
+      </label>
+      <span id="audienceVisibleCount"></span>
+    </div>
     <div id="audiencePlanList"></div>
     <div class="notice">This preview uses zero live-search credits. It plans relevant public-web discovery lanes first; posting or contacting remains disabled until channel rules and permissions are reviewed.</div>
 </div>
@@ -336,6 +359,8 @@ function renderAudienceLead(item) {
     const card = document.createElement("div");
     card.className = "result-card";
     card.dataset.stage = item.geographic_stage || "unspecified";
+    card.dataset.channelType = item.channel_type || item.type || "Audience";
+    card.dataset.ruleStatus = (item.channel_rules && item.channel_rules.status) || "not_checked";
     const score = item.audience_relevance_score ?? 0;
     const url = item.url && /^https?:\/\//i.test(item.url) ? item.url : "";
     const rules = item.channel_rules || {status: "not_checked", evidence: {}};
@@ -371,9 +396,35 @@ function renderAudienceLead(item) {
             const record = writeTrackingRecord(audienceTrackingKey, status);
             if (audienceState) audienceState.textContent = "Audience tracking: " + record.status;
             updateAudienceTrackingDashboard();
+            applyAudienceFilters();
         });
     });
     return card;
+}
+
+function applyAudienceFilters() {
+    const statusFilter = document.getElementById("audienceStatusFilter");
+    const channelFilter = document.getElementById("audienceChannelFilter");
+    const status = statusFilter ? statusFilter.value : "all";
+    const channel = channelFilter ? channelFilter.value : "all";
+    const cards = Array.from(document.querySelectorAll("#audiencePlanList .result-card"));
+    let visible = 0;
+    cards.forEach(function(card) {
+        const record = card.dataset.audienceTrackingKey ? readTrackingRecord(card.dataset.audienceTrackingKey) : null;
+        const tracked = record && record.status ? record.status : "not_started";
+        const rule = card.dataset.ruleStatus || "not_checked";
+        const statusMatch = status === "all"
+            || (status === "actionable_review" && rule === "rules_or_submission_route_found")
+            || (status === "needs_review" && !["restriction_detected", "rules_or_submission_route_found"].includes(rule))
+            || (status === "restricted" && rule === "restriction_detected")
+            || status === tracked;
+        const channelMatch = channel === "all" || card.dataset.channelType === channel;
+        const show = statusMatch && channelMatch;
+        card.style.display = show ? "" : "none";
+        if (show) visible += 1;
+    });
+    const counter = document.getElementById("audienceVisibleCount");
+    if (counter) counter.textContent = visible + " of " + cards.length + " audience leads shown";
 }
 
 function updateAudienceTrackingDashboard() {
@@ -432,6 +483,7 @@ async function runAudienceDiscovery() {
         } else {
             data.results.forEach(function(item) { list.appendChild(renderAudienceLead(item)); });
             updateAudienceTrackingDashboard();
+            applyAudienceFilters();
         }
     } catch (error) {
         summary.textContent = "Audience DeepSearch could not complete.";
