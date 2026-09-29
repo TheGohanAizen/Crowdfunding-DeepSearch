@@ -1278,6 +1278,18 @@ def build_audience_discovery_response(data):
         for item in retrieval.get("candidates", [])
     ]
     results = deduplicate_audience_candidates(results)
+    for item in results:
+        lane_count = len(item.get("discovered_in_lanes") or [])
+        stage_count = len(item.get("discovered_in_stages") or [])
+        if lane_count > 1 or stage_count > 1:
+            corroboration_boost = min(10, max(0, lane_count - 1) * 5 + max(0, stage_count - 1) * 3)
+            item["audience_relevance_score"] = min(100, item.get("audience_relevance_score", 0) + corroboration_boost)
+            item.setdefault("audience_relevance_signals", []).append("cross_search_corroboration")
+            item["cross_search_corroboration"] = {
+                "lane_count": lane_count,
+                "stage_count": stage_count,
+                "boost": corroboration_boost,
+            }
     results.sort(key=lambda item: item.get("audience_relevance_score", 0), reverse=True)
     results = enrich_audience_with_rule_checks(results)
     results = finalize_audience_actions(results)
