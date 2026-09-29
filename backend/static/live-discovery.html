@@ -388,13 +388,16 @@ function renderAudienceLead(item) {
         '<div class="tracking-actions"><button type="button" data-audience-track="saved">Save lead</button><button type="button" data-audience-track="reviewed">Mark reviewed</button><button type="button" data-audience-track="contacted">Mark contacted</button><button type="button" data-audience-followup="tomorrow">Follow up tomorrow</button><button type="button" data-audience-followup="week">Follow up +7 days</button><button type="button" data-audience-followup="clear">Clear follow-up</button><button type="button" data-audience-note="true">Add note</button></div>' +
         '<div class="tracking-state audience-tracking-state">Audience tracking: not started</div>' +
         '<div class="tracking-state audience-note-state">Private note: none</div>' +
+        '<div class="tracking-state audience-history-state">History: no activity yet</div>' +
         (url ? '<div class="action-links"><a href="' + escapeHtml(url) + '" target="_blank" rel="noopener noreferrer">Review audience source</a></div>' : '');
     const audienceTrackingKey = TRACKING_PREFIX + "audience:" + (item.tracking_id || (item.url || item.name || "lead"));
     const existingAudienceTracking = readTrackingRecord(audienceTrackingKey);
     const audienceState = card.querySelector(".audience-tracking-state");
     const audienceNoteState = card.querySelector(".audience-note-state");
+    const audienceHistoryState = card.querySelector(".audience-history-state");
     if (existingAudienceTracking && audienceState) audienceState.textContent = "Audience tracking: " + existingAudienceTracking.status;
     if (existingAudienceTracking && existingAudienceTracking.notes && audienceNoteState) audienceNoteState.textContent = "Private note: " + existingAudienceTracking.notes;
+    if (audienceHistoryState) audienceHistoryState.textContent = trackingHistoryLabel(existingAudienceTracking);
     card.dataset.audienceTrackingKey = audienceTrackingKey;
     card.querySelectorAll("[data-audience-followup]").forEach(function(followButton) {
         followButton.addEventListener("click", function() {
@@ -430,6 +433,7 @@ function renderAudienceLead(item) {
             const status = trackButton.dataset.audienceTrack;
             const record = writeTrackingRecord(audienceTrackingKey, status);
             if (audienceState) audienceState.textContent = "Audience tracking: " + record.status;
+            if (audienceHistoryState) audienceHistoryState.textContent = trackingHistoryLabel(record);
             updateAudienceTrackingDashboard();
             applyAudienceFilters();
         });
