@@ -265,6 +265,11 @@ try:
     assert 'data-audience-note="true"' in live_discovery_html
     assert 'Private note: none' in live_discovery_html
     assert 'id="audienceReviewProgress"' in live_discovery_html
+    assert 'value="followup_due"' in live_discovery_html
+    assert 'data-audience-followup="tomorrow"' in live_discovery_html
+    assert 'data-audience-followup="week"' in live_discovery_html
+    assert 'data-audience-followup="clear"' in live_discovery_html
+    assert 'id="audienceFollowupCount"' in live_discovery_html
 
     # Static, no-credit source-page checks for service-area language.
     import importlib.util
