@@ -179,6 +179,8 @@ try:
     extract_page_signals = crowdfunding_server.extract_page_signals
     parse_location_parts = crowdfunding_server.parse_location_parts
     build_discovery_queries = crowdfunding_server.build_discovery_queries
+    build_audience_queries = crowdfunding_server.build_audience_queries
+    audience_channel_tracking_id = crowdfunding_server.audience_channel_tracking_id
     campaign_tracking_id = crowdfunding_server.campaign_tracking_id
     opportunity_tracking_id = crowdfunding_server.opportunity_tracking_id
 
@@ -201,6 +203,14 @@ try:
     national_queries = build_discovery_queries("Transportation", "Austin, Texas, United States", "national")
     assert all("United States national nationwide serves applicants" in item["query"] for item in national_queries)
     assert all("Austin" not in item["query"] and "Texas" not in item["query"] for item in national_queries)
+
+    audience_queries = build_audience_queries("Transportation", "Austin, Texas, United States", "automatic")
+    assert [item["lane"] for item in audience_queries] == ["Community Forums", "Local Media", "Creators & Podcasts", "Directories & Newsletters"]
+    assert [item["geographic_stage"] for item in audience_queries] == ["local", "state", "national", "worldwide"]
+    assert all(item["discovery_kind"] == "audience" for item in audience_queries)
+    assert all(item["action_mode"] == "review_required" for item in audience_queries)
+    audience_candidate = {"url": "https://example.org/community", "name": "Example Community", "type": "Community Forums"}
+    assert audience_channel_tracking_id(audience_candidate).startswith("audience_")
 
     statewide_html = """
     <html><head><title>Transportation Help</title></head>
