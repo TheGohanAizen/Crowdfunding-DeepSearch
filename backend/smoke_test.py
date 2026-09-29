@@ -334,6 +334,10 @@ try:
     assert '"utm_source"' in server_source
     assert '"fbclid"' in server_source
     assert "parse_qsl" in server_source
+    assert '"candidate_count_before_dedup": before_dedup_count' in server_source
+    assert '"candidate_count_after_dedup": after_dedup_count' in server_source
+    assert '"duplicates_merged": max(0, before_dedup_count - after_dedup_count)' in server_source
+    assert 'Duplicate discoveries merged:' in live_discovery_html
     assert 'outreach_intent:' in server_source
     assert 'low_signal_page' in server_source
     assert 'cross_search_corroboration' in server_source
