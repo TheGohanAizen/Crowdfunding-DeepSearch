@@ -227,12 +227,20 @@ button:hover { background: #1d4ed8; }
     <label for="goal">Fundraising Goal</label>
     <input id="goal" type="number" placeholder="10000">
 
-    <button id="runButton" onclick="runDiscovery()">Run Discovery</button>
+    <button id="runButton" onclick="runDiscovery()">Run Opportunity Discovery</button>
+    <button id="audiencePlanButton" type="button" onclick="runAudiencePlan()">Preview Audience DeepSearch</button>
 
     <div class="notice">
         Live Discovery mode: choose how far DeepSearch should expand from the campaign location. Automatic expansion is designed to begin with the strongest geographic match and later broaden to state, national, and worldwide opportunities that can actually serve the campaign location. Results remain screening leads until eligibility and current availability are confirmed.
     </div>
 
+</div>
+
+<div id="audienceResults" class="panel results">
+    <h2>Audience DeepSearch V1</h2>
+    <p id="audienceSummary"></p>
+    <div id="audiencePlanList"></div>
+    <div class="notice">This preview uses zero live-search credits. It plans relevant public-web discovery lanes first; posting or contacting remains disabled until channel rules and permissions are reviewed.</div>
 </div>
 
 <div id="results" class="panel results">
@@ -280,11 +288,13 @@ button:hover { background: #1d4ed8; }
 
 const params = new URLSearchParams(window.location.search);
 const configuredApiBase = params.get("api") || window.CROWDFUNDING_DEEPSEARCH_API || "";
-const API_URL = configuredApiBase
-    ? configuredApiBase.replace(/\/$/, "") + "/api/discover"
+const apiRoot = configuredApiBase
+    ? configuredApiBase.replace(/\/$/, "")
     : (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
-        ? "http://localhost:8080/api/discover"
-        : window.location.origin + "/api/discover";
+        ? "http://localhost:8080"
+        : window.location.origin;
+const API_URL = apiRoot + "/api/discover";
+const AUDIENCE_PLAN_URL = apiRoot + "/api/audience/plan";
 
 function loadCampaignProfile() {
     const need = params.get("need");
@@ -309,6 +319,47 @@ function loadCampaignProfile() {
 }
 
 loadCampaignProfile();
+
+async function runAudiencePlan() {
+    const panel = document.getElementById("audienceResults");
+    const summary = document.getElementById("audienceSummary");
+    const list = document.getElementById("audiencePlanList");
+    const button = document.getElementById("audiencePlanButton");
+    panel.style.display = "block";
+    summary.textContent = "Building a zero-credit audience discovery plan...";
+    list.innerHTML = "";
+    button.disabled = true;
+    try {
+        const response = await fetch(AUDIENCE_PLAN_URL, {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({
+                need: document.getElementById("need").value,
+                location: document.getElementById("location").value.trim(),
+                scope: document.getElementById("scope").value
+            })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || "Audience planning failed.");
+        summary.textContent = data.search_plan.length + " audience lanes planned · live-search credits used: " + data.audience.credits_used;
+        data.search_plan.forEach(function(item) {
+            const card = document.createElement("div");
+            card.className = "result-card";
+            card.innerHTML =
+                '<div class="result-top"><div><h3>' + escapeHtml(item.lane) + '</h3>' +
+                '<div class="type">Audience channel · ' + escapeHtml(item.geographic_stage) + '</div></div>' +
+                '<span class="review-status status-needs_review">Review required</span></div>' +
+                '<div class="match-reason"><strong>Planned search:</strong> ' + escapeHtml(item.query) + '</div>' +
+                '<div class="verification"><strong>Action mode:</strong> No automatic posting. Channel rules, relevance, and permission must be checked before outreach.</div>';
+            list.appendChild(card);
+        });
+    } catch (error) {
+        summary.textContent = "Could not build the Audience DeepSearch plan.";
+        list.innerHTML = '<div class="verification">' + escapeHtml(error.message) + '</div>';
+    } finally {
+        button.disabled = false;
+    }
+}
 
 function applyResultFilter() {
     const filter = document.getElementById("resultFilter").value;
