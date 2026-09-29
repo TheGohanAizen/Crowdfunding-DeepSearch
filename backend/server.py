@@ -1139,6 +1139,7 @@ def retrieve_audience_candidates(search_plan, per_lane=2):
             geographic_stage=item.get("geographic_stage", plan.get("geographic_stage", "unspecified"))
         ))
     retrieval["candidates"] = normalized
+    retrieval["candidate_count_before_dedup"] = len(normalized)
     return retrieval
 
 
@@ -1182,7 +1183,14 @@ def deduplicate_audience_candidates(candidates):
             current.update(item)
             current["discovered_in_lanes"] = preserved_lanes
             current["discovered_in_stages"] = preserved_stages
-    return [merged[key] for key in order]
+    results = [merged[key] for key in order]
+    duplicate_count = max(0, len(candidates) - len(results))
+    for item in results:
+        item["duplicate_discoveries_merged"] = duplicate_count if len(results) == 1 else max(
+            0,
+            len(item.get("discovered_in_lanes", [])) + len(item.get("discovered_in_stages", [])) - 2
+        )
+    return results
 
 
 def enrich_audience_with_rule_checks(candidates, max_candidates=None):
@@ -1319,6 +1327,9 @@ def build_audience_discovery_response(data):
         "provider": retrieval.get("provider", "none"),
         "result_limit": MAX_DISCOVERY_RESULTS,
         "automatic_distribution": False,
+        "candidate_count_before_dedup": before_dedup_count,
+        "candidate_count_after_dedup": after_dedup_count,
+        "duplicates_merged": max(0, before_dedup_count - after_dedup_count),
         "credits_used": 0 if not retrieval.get("configured", False) else None,
         "credit_usage_known": not retrieval.get("configured", False),
         "credit_usage_note": "No provider call was configured." if not retrieval.get("configured", False) else "Provider usage is provider-dependent; this response does not claim zero credits.",
