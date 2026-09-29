@@ -314,6 +314,8 @@ try:
     server_source = open(os.path.join(ROOT, "backend", "server.py"), encoding="utf-8").read()
     assert '"credit_usage_known": not retrieval.get("configured", False)' in server_source
     assert 'does not claim zero credits' in server_source
+    assert 'MAX_AUDIENCE_RULE_CHECKS = env_int("MAX_AUDIENCE_RULE_CHECKS", 4, 0, 12)' in server_source
+    assert 'max_candidates = MAX_AUDIENCE_RULE_CHECKS' in server_source
 
     # Static, no-credit source-page checks for service-area language.
     import importlib.util
