@@ -598,6 +598,8 @@ async function runDiscovery() {
                 '<button type="button" data-track="saved">Save for review</button>' +
                 '<button type="button" data-track="contacted">Mark contacted</button>' +
                 '<button type="button" data-track="responded">Mark response</button>' +
+                '<button type="button" data-followup="tomorrow">Follow up tomorrow</button>' +
+                '<button type="button" data-followup="week">Follow up in 7 days</button>' +
                 '</div><div class="tracking-state">' +
                 escapeHtml(trackingLabel(trackedRecord)) +
                 '</div><div class="tracking-history">' +
@@ -634,6 +636,19 @@ async function runDiscovery() {
                 (sourceCheck.checked ? (sourceCheck.reachable ? "Yes" : "No") : "Not checked") +
                 '<br><strong>Concerns:</strong> ' + escapeHtml(concerns) +
                 '<br><strong>Eligibility verified:</strong> No — confirm requirements on the official source before outreach or application.</div>';
+            card.querySelectorAll("[data-followup]").forEach(function(followButton) {
+                followButton.addEventListener("click", function() {
+                    const previous = readTrackingRecord(trackingKey) || {status: "contacted", history: []};
+                    const days = followButton.dataset.followup === "week" ? 7 : 1;
+                    previous.follow_up_at = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+                    previous.updated_at = new Date().toISOString();
+                    if (!previous.status || previous.status === "saved") previous.status = "contacted";
+                    try { localStorage.setItem(trackingKey, JSON.stringify(previous)); } catch (error) {}
+                    const stateLabel = card.querySelector(".tracking-state");
+                    if (stateLabel) stateLabel.textContent = trackingLabel(previous);
+                    updateOutreachDashboard();
+                });
+            });
             card.querySelectorAll("[data-track]").forEach(function(trackButton) {
                 trackButton.addEventListener("click", function() {
                     const state = trackButton.dataset.track || "saved";
