@@ -239,6 +239,11 @@ try:
     assert 'AUDIENCE_PLAN_URL' in live_discovery_html
     assert 'function runAudiencePlan()' in live_discovery_html
     assert 'No automatic posting' in live_discovery_html
+    assert 'id="audienceDiscoverButton"' in live_discovery_html
+    assert 'AUDIENCE_DISCOVER_URL' in live_discovery_html
+    assert 'function runAudienceDiscovery()' in live_discovery_html
+    assert 'function renderAudienceLead(item)' in live_discovery_html
+    assert 'Automatic distribution:</strong> Disabled.' in live_discovery_html
 
     # Static, no-credit source-page checks for service-area language.
     import importlib.util
