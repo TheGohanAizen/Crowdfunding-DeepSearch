@@ -1150,6 +1150,55 @@ def enrich_audience_with_rule_checks(candidates, max_candidates=None):
     return enriched
 
 
+
+def audience_next_action(candidate):
+    """Recommend a review-first next action from discovered channel-rule evidence."""
+    rules = candidate.get("channel_rules") or {}
+    status = rules.get("status", "not_checked")
+    url = candidate.get("url", "")
+    if status == "restriction_detected":
+        return {
+            "type": "do_not_contact_until_reviewed",
+            "label": "Review restriction",
+            "url": url,
+            "automation_ready": False,
+            "requires_user_review": True,
+            "blocked_by_rules": True,
+        }
+    if status == "rules_or_submission_route_found":
+        return {
+            "type": "review_submission_rules",
+            "label": "Review submission rules",
+            "url": url,
+            "automation_ready": False,
+            "requires_user_review": True,
+            "blocked_by_rules": False,
+        }
+    return {
+        "type": "verify_channel_rules",
+        "label": "Verify channel rules",
+        "url": url,
+        "automation_ready": False,
+        "requires_user_review": True,
+        "blocked_by_rules": False,
+    }
+
+def finalize_audience_actions(candidates):
+    finalized = []
+    for candidate in candidates:
+        item = dict(candidate)
+        item["recommended_next_action"] = audience_next_action(item)
+        item["outreach_readiness"] = {
+            "status": item["recommended_next_action"]["type"],
+            "rules_reviewed": False,
+            "permission_verified": False,
+            "safe_for_automatic_distribution": False,
+            "requires_user_review": True,
+        }
+        finalized.append(item)
+    return finalized
+
+
 def build_audience_discovery_response(data):
     """Run bounded Audience DeepSearch retrieval; all resulting actions require review."""
     base = build_audience_plan_response(data)
@@ -1160,6 +1209,7 @@ def build_audience_discovery_response(data):
     ]
     results.sort(key=lambda item: item.get("audience_relevance_score", 0), reverse=True)
     results = enrich_audience_with_rule_checks(results)
+    results = finalize_audience_actions(results)
     results.sort(key=lambda item: (
         item.get("review_status") != "restricted_review",
         item.get("audience_relevance_score", 0)
