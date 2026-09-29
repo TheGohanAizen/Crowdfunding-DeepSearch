@@ -285,6 +285,8 @@ button:hover { background: #1d4ed8; }
       <span id="audienceVisibleCount"></span>
       <button type="button" id="exportAudienceCsvButton" onclick="exportAudienceCsv()">Export visible CSV</button>
       <button type="button" id="audienceReviewQueueButton" onclick="setAudienceReviewQueue()">Review queue</button>
+      <button type="button" id="audienceFollowupQueueButton" onclick="setAudienceFollowupQueue()">Follow-up queue</button>
+      <button type="button" id="audienceRestrictedQueueButton" onclick="setAudienceRestrictedQueue()">Restrictions queue</button>
     </div>
     <div id="audiencePlanList"></div>
     <div class="notice">This preview uses zero live-search credits. It plans relevant public-web discovery lanes first; posting or contacting remains disabled until channel rules and permissions are reviewed.</div>
@@ -497,6 +499,22 @@ function applyAudienceFilters() {
     });
     const counter = document.getElementById("audienceVisibleCount");
     if (counter) counter.textContent = visible + " of " + cards.length + " audience leads shown";
+}
+
+function setAudienceFollowupQueue() {
+    const status = document.getElementById("audienceStatusFilter");
+    const sort = document.getElementById("audienceSort");
+    if (status) status.value = "followup_due";
+    if (sort) sort.value = "score_desc";
+    applyAudienceFilters();
+}
+
+function setAudienceRestrictedQueue() {
+    const status = document.getElementById("audienceStatusFilter");
+    const sort = document.getElementById("audienceSort");
+    if (status) status.value = "restricted";
+    if (sort) sort.value = "restrictions_first";
+    applyAudienceFilters();
 }
 
 function setAudienceReviewQueue() {
