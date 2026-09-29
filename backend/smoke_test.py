@@ -307,6 +307,13 @@ try:
     assert 'id="audienceClosedCount"' in live_discovery_html
     assert 'closed — no further outreach scheduled' in live_discovery_html
     assert 'record.status !== "closed"' in live_discovery_html
+    protected_source = (root / "protected_app.py").read_text(encoding="utf-8")
+    assert '"/api/audience/discover": "audience"' in protected_source
+    assert '"namespace": namespace' in protected_source
+    assert 'protected_paths[path] + ":" + _client_key(environ)' in protected_source
+    server_source = (root / "server.py").read_text(encoding="utf-8")
+    assert '"credit_usage_known": not retrieval.get("configured", False)' in server_source
+    assert 'does not claim zero credits' in server_source
 
     # Static, no-credit source-page checks for service-area language.
     import importlib.util
