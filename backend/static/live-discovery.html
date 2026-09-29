@@ -262,6 +262,7 @@ button:hover { background: #1d4ed8; }
             <option value="needs_review">Needs review</option>
             <option value="unverified">Unverified</option>
             <option value="low_relevance">Low relevance</option>
+            <option value="followups_due">Follow-ups due</option>
         </select>
         <span id="visibleCount" class="type"></span>
         <button type="button" onclick="exportTracking()">Export tracking</button>
@@ -317,9 +318,14 @@ function applyResultFilter() {
         const stage = card.dataset.stage || "unspecified";
         const status = card.dataset.status || "unverified";
         const serviceArea = card.dataset.serviceArea || "not_confirmed";
+        const trackingKey = card.dataset.trackingKey;
+        const tracked = trackingKey ? readTrackingRecord(trackingKey) : null;
+        const followupDue = tracked && tracked.status === "contacted" && tracked.follow_up_at &&
+            new Date(tracked.follow_up_at) <= new Date();
         const show = filter === "all" || filter === stage || filter === status ||
             (filter === "confirmed_area" && serviceArea === "confirmed") ||
-            (filter === "possible_area" && serviceArea === "possible");
+            (filter === "possible_area" && serviceArea === "possible") ||
+            (filter === "followups_due" && followupDue);
         card.style.display = show ? "" : "none";
         if (show) visible += 1;
     });
