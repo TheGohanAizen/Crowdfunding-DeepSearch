@@ -92,6 +92,31 @@ try:
     assert audience["safety_policy"]["automatic_posting"] is False
     assert [item["geographic_stage"] for item in audience["search_plan"]] == ["local", "state", "national", "worldwide"]
 
+    audience_preview_request = Request(
+        "http://127.0.0.1:8099/api/audience/preview",
+        data=json.dumps({
+            "need": "Transportation",
+            "location": "Austin, Texas, United States",
+            "scope": "automatic",
+            "candidates": [{
+                "lane": "Community Forums",
+                "title": "Austin Transportation Community",
+                "url": "https://example.org/austin-transportation",
+                "snippet": "Austin vehicle mobility community resources"
+            }]
+        }).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    status, audience_preview = read_json(audience_preview_request)
+    assert status == 200
+    assert audience_preview["audience"]["stage"] == "audience-normalization-v1"
+    assert audience_preview["audience"]["credits_used"] == 0
+    assert len(audience_preview["results"]) == 1
+    assert audience_preview["results"][0]["tracking_id"].startswith("audience_")
+    assert audience_preview["results"][0]["permission_verified"] is False
+    assert audience_preview["results"][0]["automatic_distribution"] is False
+
     international_payload = json.dumps({
         "need": "Transportation",
         "location": "Toronto, Ontario, Canada",
