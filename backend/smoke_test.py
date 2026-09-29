@@ -259,6 +259,12 @@ try:
     assert 'id="audienceContactedCount"' in live_discovery_html
     assert 'TRACKING_PREFIX + "audience:"' in live_discovery_html
     assert '["saved", "reviewed", "contacted", "responded"]' in live_discovery_html
+    assert 'id="audienceStatusFilter"' in live_discovery_html
+    assert 'id="audienceChannelFilter"' in live_discovery_html
+    assert 'function applyAudienceFilters()' in live_discovery_html
+    assert 'data-audience-note="true"' in live_discovery_html
+    assert 'Private note: none' in live_discovery_html
+    assert 'id="audienceReviewProgress"' in live_discovery_html
 
     # Static, no-credit source-page checks for service-area language.
     import importlib.util
