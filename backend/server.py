@@ -1115,6 +1115,7 @@ def build_audience_discovery_response(data):
         "automatic_distribution": False,
     })
     base["provider_status"] = {
+        "provider": retrieval.get("provider", "none"),
         "configured": retrieval.get("configured", False),
         "message": retrieval.get("message", ""),
         "errors": retrieval.get("errors", []),
