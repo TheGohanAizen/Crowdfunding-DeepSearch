@@ -320,6 +320,10 @@ try:
     assert 'results = deduplicate_audience_candidates(results)' in server_source
     assert 'discovered_in_lanes' in server_source
     assert 'discovered_in_stages' in server_source
+    assert '"transport" in topic_lower or "vehicle" in topic_lower' in server_source
+    assert 'transportation vehicle assistance resources' in server_source
+    assert '"medical" in topic_lower or "health" in topic_lower' in server_source
+    assert '"housing" in topic_lower or "rent" in topic_lower' in server_source
 
     # Static, no-credit source-page checks for service-area language.
     import importlib.util
