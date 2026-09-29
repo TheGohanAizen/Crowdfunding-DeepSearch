@@ -253,6 +253,12 @@ try:
     assert 'id="audienceDashboard"' in live_discovery_html
     assert 'id="audienceRestrictionCount"' in live_discovery_html
     assert 'function updateAudienceDashboard(results)' in live_discovery_html
+    assert 'function updateAudienceTrackingDashboard()' in live_discovery_html
+    assert 'id="audienceSavedCount"' in live_discovery_html
+    assert 'id="audienceReviewedCount"' in live_discovery_html
+    assert 'id="audienceContactedCount"' in live_discovery_html
+    assert 'TRACKING_PREFIX + "audience:"' in live_discovery_html
+    assert '["saved", "reviewed", "contacted", "responded"]' in live_discovery_html
 
     # Static, no-credit source-page checks for service-area language.
     import importlib.util
