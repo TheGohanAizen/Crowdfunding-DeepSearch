@@ -1497,7 +1497,9 @@ def automation_ledger_connection():
     connection.row_factory = sqlite3.Row
     connection.execute(
         """CREATE TABLE IF NOT EXISTS automation_execution_ledger (
-            idempotency_key TEXT PRIMARY KEY,
+            ledger_key TEXT PRIMARY KEY,
+            idempotency_key TEXT NOT NULL,
+            execution_mode TEXT NOT NULL,
             mechanism TEXT NOT NULL,
             endpoint TEXT,
             outcome TEXT NOT NULL,
@@ -1517,10 +1519,12 @@ def persist_automation_execution_record(record):
     with automation_ledger_connection() as connection:
         cursor = connection.execute(
             """INSERT OR IGNORE INTO automation_execution_ledger
-               (idempotency_key, mechanism, endpoint, outcome, sent, provider_message_id, blockers_json, recorded_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+               (ledger_key, idempotency_key, execution_mode, mechanism, endpoint, outcome, sent, provider_message_id, blockers_json, recorded_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
+                record.get("ledger_key") or record["idempotency_key"],
                 record["idempotency_key"],
+                record.get("execution_mode") or "live",
                 record.get("mechanism") or "unknown",
                 record.get("endpoint"),
                 record.get("outcome") or "blocked",
@@ -1531,8 +1535,8 @@ def persist_automation_execution_record(record):
             ),
         )
         stored = connection.execute(
-            "SELECT * FROM automation_execution_ledger WHERE idempotency_key = ?",
-            (record["idempotency_key"],),
+            "SELECT * FROM automation_execution_ledger WHERE ledger_key = ?",
+            (record.get("ledger_key") or record["idempotency_key"],),
         ).fetchone()
         return {"created": cursor.rowcount == 1, "record": dict(stored) if stored else record}
 
@@ -1570,7 +1574,7 @@ def find_automation_execution_record(idempotency_key):
         return None
     with automation_ledger_connection() as connection:
         row = connection.execute(
-            "SELECT * FROM automation_execution_ledger WHERE idempotency_key = ?", (key,)
+            "SELECT * FROM automation_execution_ledger WHERE idempotency_key = ? AND execution_mode = 'live'", (key,)
         ).fetchone()
         return dict(row) if row else None
 
@@ -1586,12 +1590,15 @@ def automation_execution_duplicate_status(idempotency_key):
     }
 
 
-def automation_execution_record(plan, outcome="blocked", provider_message_id=None):
+def automation_execution_record(plan, outcome="blocked", provider_message_id=None, execution_mode="live"):
+
     """Build a non-secret execution record suitable for durable persistence later."""
     if not isinstance(plan, dict):
         raise ValueError("Execution plan must be an object.")
     return {
         "idempotency_key": plan.get("idempotency_key"),
+        "ledger_key": ((str(plan.get("idempotency_key") or "") + ":" + execution_mode) if plan.get("idempotency_key") else None),
+        "execution_mode": execution_mode,
         "mechanism": plan.get("mechanism"),
         "endpoint": plan.get("endpoint"),
         "outcome": str(outcome or "blocked"),
@@ -1614,7 +1621,7 @@ def execute_sendgrid_transport(plan, simulate=True):
             "sent": False,
             "network_io": False,
             "policy": policy,
-            "record": automation_execution_record(plan, "simulated"),
+            "record": automation_execution_record(plan, "simulated", execution_mode="simulation"),
         }
     if not policy["live_send_enabled"]:
         if "live_send_policy_disabled" not in blockers:
