@@ -1582,13 +1582,15 @@ def prune_automation_execution_ledger(retention_days=None):
         return {"retention_days": days, "deleted": len(expired)}
 
 
-def find_automation_execution_record(idempotency_key):
+def find_automation_execution_record(idempotency_key, execution_mode="live"):
     key = str(idempotency_key or "").strip()
-    if not key:
+    mode = str(execution_mode or "live").strip().lower()
+    if not key or mode not in {"live", "simulation"}:
         return None
     with automation_ledger_connection() as connection:
         row = connection.execute(
-            "SELECT * FROM automation_execution_ledger WHERE idempotency_key = ? AND execution_mode = 'live'", (key,)
+            "SELECT * FROM automation_execution_ledger WHERE idempotency_key = ? AND execution_mode = ?",
+            (key, mode),
         ).fetchone()
         return dict(row) if row else None
 
@@ -2186,7 +2188,8 @@ def create_app():
     def automation_execution_lookup(idempotency_key):
         if request.method == "OPTIONS":
             return ("", 204)
-        record = find_automation_execution_record(idempotency_key)
+        mode = request.args.get("mode", "live")
+        record = find_automation_execution_record(idempotency_key, mode)
         if not record:
             return jsonify({"status": "not_found"}), 404
         record["blockers"] = json.loads(record.pop("blockers_json", "[]"))
