@@ -616,6 +616,8 @@ try:
     find_automation_execution_record = crowdfunding_server.find_automation_execution_record
     prune_automation_execution_ledger = crowdfunding_server.prune_automation_execution_ledger
     automation_execution_duplicate_status = crowdfunding_server.automation_execution_duplicate_status
+    reserve_live_automation_execution = crowdfunding_server.reserve_live_automation_execution
+    transition_automation_execution = crowdfunding_server.transition_automation_execution
     finalize_audience_actions = crowdfunding_server.finalize_audience_actions
     campaign_tracking_id = crowdfunding_server.campaign_tracking_id
     opportunity_tracking_id = crowdfunding_server.opportunity_tracking_id
@@ -788,14 +790,21 @@ try:
         assert second_write["created"] is False
         assert find_automation_execution_record("smoke-key-1") is None
         assert automation_execution_duplicate_status("smoke-key-1")["duplicate"] is False
-        live_record = automation_execution_record({
+        reservation_plan = {
             "idempotency_key": "smoke-key-1",
             "mechanism": "sendgrid_mail_v3",
             "endpoint": "https://api.sendgrid.com/v3/mail/send",
             "blockers": [],
-        }, "blocked", execution_mode="live")
-        assert persist_automation_execution_record(live_record)["created"] is True
-        assert find_automation_execution_record("smoke-key-1")["outcome"] == "blocked"
+        }
+        reservation = reserve_live_automation_execution(reservation_plan)
+        assert reservation["reserved"] is True
+        assert reservation["reconciliation_required"] is True
+        duplicate_reservation = reserve_live_automation_execution(reservation_plan)
+        assert duplicate_reservation["duplicate"] is True
+        assert automation_execution_duplicate_status("smoke-key-1")["reconciliation_required"] is True
+        transitioned = transition_automation_execution("smoke-key-1", "failed")
+        assert transitioned["outcome"] == "failed"
+        assert automation_execution_duplicate_status("smoke-key-1")["reconciliation_required"] is False
         old_record = dict(ledger_record)
         old_record["idempotency_key"] = "smoke-old-key"
         old_record["recorded_at"] = "2020-01-01T00:00:00+00:00"
