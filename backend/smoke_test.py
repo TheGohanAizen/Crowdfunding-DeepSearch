@@ -649,6 +649,8 @@ try:
     automation_rate_limit_status = crowdfunding_server.automation_rate_limit_status
     automation_storage_status = crowdfunding_server.automation_storage_status
     automation_admin_endpoints_enabled = crowdfunding_server.automation_admin_endpoints_enabled
+    automation_attempt_idempotency_key = crowdfunding_server.automation_attempt_idempotency_key
+    automation_retry_decision = crowdfunding_server.automation_retry_decision
     automation_ledger_connection = crowdfunding_server.automation_ledger_connection
     consume_automation_rate_limit = crowdfunding_server.consume_automation_rate_limit
     automation_idempotency_key = crowdfunding_server.automation_idempotency_key
@@ -903,6 +905,13 @@ try:
         assert transitioned["resolved_at"]
         assert transitioned["resolved_at"] >= transitioned["recorded_at"]
         assert automation_execution_duplicate_status("smoke-key-1")["reconciliation_required"] is False
+        retry = automation_retry_decision("smoke-key-1")
+        assert retry["retry_allowed"] is True
+        assert retry["next_attempt"] == 2
+        assert retry["next_idempotency_key"] != "smoke-key-1"
+        assert automation_attempt_idempotency_key("smoke-key-1", 1) == "smoke-key-1"
+        assert automation_attempt_idempotency_key("smoke-key-1", 2) == retry["next_idempotency_key"]
+
         old_record = dict(ledger_record)
         old_record["idempotency_key"] = "smoke-old-key"
         old_record["recorded_at"] = "2020-01-01T00:00:00+00:00"
