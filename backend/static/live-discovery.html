@@ -736,7 +736,7 @@ function renderAudienceLead(item) {
                 const routeFound = card.dataset.ruleStatus === "rules_or_submission_route_found";
                 const reviewed = previous && previous.status === "reviewed";
                 const draftReady = previous && previous.outreach_draft;
-                const permissionReviewed = previous && previous.permission_review && previous.permission_review.reviewed_at;
+                const permissionReviewed = permissionReviewIsCurrent(previous, card.dataset.routeFingerprint || "");
                 if (!routeFound || !reviewed || !draftReady || !permissionReviewed) {
                     alert("Before marking contacted, this lead must have a detected rules/submission route, be marked reviewed, have a saved outreach draft, and have explicit route permission review confirmed.");
                     return;
@@ -792,7 +792,7 @@ function applyAudienceFilters() {
             || (status === "high_score" && Number(card.dataset.audienceScore || 0) >= 70)
             || (status === "high_priority" && card.dataset.audiencePriority === "high")
             || (status === "draft_ready" && !!(record && record.outreach_draft))
-            || (status === "contact_ready" && rule === "rules_or_submission_route_found" && tracked === "reviewed" && !!(record && record.outreach_draft) && !!(record && record.permission_review && record.permission_review.reviewed_at))
+            || (status === "contact_ready" && rule === "rules_or_submission_route_found" && tracked === "reviewed" && !!(record && record.outreach_draft) && permissionReviewIsCurrent(record, card.dataset.routeFingerprint || ""))
             || (status === "submission_ready" && rule === "rules_or_submission_route_found" && tracked === "reviewed" && card.dataset.hasApplicationRoute === "true" && !!(record && record.outreach_draft) && permissionReviewIsCurrent(record, card.dataset.routeFingerprint || ""))\n            || (status === "handoff_prepared" && submissionPacketIsCurrent(record, card.dataset.routeFingerprint || ""))
             || status === tracked;
         const channelMatch = channel === "all" || card.dataset.channelType === channel;
@@ -875,11 +875,11 @@ function exportAudienceCsv() {
         const record = key ? readTrackingRecord(key) : null;
         const link = card.querySelector('.action-links a[href]');
         const title = card.querySelector('h3');
-        const permissionReviewed = record && record.permission_review && record.permission_review.reviewed_at || "";
+        const permissionReviewed = permissionReviewIsCurrent(record, card.dataset.routeFingerprint || "") ? record.permission_review.reviewed_at : "";
         const draft = record && record.outreach_draft || null;
         const response = record && record.response || null;
         const packet = record && record.submission_packet || null;
-        const submissionReady = !!(record && record.status === "reviewed" && draft && permissionReviewed && card.dataset.ruleStatus === "rules_or_submission_route_found" && card.dataset.hasApplicationRoute === "true");
+        const submissionReady = !!(record && record.status === "reviewed" && draft && permissionReviewIsCurrent(record, card.dataset.routeFingerprint || "") && card.dataset.ruleStatus === "rules_or_submission_route_found" && card.dataset.hasApplicationRoute === "true");
         rows.push([
             title ? title.textContent : "",
             card.dataset.channelType || "",
