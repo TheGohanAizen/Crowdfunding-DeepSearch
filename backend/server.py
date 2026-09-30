@@ -1354,6 +1354,30 @@ def automation_distribution_decision(candidate):
     }
 
 
+def build_automation_dry_run(candidate):
+    """Build a non-sending Stage 6 execution plan for a discovered audience lead."""
+    if not isinstance(candidate, dict):
+        raise ValueError("Audience lead must be an object.")
+    decision = automation_distribution_decision(candidate)
+    rules = candidate.get("channel_rules") or {}
+    eligibility = rules.get("automation_eligibility") or {}
+    return {
+        "status": "ready" if decision["allowed"] else "blocked",
+        "dry_run": True,
+        "sent": False,
+        "tracking_id": candidate.get("tracking_id"),
+        "lead_name": candidate.get("name"),
+        "mechanism": decision.get("mechanism"),
+        "decision": decision,
+        "eligibility_status": eligibility.get("status", "manual_review_only"),
+        "next_step": (
+            "Connector is eligible for a future user-authorized execution flow."
+            if decision["allowed"]
+            else "Keep this lead in assisted/manual review until an approved connector is available and authorized."
+        ),
+    }
+
+
 def audience_next_action(candidate):
     """Recommend a review-first next action from discovered channel-rule evidence."""
     rules = candidate.get("channel_rules") or {}
@@ -1705,6 +1729,24 @@ def create_app():
         except Exception:
             app.logger.exception("Audience discovery request failed")
             return jsonify({"status": "error", "message": "Audience discovery request failed."}), 500
+
+    @app.route("/api/automation/dry-run", methods=["POST", "OPTIONS"])
+    def automation_dry_run():
+        if request.method == "OPTIONS":
+            return ("", 204)
+        if request.content_length is not None and request.content_length > 65536:
+            return jsonify({"status": "error", "message": "Request body is too large."}), 413
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            return jsonify({"status": "error", "message": "A JSON request body is required."}), 400
+        try:
+            lead = data.get("lead")
+            return jsonify(build_automation_dry_run(lead))
+        except ValueError as error:
+            return jsonify({"status": "error", "message": str(error)}), 400
+        except Exception:
+            app.logger.exception("Automation dry-run request failed")
+            return jsonify({"status": "error", "message": "Automation dry-run request failed."}), 500
 
     @app.route("/api/audience/outreach-draft", methods=["POST", "OPTIONS"])
     def audience_outreach_draft():
