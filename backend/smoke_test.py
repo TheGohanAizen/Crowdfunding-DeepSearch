@@ -272,6 +272,10 @@ try:
     assert 'function responseDetailsLabel(response)' in live_discovery_html
     assert 'function responseNextAction(response)' in live_discovery_html
     assert 'Record response details after the lead has been contacted.' in live_discovery_html
+    assert 'id="audienceContactRate"' in live_discovery_html
+    assert 'id="audienceResponseRate"' in live_discovery_html
+    assert 'id="audienceReadyBacklog"' in live_discovery_html
+    assert 'const contactedOrBeyond = counts.contacted + counts.responded + counts.closed;' in live_discovery_html
     assert 'value="draft_ready"' in live_discovery_html
     assert 'tracked === "reviewed" && !!(record && record.outreach_draft)' in live_discovery_html
     assert 'audience-reviewed-routes' in live_discovery_html
