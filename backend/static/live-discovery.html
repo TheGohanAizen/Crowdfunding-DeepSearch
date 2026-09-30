@@ -409,6 +409,7 @@ const AUTOMATION_CONNECTORS_URL = apiRoot + "/api/automation/connectors";
 const AUTOMATION_DRY_RUN_URL = apiRoot + "/api/automation/dry-run";
 const AUTOMATION_EXECUTION_CHECK_URL = apiRoot + "/api/automation/execution-check";
 const SENDGRID_PREFLIGHT_URL = apiRoot + "/api/automation/connectors/sendgrid/preflight";
+const SENDGRID_SIMULATE_URL = apiRoot + "/api/automation/connectors/sendgrid/simulate";
 
 async function automationBlockerLabel(code) {
     const labels = {
@@ -628,7 +629,7 @@ function renderAudienceLead(item) {
         '<div class="match-reason"><strong>Recommended next action:</strong> ' + escapeHtml((item.recommended_next_action && item.recommended_next_action.label) || "Verify channel rules") + '</div>' +
         '<div class="match-reason audience-priority-state"><strong>Priority:</strong> ' + escapeHtml(score >= 80 ? "High" : score >= 60 ? "Medium" : "Standard") + '</div>' +
         '<div class="match-reason audience-permission-state"><strong>Permission:</strong> ' + escapeHtml((item.channel_rules && item.channel_rules.status === "restriction_detected") ? "Restriction detected — review before outreach" : (item.channel_rules && item.channel_rules.status === "rules_or_submission_route_found") ? "Route/rules found — human review required" : "Not verified — verify before outreach") + '</div>' +
-        '<div class="tracking-actions"><button type="button" data-audience-track="saved">Save lead</button><button type="button" data-audience-track="reviewed">Mark reviewed</button><button type="button" data-audience-permission="true">Confirm route permission reviewed</button><button type="button" data-audience-track="contacted">Mark contacted</button><button type="button" data-audience-track="responded">Mark responded</button><button type="button" data-audience-response="true">Record response details</button><button type="button" data-audience-track="closed">Close lead</button><button type="button" data-audience-followup="tomorrow">Follow up tomorrow</button><button type="button" data-audience-followup="week">Follow up +7 days</button><button type="button" data-audience-followup="clear">Clear follow-up</button><button type="button" data-audience-note="true">Add note</button><button type="button" data-audience-draft="true">Prepare outreach draft</button><button type="button" data-audience-packet="true">Prepare submission packet</button><button type="button" data-audience-automation-check="true">Check automation readiness</button><button type="button" data-audience-execution-check="true">Check execution prerequisites</button></div>' +
+        '<div class="tracking-actions"><button type="button" data-audience-track="saved">Save lead</button><button type="button" data-audience-track="reviewed">Mark reviewed</button><button type="button" data-audience-permission="true">Confirm route permission reviewed</button><button type="button" data-audience-track="contacted">Mark contacted</button><button type="button" data-audience-track="responded">Mark responded</button><button type="button" data-audience-response="true">Record response details</button><button type="button" data-audience-track="closed">Close lead</button><button type="button" data-audience-followup="tomorrow">Follow up tomorrow</button><button type="button" data-audience-followup="week">Follow up +7 days</button><button type="button" data-audience-followup="clear">Clear follow-up</button><button type="button" data-audience-note="true">Add note</button><button type="button" data-audience-draft="true">Prepare outreach draft</button><button type="button" data-audience-packet="true">Prepare submission packet</button><button type="button" data-audience-automation-check="true">Check automation readiness</button><button type="button" data-audience-execution-check="true">Check execution prerequisites</button><button type="button" data-audience-sendgrid-simulate="true">Simulate SendGrid transport</button></div>' +
         '<div class="tracking-state audience-tracking-state">Audience tracking: not started</div>' +
         '<div class="tracking-state audience-permission-review-state">Permission review: not confirmed</div><div class="tracking-state audience-note-state">Private note: none</div><div class="tracking-state audience-response-state">Response details: none</div>' +
         '<div class="tracking-state audience-history-state">History: no activity yet</div>' +
@@ -728,6 +729,55 @@ function renderAudienceLead(item) {
             draftButton.textContent = originalText;
         }
     });
+    const sendgridSimulateButton = card.querySelector("[data-audience-sendgrid-simulate]");
+    if (sendgridSimulateButton) sendgridSimulateButton.addEventListener("click", async function() {
+        const record = readTrackingRecord(audienceTrackingKey) || {};
+        const draft = record.outreach_draft || {};
+        const recipient = window.prompt("Recipient email for simulation only (nothing will be sent):", "");
+        if (!recipient) return;
+        const sender = window.prompt("Verified sender email to model in simulation:", "");
+        if (!sender) return;
+        sendgridSimulateButton.disabled = true;
+        const originalText = sendgridSimulateButton.textContent;
+        sendgridSimulateButton.textContent = "Simulating...";
+        try {
+            const response = await fetch(SENDGRID_SIMULATE_URL, {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({
+                    lead: item,
+                    user_authorized: true,
+                    permission_review_current: permissionReviewIsCurrent(record, routeFingerprint),
+                    deduplication_clear: !["contacted", "responded", "closed"].includes(record.status),
+                    workspace_id: currentCampaignWorkspaceId(),
+                    route: verifiedApplicationRouteLinks[0] || "",
+                    to_email: recipient,
+                    draft: draft,
+                    sendgrid_settings: {
+                        from_email: sender,
+                        sender_verified: false,
+                        compliance_confirmed: false,
+                        unsubscribe_ready: false
+                    }
+                })
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.message || "SendGrid simulation failed.");
+            let state = card.querySelector(".audience-sendgrid-simulation-state");
+            if (!state) {
+                state = document.createElement("div");
+                state.className = "tracking-state audience-sendgrid-simulation-state";
+                card.appendChild(state);
+            }
+            state.textContent = "SendGrid simulation: " + data.status + " — network I/O: " + (data.network_io ? "yes" : "no") + "; sent: " + (data.sent ? "yes" : "no") + ".";
+        } catch (error) {
+            alert(error.message);
+        } finally {
+            sendgridSimulateButton.disabled = false;
+            sendgridSimulateButton.textContent = originalText;
+        }
+    });
+
     const executionCheckButton = card.querySelector("[data-audience-execution-check]");
     if (executionCheckButton) executionCheckButton.addEventListener("click", async function() {
         const record = readTrackingRecord(audienceTrackingKey) || {};
