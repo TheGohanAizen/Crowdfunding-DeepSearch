@@ -90,7 +90,8 @@ try:
     assert audience["audience"]["automatic_distribution"] is False
     assert audience["safety_policy"]["review_required"] is True
     assert audience["safety_policy"]["automatic_posting"] is False
-    assert [item["geographic_stage"] for item in audience["search_plan"]] == ["local", "state", "national", "worldwide"]
+    assert sorted(set(item["geographic_stage"] for item in audience["search_plan"])) == ["local", "national", "state", "worldwide"]
+    assert len(audience["search_plan"]) == 16
 
     audience_preview_request = Request(
         "http://127.0.0.1:8099/api/audience/preview",
