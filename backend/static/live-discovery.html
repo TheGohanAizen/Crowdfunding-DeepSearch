@@ -285,7 +285,7 @@ button:hover { background: #1d4ed8; }
           <option value="high_priority">High priority (80+)</option>
           <option value="contact_ready">Reviewed + draft ready</option>
           <option value="draft_ready">Draft prepared</option>
-          <option value="submission_ready">Official submission route + permission confirmed</option>
+          <option value="submission_ready">Same-site submission route + permission confirmed</option>
         </select>
       </label>
       <label>Channel
@@ -443,6 +443,16 @@ function renderSavedAudienceDraft(card, trackingKey, draft) {
     });
 }
 
+function sameSiteRoute(sourceUrl, routeUrl) {
+    try {
+        const sourceHost = new URL(sourceUrl).hostname.toLowerCase().replace(/^www\./, "");
+        const routeHost = new URL(routeUrl).hostname.toLowerCase().replace(/^www\./, "");
+        return !!sourceHost && !!routeHost && (sourceHost === routeHost || sourceHost.endsWith("." + routeHost) || routeHost.endsWith("." + sourceHost));
+    } catch (error) {
+        return false;
+    }
+}
+
 function audienceRouteFingerprint(routes) {
     const normalized = (routes || []).filter(function(route) { return /^https?:\/\//i.test(route); })
         .map(function(route) { return String(route).trim().replace(/\/$/, "").toLowerCase(); })
@@ -471,7 +481,8 @@ function renderAudienceLead(item) {
     }).join(" · ") || "No explicit rule evidence detected yet.";
     const reviewRoutes = rules.review_routes || {};
     const applicationRouteLinks = (reviewRoutes.application_links || []).filter(function(route) { return /^https?:\/\//i.test(route); });
-    card.dataset.hasApplicationRoute = applicationRouteLinks.length ? "true" : "false";
+    const verifiedApplicationRouteLinks = applicationRouteLinks.filter(function(route) { return sameSiteRoute(url, route); });
+    card.dataset.hasApplicationRoute = verifiedApplicationRouteLinks.length ? "true" : "false";
     const routeLinks = []
         .concat(reviewRoutes.application_links || [])
         .concat(reviewRoutes.contact_links || [])
@@ -606,14 +617,14 @@ function renderAudienceLead(item) {
     const packetButton = card.querySelector("[data-audience-packet]");
     if (packetButton) packetButton.addEventListener("click", async function() {
         const record = readTrackingRecord(audienceTrackingKey) || {};
-        const applicationRoute = applicationRouteLinks[0] || "";
+        const applicationRoute = verifiedApplicationRouteLinks[0] || "";
         const ready = card.dataset.ruleStatus === "rules_or_submission_route_found"
             && record.status === "reviewed"
             && record.outreach_draft
             && permissionReviewIsCurrent(record, routeFingerprint)
             && applicationRoute;
         if (!ready) {
-            alert("A submission packet requires an official application/submission route, reviewed status, confirmed route permission review, and a saved outreach draft.");
+            alert("A submission packet requires a same-site application/submission route, reviewed status, confirmed route permission review, and a saved outreach draft.");
             return;
         }
         const campaign = currentCampaignTrackingProfile();
