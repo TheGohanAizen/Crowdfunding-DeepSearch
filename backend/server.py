@@ -1922,6 +1922,11 @@ def build_disabled_sendgrid_execution_plan(data):
     }
 
 
+def automation_admin_endpoints_enabled():
+    """Keep operational execution-history and reconciliation APIs disabled by default."""
+    return env_flag("AUTOMATION_ADMIN_ENDPOINTS_ENABLED")
+
+
 def automation_storage_status():
     """Describe whether the configured execution store is suitable for live automation."""
     path = str(AUTOMATION_LEDGER_PATH or "").strip()
@@ -2489,6 +2494,8 @@ def create_app():
     def automation_execution_reconcile():
         if request.method == "OPTIONS":
             return ("", 204)
+        if not automation_admin_endpoints_enabled():
+            return jsonify({"status": "disabled", "message": "Automation admin endpoints are disabled."}), 404
         data = request.get_json(silent=True)
         if not isinstance(data, dict):
             return jsonify({"status": "error", "message": "A JSON request body is required."}), 400
@@ -2511,6 +2518,8 @@ def create_app():
     def automation_reconciliation_queue():
         if request.method == "OPTIONS":
             return ("", 204)
+        if not automation_admin_endpoints_enabled():
+            return jsonify({"status": "disabled", "message": "Automation admin endpoints are disabled."}), 404
         with automation_ledger_connection() as connection:
             rows = connection.execute(
                 """SELECT idempotency_key, mechanism, endpoint, outcome, sent,
@@ -2530,6 +2539,8 @@ def create_app():
     def automation_execution_lookup(idempotency_key):
         if request.method == "OPTIONS":
             return ("", 204)
+        if not automation_admin_endpoints_enabled():
+            return jsonify({"status": "disabled", "message": "Automation admin endpoints are disabled."}), 404
         mode = request.args.get("mode", "live")
         record = find_automation_execution_record(idempotency_key, mode)
         if not record:
