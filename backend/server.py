@@ -1810,6 +1810,9 @@ def build_live_sendgrid_execution_candidate(data):
     duplicate_status = automation_execution_duplicate_status(execution.get("idempotency_key"))
     if duplicate_status["duplicate"]:
         blockers.append("idempotency_key_already_recorded")
+    rate_limit = automation_rate_limit_status("sendgrid_mail_v3")
+    if not rate_limit.get("allowed"):
+        blockers.append("automation_rate_limit_unavailable_or_exhausted")
     payload = None
     if not blockers:
         payload = build_sendgrid_mail_v3_payload(
@@ -1827,6 +1830,7 @@ def build_live_sendgrid_execution_candidate(data):
         "blockers": blockers,
         "idempotency_key": execution.get("idempotency_key"),
         "duplicate_status": duplicate_status,
+        "rate_limit": rate_limit,
         "payload": payload,
         "endpoint": AUTOMATION_CONNECTOR_REGISTRY["sendgrid_mail_v3"]["endpoint"],
     }
