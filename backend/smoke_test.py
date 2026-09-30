@@ -341,6 +341,9 @@ try:
     assert 'value="handoff_prepared"' in live_discovery_html
     assert 'function setAudienceHandoffPreparedQueue()' in live_discovery_html
     assert 'counts.handoffsPrepared += 1' in live_discovery_html
+    assert 'function submissionPacketIsCurrent(record, routeFingerprint)' in live_discovery_html
+    assert 'route_fingerprint: routeFingerprint' in live_discovery_html
+    assert 'submissionPacketIsCurrent(record, card.dataset.routeFingerprint || "")' in live_discovery_html
     assert 'permissionReviewIsCurrent(record, card.dataset.routeFingerprint || "")' in live_discovery_html
     assert 'key.startsWith(currentCampaignTrackingPrefix())' in live_discovery_html
     assert 'currentCampaignTrackingPrefix() + key.slice(TRACKING_PREFIX.length)' in live_discovery_html
