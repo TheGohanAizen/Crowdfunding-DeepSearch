@@ -248,7 +248,9 @@ try:
     assert 'AUDIENCE_DISCOVER_URL' in live_discovery_html
     assert 'function runAudienceDiscovery()' in live_discovery_html
     assert 'function renderAudienceLead(item)' in live_discovery_html
-    assert 'Automatic distribution:</strong> Disabled.' in live_discovery_html
+    assert 'Automation eligibility:</strong>' in live_discovery_html
+    assert 'Manual review only — automatic submission not enabled' in live_discovery_html
+    assert 'card.dataset.automationEligible' in live_discovery_html
     assert 'Channel rules:</strong>' in live_discovery_html
     assert 'data-audience-track="saved"' in live_discovery_html
     assert 'data-audience-track="reviewed"' in live_discovery_html
