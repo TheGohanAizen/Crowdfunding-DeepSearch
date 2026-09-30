@@ -843,7 +843,10 @@ async function runAudienceDiscovery() {
             body: JSON.stringify({
                 need: document.getElementById("need").value,
                 location: document.getElementById("location").value.trim(),
-                scope: document.getElementById("scope").value
+                scope: document.getElementById("scope").value,
+                goal: document.getElementById("goal").value || null,
+                campaign_url: document.getElementById("campaignUrl").value.trim(),
+                campaign_summary: document.getElementById("campaignSummary").value.trim()
             })
         });
         const data = await response.json();
@@ -1113,7 +1116,11 @@ async function runDiscovery() {
         const response = await fetch(API_URL, {
             method: "POST",
             headers: {"Content-Type": "application/json"},
-            body: JSON.stringify({need, location, goal, scope})
+            body: JSON.stringify({
+                need, location, goal, scope,
+                campaign_url: document.getElementById("campaignUrl").value.trim(),
+                campaign_summary: document.getElementById("campaignSummary").value.trim()
+            })
         });
 
         const data = await response.json();
