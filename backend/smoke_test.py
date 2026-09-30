@@ -591,6 +591,7 @@ try:
     validate_automation_execution_request = crowdfunding_server.validate_automation_execution_request
     automation_idempotency_key = crowdfunding_server.automation_idempotency_key
     automation_rate_limit_contract = crowdfunding_server.automation_rate_limit_contract
+    build_sendgrid_mail_v3_payload = crowdfunding_server.build_sendgrid_mail_v3_payload
     finalize_audience_actions = crowdfunding_server.finalize_audience_actions
     campaign_tracking_id = crowdfunding_server.campaign_tracking_id
     opportunity_tracking_id = crowdfunding_server.opportunity_tracking_id
@@ -713,6 +714,21 @@ try:
     assert dry_run["decision"]["allowed"] is False
     assert "mechanism_not_registered" in dry_run["next_step"]
     assert "assisted/manual review" in dry_run["next_step"]
+    sendgrid_contract = validate_automation_connector_definition(
+        "sendgrid_mail_v3", crowdfunding_server.AUTOMATION_CONNECTOR_REGISTRY["sendgrid_mail_v3"]
+    )
+    assert sendgrid_contract == {"valid": True, "errors": []}
+    sendgrid_status = automation_connector_status("sendgrid_mail_v3")
+    assert sendgrid_status["registered"] is True
+    assert sendgrid_status["send_enabled"] is False
+    assert sendgrid_status["requires_user_authorization"] is True
+    payload = build_sendgrid_mail_v3_payload(
+        "recipient@example.com", "sender@example.com", "Campaign introduction", "Hello", "reply@example.com"
+    )
+    assert payload["personalizations"][0]["to"][0]["email"] == "recipient@example.com"
+    assert payload["from"]["email"] == "sender@example.com"
+    assert payload["content"][0]["type"] == "text/plain"
+    assert payload["reply_to"]["email"] == "reply@example.com"
     rate_contract = automation_rate_limit_contract("untrusted-generic-form")
     assert rate_contract["registered"] is False
     assert rate_contract["limit_per_hour"] is None
