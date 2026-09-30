@@ -239,6 +239,7 @@ button:hover { background: #1d4ed8; }
     <button id="audiencePlanButton" type="button" onclick="runAudiencePlan()">Preview Audience DeepSearch</button>
     <button id="audienceDiscoverButton" type="button" onclick="runAudienceDiscovery()">Run Audience DeepSearch</button>
     <div id="automationConnectorStatus" class="notice">Automatic distribution status: checking connector readiness…</div>
+    <div id="sendgridPreflightStatus" class="notice">SendGrid production preflight: not configured — sending remains disabled.</div>
 
     <div class="notice">
         Live Discovery mode: choose how far DeepSearch should expand from the campaign location. Automatic expansion is designed to begin with the strongest geographic match and later broaden to state, national, and worldwide opportunities that can actually serve the campaign location. Results remain screening leads until eligibility and current availability are confirmed.
@@ -407,6 +408,7 @@ const AUDIENCE_OUTREACH_DRAFT_URL = apiRoot + "/api/audience/outreach-draft";
 const AUTOMATION_CONNECTORS_URL = apiRoot + "/api/automation/connectors";
 const AUTOMATION_DRY_RUN_URL = apiRoot + "/api/automation/dry-run";
 const AUTOMATION_EXECUTION_CHECK_URL = apiRoot + "/api/automation/execution-check";
+const SENDGRID_PREFLIGHT_URL = apiRoot + "/api/automation/connectors/sendgrid/preflight";
 
 async function automationBlockerLabel(code) {
     const labels = {
@@ -417,7 +419,13 @@ async function automationBlockerLabel(code) {
         connector_send_disabled: "sending is disabled for the approved connector",
         user_authorization_required: "explicit user authorization is required",
         current_permission_review_required: "the route permission review must be current",
-        deduplication_clearance_required: "the lead must pass duplicate-contact protection"
+        deduplication_clearance_required: "the lead must pass duplicate-contact protection",
+        verified_sender_email_required: "a verified sender email is required",
+        verified_sender_identity_required: "the sender identity must be verified",
+        email_compliance_confirmation_required: "email compliance must be confirmed",
+        unsubscribe_mechanism_required: "an unsubscribe mechanism must be ready",
+        verified_route_required: "a verified outreach route is required",
+        workspace_id_required: "an active campaign workspace is required"
     };
     return labels[code] || String(code || "automation authorization is incomplete").replaceAll("_", " ");
 }
@@ -436,6 +444,26 @@ function loadAutomationConnectorStatus() {
             : "Automatic distribution status: disabled — " + connectorCount + " approved connector" + (connectorCount === 1 ? "" : "s") + " available; unregistered routes remain manual.";
     } catch (error) {
         status.textContent = "Automatic distribution status: unavailable — manual review remains required.";
+    }
+}
+
+async function loadSendGridPreflightStatus() {
+    const status = document.getElementById("sendgridPreflightStatus");
+    if (!status) return;
+    try {
+        const response = await fetch(SENDGRID_PREFLIGHT_URL, {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({})
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || "SendGrid preflight unavailable.");
+        const blockers = Array.isArray(data.blockers) ? data.blockers.map(automationBlockerLabel) : [];
+        status.textContent = data.ready
+            ? "SendGrid production preflight: prerequisites recorded; live sending is still disabled."
+            : "SendGrid production preflight: blocked — " + blockers.join("; ") + ".";
+    } catch (error) {
+        status.textContent = "SendGrid production preflight: unavailable — live sending remains disabled.";
     }
 }
 
@@ -468,6 +496,7 @@ function loadCampaignProfile() {
 
 loadCampaignProfile();
 loadAutomationConnectorStatus();
+loadSendGridPreflightStatus();
 
 function renderSavedAudienceDraft(card, trackingKey, draft) {
     if (!draft) return;
