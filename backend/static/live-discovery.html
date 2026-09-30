@@ -245,7 +245,7 @@ button:hover { background: #1d4ed8; }
     <textarea id="campaignSummary" style="width:100%;min-height:110px;padding:13px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:white;font-size:15px;" placeholder="Briefly explain the campaign, the need, and what the funds will help accomplish."></textarea>
 
     <button id="runButton" onclick="runDiscovery()">Run Opportunity Discovery</button>
-    <button id="newCampaignWorkspaceButton" type="button" onclick="startNewCampaignWorkspace()">Start New Campaign Workspace</button>
+    <button id="newCampaignWorkspaceButton" type="button" onclick="startNewCampaignWorkspace()">Start New Campaign Workspace</button>\n    <button id="switchCampaignWorkspaceButton" type="button" onclick="chooseCampaignWorkspace()">Switch Campaign Workspace</button>
     <button id="audiencePlanButton" type="button" onclick="runAudiencePlan()">Preview Audience DeepSearch</button>
     <button id="audienceDiscoverButton" type="button" onclick="runAudienceDiscovery()">Run Audience DeepSearch</button>
 
@@ -1094,6 +1094,7 @@ function escapeHtml(value) {
 
 const TRACKING_PREFIX = "crowdfunding-deepsearch:";
 const CAMPAIGN_WORKSPACE_ID_KEY = "crowdfunding-deepsearch:active-workspace-id";
+const CAMPAIGN_WORKSPACE_REGISTRY_KEY = "crowdfunding-deepsearch:workspace-registry";
 
 function createCampaignWorkspaceId() {
     if (window.crypto && typeof window.crypto.randomUUID === "function") return window.crypto.randomUUID();
@@ -1118,6 +1119,63 @@ function setCurrentCampaignWorkspaceId(id) {
     if (!clean) return false;
     try { localStorage.setItem(CAMPAIGN_WORKSPACE_ID_KEY, clean); } catch (error) { return false; }
     return true;
+}
+
+function campaignWorkspaceRegistry() {
+    try {
+        const parsed = JSON.parse(localStorage.getItem(CAMPAIGN_WORKSPACE_REGISTRY_KEY) || "{}");
+        return parsed && typeof parsed === "object" ? parsed : {};
+    } catch (error) {
+        return {};
+    }
+}
+
+function saveCampaignWorkspaceProfile() {
+    const id = currentCampaignWorkspaceId();
+    const registry = campaignWorkspaceRegistry();
+    const profile = currentCampaignTrackingProfile();
+    registry[id] = {
+        need: profile.need,
+        location: profile.location,
+        goal: profile.goal,
+        scope: profile.scope,
+        campaign_url: profile.campaign_url,
+        campaign_summary: profile.campaign_summary,
+        updated_at: new Date().toISOString()
+    };
+    try { localStorage.setItem(CAMPAIGN_WORKSPACE_REGISTRY_KEY, JSON.stringify(registry)); } catch (error) {}
+}
+
+function restoreCampaignWorkspace(id) {
+    const registry = campaignWorkspaceRegistry();
+    const profile = registry[id];
+    if (!profile || !setCurrentCampaignWorkspaceId(id)) return false;
+    applyImportedCampaignProfile(profile);
+    document.getElementById("resultList").innerHTML = "";
+    document.getElementById("audiencePlanList").innerHTML = "";
+    alert("Campaign workspace restored. Run discovery to reload its matching results and tracking.");
+    return true;
+}
+
+function chooseCampaignWorkspace() {
+    saveCampaignWorkspaceProfile();
+    const registry = campaignWorkspaceRegistry();
+    const ids = Object.keys(registry).sort(function(a, b) {
+        return String(registry[b].updated_at || "").localeCompare(String(registry[a].updated_at || ""));
+    });
+    if (!ids.length) {
+        alert("No saved campaign workspaces are available in this browser yet.");
+        return;
+    }
+    const menu = ids.map(function(id, index) {
+        const profile = registry[id] || {};
+        const label = [profile.need, profile.location, profile.goal ? "$" + profile.goal : ""].filter(Boolean).join(" · ") || "Untitled campaign";
+        return (index + 1) + ". " + label;
+    }).join("\n");
+    const choice = prompt("Choose a campaign workspace by number:\n\n" + menu);
+    const index = Number(choice) - 1;
+    if (!Number.isInteger(index) || index < 0 || index >= ids.length) return;
+    restoreCampaignWorkspace(ids[index]);
 }
 
 function legacyCampaignTrackingPrefixes() {
@@ -1162,7 +1220,7 @@ function migrateLegacyCampaignRecord(suffix, destinationKey) {
 }
 
 function startNewCampaignWorkspace() {
-    const confirmed = confirm("Start a new campaign workspace? Existing tracking will stay saved under the current workspace, but this page will switch to a fresh tracking workspace.");
+    saveCampaignWorkspaceProfile();\n    const confirmed = confirm("Start a new campaign workspace? Existing tracking will stay saved under the current workspace, but this page will switch to a fresh tracking workspace.");
     if (!confirmed) return;
     const newId = createCampaignWorkspaceId();
     if (!setCurrentCampaignWorkspaceId(newId)) {
@@ -1181,7 +1239,7 @@ function startNewCampaignWorkspace() {
     if (audiencePanel) audiencePanel.style.display = "none";
     updateOutreachDashboard();
     updateAudienceTrackingDashboard();
-    alert("New campaign workspace started. Previous workspace tracking remains saved and can be restored from its tracking backup.");
+    saveCampaignWorkspaceProfile();\n    alert("New campaign workspace started. Previous workspace tracking remains saved in this browser and in any exported backup.");
 }
 
 function campaignTrackingNamespace() {
