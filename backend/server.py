@@ -4,6 +4,7 @@ import re
 import hashlib
 import ipaddress
 import socket
+import sqlite3
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from html.parser import HTMLParser
 from datetime import datetime, timezone
@@ -30,6 +31,7 @@ MAX_QUERY_LENGTH = env_int("MAX_QUERY_LENGTH", 500, 100, 2000)
 MAX_SEARCH_LANES = env_int("MAX_SEARCH_LANES", 4, 1, 4)
 MAX_AUDIENCE_SEARCH_QUERIES = env_int("MAX_AUDIENCE_SEARCH_QUERIES", 4, 1, 8)
 MAX_RESULTS_PER_LANE = env_int("MAX_RESULTS_PER_LANE", 4, 1, 10)
+AUTOMATION_LEDGER_PATH = os.environ.get("AUTOMATION_LEDGER_PATH", "/tmp/crowdfunding-deepsearch-automation.sqlite3")
 ALLOWED_ORIGIN = os.environ.get("ALLOWED_ORIGIN", "*")
 ALLOWED_ORIGINS = {origin.strip() for origin in ALLOWED_ORIGIN.split(",") if origin.strip()}
 
@@ -1487,6 +1489,64 @@ def build_sendgrid_mail_v3_payload(to_email, from_email, subject, body, reply_to
             raise ValueError("A valid reply-to email address is required.")
         payload["reply_to"] = {"email": reply}
     return payload
+
+
+def automation_ledger_connection():
+    connection = sqlite3.connect(AUTOMATION_LEDGER_PATH, timeout=5)
+    connection.row_factory = sqlite3.Row
+    connection.execute(
+        """CREATE TABLE IF NOT EXISTS automation_execution_ledger (
+            idempotency_key TEXT PRIMARY KEY,
+            mechanism TEXT NOT NULL,
+            endpoint TEXT,
+            outcome TEXT NOT NULL,
+            sent INTEGER NOT NULL DEFAULT 0,
+            provider_message_id TEXT,
+            blockers_json TEXT NOT NULL DEFAULT '[]',
+            recorded_at TEXT NOT NULL
+        )"""
+    )
+    return connection
+
+
+def persist_automation_execution_record(record):
+    """Persist a non-secret execution record once per idempotency key."""
+    if not isinstance(record, dict) or not record.get("idempotency_key"):
+        raise ValueError("An idempotency key is required for durable execution records.")
+    with automation_ledger_connection() as connection:
+        existing = connection.execute(
+            "SELECT * FROM automation_execution_ledger WHERE idempotency_key = ?",
+            (record["idempotency_key"],),
+        ).fetchone()
+        if existing:
+            return {"created": False, "record": dict(existing)}
+        connection.execute(
+            """INSERT INTO automation_execution_ledger
+               (idempotency_key, mechanism, endpoint, outcome, sent, provider_message_id, blockers_json, recorded_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                record["idempotency_key"],
+                record.get("mechanism") or "unknown",
+                record.get("endpoint"),
+                record.get("outcome") or "blocked",
+                1 if record.get("sent") is True else 0,
+                record.get("provider_message_id"),
+                json.dumps(record.get("blockers") or []),
+                record.get("recorded_at") or datetime.now(timezone.utc).isoformat(),
+            ),
+        )
+        return {"created": True, "record": record}
+
+
+def find_automation_execution_record(idempotency_key):
+    key = str(idempotency_key or "").strip()
+    if not key:
+        return None
+    with automation_ledger_connection() as connection:
+        row = connection.execute(
+            "SELECT * FROM automation_execution_ledger WHERE idempotency_key = ?", (key,)
+        ).fetchone()
+        return dict(row) if row else None
 
 
 def automation_execution_record(plan, outcome="blocked", provider_message_id=None):
