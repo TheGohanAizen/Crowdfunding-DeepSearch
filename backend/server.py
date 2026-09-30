@@ -2388,6 +2388,19 @@ def create_app():
         except ValueError as error:
             return jsonify({"status": "error", "message": str(error)}), 400
 
+    @app.route("/api/automation/connectors/sendgrid/server-readiness", methods=["GET", "OPTIONS"])
+    def sendgrid_server_readiness():
+        if request.method == "OPTIONS":
+            return ("", 204)
+        result = sendgrid_server_preflight()
+        return jsonify({
+            "ready": result["ready"],
+            "blockers": result["blockers"],
+            "from_email_configured": bool(result["from_email"]),
+            "credentials_configured": result["credentials_configured"],
+            "live_send_policy": result["live_send_policy"],
+        })
+
     @app.route("/api/automation/connectors/sendgrid/preflight", methods=["POST", "OPTIONS"])
     def sendgrid_preflight():
         if request.method == "OPTIONS":
