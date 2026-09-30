@@ -371,6 +371,9 @@ try:
     assert 'function restoreCampaignWorkspace(id)' in live_discovery_html
     assert 'function chooseCampaignWorkspace()' in live_discovery_html
     assert 'id="switchCampaignWorkspaceButton"' in live_discovery_html
+    for signature in ['function exportTracking() {', 'async function runDiscovery() {', 'async function runAudiencePlan() {', 'async function runAudienceDiscovery() {']:
+        start = live_discovery_html.index(signature)
+        assert 'saveCampaignWorkspaceProfile();' in live_discovery_html[start:start + 140]
     assert 'permissionReviewIsCurrent(record, card.dataset.routeFingerprint || "")' in live_discovery_html
     assert 'key.startsWith(currentCampaignTrackingPrefix())' in live_discovery_html
     assert 'currentCampaignTrackingPrefix() + key.slice(TRACKING_PREFIX.length)' in live_discovery_html
