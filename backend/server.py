@@ -1301,12 +1301,48 @@ def enrich_audience_with_rule_checks(candidates, max_candidates=None):
 
 
 
+ALLOWED_AUTOMATION_ACTION_TYPES = frozenset({"official_api", "official_submission_api"})
+
+
+def validate_automation_connector_definition(name, connector):
+    """Validate a connector registration contract before it can become supported."""
+    errors = []
+    connector_name = str(name or "").strip()
+    if not connector_name:
+        errors.append("connector_name_required")
+    if not isinstance(connector, dict):
+        return {"valid": False, "errors": errors + ["connector_definition_required"]}
+    if connector.get("action_type") not in ALLOWED_AUTOMATION_ACTION_TYPES:
+        errors.append("unsupported_action_type")
+    if not str(connector.get("credential_env") or "").strip():
+        errors.append("credential_env_required")
+    rate_limit = connector.get("rate_limit_per_hour")
+    if isinstance(rate_limit, bool) or not isinstance(rate_limit, int) or rate_limit < 1 or rate_limit > 100:
+        errors.append("bounded_rate_limit_required")
+    if connector.get("send_enabled") not in (True, False):
+        errors.append("send_enabled_boolean_required")
+    if connector.get("requires_user_authorization") is not True:
+        errors.append("user_authorization_requirement_required")
+    documentation_url = str(connector.get("documentation_url") or "").strip()
+    if not documentation_url.startswith("https://"):
+        errors.append("official_documentation_url_required")
+    return {"valid": not errors, "errors": errors}
+
+
 AUTOMATION_CONNECTOR_REGISTRY = {
     # Provider connectors are registered only after an official API/submission
     # mechanism, required authorization scope, and bounded rate policy exist.
 }
 
-SUPPORTED_AUTOMATION_MECHANISMS = frozenset(AUTOMATION_CONNECTOR_REGISTRY)
+INVALID_AUTOMATION_CONNECTORS = {
+    name: validate_automation_connector_definition(name, connector)
+    for name, connector in AUTOMATION_CONNECTOR_REGISTRY.items()
+    if not validate_automation_connector_definition(name, connector)["valid"]
+}
+SUPPORTED_AUTOMATION_MECHANISMS = frozenset(
+    name for name in AUTOMATION_CONNECTOR_REGISTRY
+    if name not in INVALID_AUTOMATION_CONNECTORS
+)
 
 
 def automation_connector_status(mechanism):
@@ -1330,6 +1366,9 @@ def automation_connector_status(mechanism):
         "send_enabled": bool(connector.get("send_enabled") is True and configured),
         "action_type": connector.get("action_type"),
         "rate_limit_per_hour": connector.get("rate_limit_per_hour"),
+        "requires_user_authorization": connector.get("requires_user_authorization") is True,
+        "documentation_url": connector.get("documentation_url"),
+        "registration_valid": name not in INVALID_AUTOMATION_CONNECTORS,
     }
 
 
