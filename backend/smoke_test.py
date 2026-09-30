@@ -285,6 +285,9 @@ try:
     assert 'id="campaignSummary"' in live_discovery_html
     assert 'document.getElementById("campaignUrl").value.trim()' in live_discovery_html
     assert 'document.getElementById("campaignSummary").value.trim()' in live_discovery_html
+    assert live_discovery_html.count('campaign_url: document.getElementById("campaignUrl").value.trim()') >= 3
+    assert 'campaign_summary": campaign_summary' in server_source
+    assert 'Campaign URL must use http or https.' in server_source
     assert 'value="draft_ready"' in live_discovery_html
     assert 'tracked === "reviewed" && !!(record && record.outreach_draft)' in live_discovery_html
     assert 'audience-reviewed-routes' in live_discovery_html
