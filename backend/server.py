@@ -1628,8 +1628,8 @@ def persist_automation_execution_record(record):
     with automation_ledger_connection() as connection:
         cursor = connection.execute(
             """INSERT OR IGNORE INTO automation_execution_ledger
-               (ledger_key, idempotency_key, execution_mode, mechanism, endpoint, outcome, sent, provider_message_id, resolution_reason, blockers_json, recorded_at, updated_at, resolved_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               (ledger_key, idempotency_key, execution_mode, mechanism, endpoint, outcome, sent, provider_message_id, resolution_reason, blockers_json, recorded_at, updated_at, resolved_at, parent_idempotency_key, attempt_number)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 record.get("ledger_key") or record["idempotency_key"],
                 record["idempotency_key"],
@@ -1644,6 +1644,8 @@ def persist_automation_execution_record(record):
                 record.get("recorded_at") or datetime.now(timezone.utc).isoformat(),
                 record.get("updated_at") or record.get("recorded_at") or datetime.now(timezone.utc).isoformat(),
                 record.get("resolved_at"),
+                record.get("parent_idempotency_key"),
+                int(record.get("attempt_number") or 1),
             ),
         )
         stored = connection.execute(
@@ -1787,6 +1789,8 @@ def automation_execution_record(plan, outcome="blocked", provider_message_id=Non
         "recorded_at": datetime.now(timezone.utc).isoformat(),
         "updated_at": datetime.now(timezone.utc).isoformat(),
         "resolved_at": datetime.now(timezone.utc).isoformat() if outcome in {"sent", "failed", "cancelled"} else None,
+        "parent_idempotency_key": plan.get("parent_idempotency_key"),
+        "attempt_number": int(plan.get("attempt_number") or 1),
     }
 
 
