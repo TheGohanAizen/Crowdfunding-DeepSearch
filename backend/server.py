@@ -1377,6 +1377,8 @@ def automation_connector_status(mechanism):
         "rate_limit_per_hour": connector.get("rate_limit_per_hour"),
         "requires_user_authorization": connector.get("requires_user_authorization") is True,
         "documentation_url": connector.get("documentation_url"),
+        "requires_verified_sender": connector.get("requires_verified_sender") is True,
+        "requires_unsubscribe_compliance": connector.get("requires_unsubscribe_compliance") is True,
         "registration_valid": name not in INVALID_AUTOMATION_CONNECTORS,
     }
 
