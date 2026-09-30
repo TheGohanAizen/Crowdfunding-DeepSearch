@@ -354,6 +354,9 @@ try:
     assert "plan_by_query" in server_source
     assert "plan_by_lane.setdefault" in server_source
     assert "plan_by_query.get((lane, source_query))" in server_source
+    assert 'item["_discovery_count"] = 1' in server_source
+    assert 'current["_discovery_count"] = current.get("_discovery_count", 1) + 1' in server_source
+    assert 'item.pop("_discovery_count", 1)' in server_source
     assert 'outreach_intent:' in server_source
     assert 'low_signal_page' in server_source
     assert 'cross_search_corroboration' in server_source
