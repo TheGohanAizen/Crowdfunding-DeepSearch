@@ -443,6 +443,18 @@ function renderSavedAudienceDraft(card, trackingKey, draft) {
     });
 }
 
+function audienceRouteFingerprint(routes) {
+    const normalized = (routes || []).filter(function(route) { return /^https?:\/\//i.test(route); })
+        .map(function(route) { return String(route).trim().replace(/\/$/, "").toLowerCase(); })
+        .sort();
+    return normalized.join("|");
+}
+
+function permissionReviewIsCurrent(record, routeFingerprint) {
+    return !!(record && record.permission_review && record.permission_review.reviewed_at
+        && record.permission_review.route_fingerprint === routeFingerprint);
+}
+
 function renderAudienceLead(item) {
     const card = document.createElement("div");
     card.className = "result-card";
@@ -465,6 +477,8 @@ function renderAudienceLead(item) {
         .concat(reviewRoutes.contact_links || [])
         .filter(function(route, index, routes) { return /^https?:\/\//i.test(route) && routes.indexOf(route) === index; })
         .slice(0, 5);
+    const routeFingerprint = audienceRouteFingerprint(routeLinks);
+    card.dataset.routeFingerprint = routeFingerprint;
     const reviewedRouteHtml = routeLinks.length
         ? '<div class="action-links audience-reviewed-routes"><strong>Detected routes to review:</strong> ' + routeLinks.map(function(route, index) {
             return '<a href="' + escapeHtml(route) + '" target="_blank" rel="noopener noreferrer">Route ' + (index + 1) + '</a>';
@@ -517,7 +531,7 @@ function renderAudienceLead(item) {
     const audienceHistoryState = card.querySelector(".audience-history-state");
     const audienceNextState = card.querySelector(".audience-next-state");
     if (existingAudienceTracking && audienceState) audienceState.textContent = "Audience tracking: " + existingAudienceTracking.status;
-    if (existingAudienceTracking && existingAudienceTracking.permission_review && audiencePermissionReviewState) audiencePermissionReviewState.textContent = "Permission review: confirmed " + new Date(existingAudienceTracking.permission_review.reviewed_at).toLocaleString();
+    if (existingAudienceTracking && existingAudienceTracking.permission_review && audiencePermissionReviewState) audiencePermissionReviewState.textContent = permissionReviewIsCurrent(existingAudienceTracking, routeFingerprint) ? "Permission review: confirmed " + new Date(existingAudienceTracking.permission_review.reviewed_at).toLocaleString() : "Permission review: route changed — review again";
     if (existingAudienceTracking && existingAudienceTracking.notes && audienceNoteState) audienceNoteState.textContent = "Private note: " + existingAudienceTracking.notes;
     if (existingAudienceTracking && existingAudienceTracking.response && audienceResponseState) audienceResponseState.textContent = responseDetailsLabel(existingAudienceTracking.response);
     if (existingAudienceTracking && existingAudienceTracking.outreach_draft) {
@@ -596,7 +610,7 @@ function renderAudienceLead(item) {
         const ready = card.dataset.ruleStatus === "rules_or_submission_route_found"
             && record.status === "reviewed"
             && record.outreach_draft
-            && record.permission_review && record.permission_review.reviewed_at
+            && permissionReviewIsCurrent(record, routeFingerprint)
             && applicationRoute;
         if (!ready) {
             alert("A submission packet requires an official application/submission route, reviewed status, confirmed route permission review, and a saved outreach draft.");
@@ -648,7 +662,7 @@ function renderAudienceLead(item) {
         const confirmed = confirm("Confirm that you personally reviewed the detected route/rules and found outreach through that route appropriate. This does not authorize automatic posting or sending.");
         if (!confirmed) return;
         const record = writeTrackingRecord(audienceTrackingKey, "reviewed");
-        record.permission_review = {reviewed_at: new Date().toISOString(), automatic_distribution: false};
+        record.permission_review = {reviewed_at: new Date().toISOString(), automatic_distribution: false, route_fingerprint: routeFingerprint};
         try { localStorage.setItem(audienceTrackingKey, JSON.stringify(record)); } catch (error) {}
         if (audiencePermissionReviewState) audiencePermissionReviewState.textContent = "Permission review: confirmed " + new Date(record.permission_review.reviewed_at).toLocaleString();
         updateAudienceTrackingDashboard();
@@ -903,8 +917,8 @@ function updateAudienceTrackingDashboard() {
         if (trackingHasStatus(record, "responded")) counts.everResponded += 1;
         if (record && record.status !== "closed" && record.follow_up_at && new Date(record.follow_up_at) <= now) counts.followups += 1;
         if (record && record.outreach_draft) counts.drafts += 1;
-        if (record && record.status === "reviewed" && record.outreach_draft && record.permission_review && record.permission_review.reviewed_at && card.dataset.ruleStatus === "rules_or_submission_route_found") counts.ready += 1;
-        if (record && record.status === "reviewed" && record.outreach_draft && record.permission_review && record.permission_review.reviewed_at && card.dataset.ruleStatus === "rules_or_submission_route_found" && card.dataset.hasApplicationRoute === "true") counts.submissionReady += 1;
+        if (record && record.status === "reviewed" && record.outreach_draft && permissionReviewIsCurrent(record, card.dataset.routeFingerprint || "") && card.dataset.ruleStatus === "rules_or_submission_route_found") counts.ready += 1;
+        if (record && record.status === "reviewed" && record.outreach_draft && permissionReviewIsCurrent(record, card.dataset.routeFingerprint || "") && card.dataset.ruleStatus === "rules_or_submission_route_found" && card.dataset.hasApplicationRoute === "true") counts.submissionReady += 1;
         if (record && record.status === "contacted") counts.awaiting += 1;
         if (card.dataset.ruleStatus === "restriction_detected") counts.blocked += 1;
     });
