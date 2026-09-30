@@ -642,6 +642,7 @@ try:
     build_live_sendgrid_execution_candidate = crowdfunding_server.build_live_sendgrid_execution_candidate
     automation_rate_limit_status = crowdfunding_server.automation_rate_limit_status
     automation_storage_status = crowdfunding_server.automation_storage_status
+    automation_ledger_connection = crowdfunding_server.automation_ledger_connection
     consume_automation_rate_limit = crowdfunding_server.consume_automation_rate_limit
     automation_idempotency_key = crowdfunding_server.automation_idempotency_key
     automation_rate_limit_contract = crowdfunding_server.automation_rate_limit_contract
@@ -817,6 +818,39 @@ try:
     try:
         if os.path.exists(crowdfunding_server.AUTOMATION_LEDGER_PATH):
             os.remove(crowdfunding_server.AUTOMATION_LEDGER_PATH)
+        legacy_path = crowdfunding_server.AUTOMATION_LEDGER_PATH
+        legacy_connection = __import__("sqlite3").connect(legacy_path)
+        legacy_connection.execute(
+            """CREATE TABLE automation_execution_ledger (
+                idempotency_key TEXT PRIMARY KEY,
+                mechanism TEXT NOT NULL,
+                endpoint TEXT,
+                outcome TEXT NOT NULL,
+                sent INTEGER NOT NULL DEFAULT 0,
+                provider_message_id TEXT,
+                blockers_json TEXT NOT NULL DEFAULT '[]',
+                recorded_at TEXT NOT NULL
+            )"""
+        )
+        legacy_connection.execute(
+            """INSERT INTO automation_execution_ledger
+               (idempotency_key, mechanism, endpoint, outcome, sent, provider_message_id, blockers_json, recorded_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            ("legacy-key", "sendgrid_mail_v3", "https://api.sendgrid.com/v3/mail/send",
+             "failed", 0, None, "[]", "2026-01-01T00:00:00+00:00"),
+        )
+        legacy_connection.commit()
+        legacy_connection.close()
+        migrated = automation_ledger_connection()
+        migrated_info = migrated.execute("PRAGMA table_info(automation_execution_ledger)").fetchall()
+        assert any(row["name"] == "ledger_key" and int(row["pk"]) == 1 for row in migrated_info)
+        assert not any(row["name"] == "idempotency_key" and int(row["pk"]) > 0 for row in migrated_info)
+        preserved = migrated.execute(
+            "SELECT * FROM automation_execution_ledger WHERE idempotency_key = 'legacy-key'"
+        ).fetchone()
+        assert preserved["execution_mode"] == "live"
+        migrated.close()
+        os.remove(crowdfunding_server.AUTOMATION_LEDGER_PATH)
         ledger_record = automation_execution_record({
             "idempotency_key": "smoke-key-1",
             "mechanism": "sendgrid_mail_v3",
