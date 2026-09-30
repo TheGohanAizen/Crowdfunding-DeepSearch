@@ -612,6 +612,8 @@ try:
     redact_automation_plan = crowdfunding_server.redact_automation_plan
     automation_execution_record = crowdfunding_server.automation_execution_record
     execute_sendgrid_transport = crowdfunding_server.execute_sendgrid_transport
+    persist_automation_execution_record = crowdfunding_server.persist_automation_execution_record
+    find_automation_execution_record = crowdfunding_server.find_automation_execution_record
     finalize_audience_actions = crowdfunding_server.finalize_audience_actions
     campaign_tracking_id = crowdfunding_server.campaign_tracking_id
     opportunity_tracking_id = crowdfunding_server.opportunity_tracking_id
@@ -767,6 +769,24 @@ try:
     assert disabled_plan["payload"] is None
     assert "connector_live_send_disabled" in disabled_plan["blockers"]
     assert "recipient_email_required" in disabled_plan["blockers"]
+    original_ledger_path = crowdfunding_server.AUTOMATION_LEDGER_PATH
+    crowdfunding_server.AUTOMATION_LEDGER_PATH = "/tmp/crowdfunding-deepsearch-smoke-ledger.sqlite3"
+    try:
+        if os.path.exists(crowdfunding_server.AUTOMATION_LEDGER_PATH):
+            os.remove(crowdfunding_server.AUTOMATION_LEDGER_PATH)
+        ledger_record = automation_execution_record({
+            "idempotency_key": "smoke-key-1",
+            "mechanism": "sendgrid_mail_v3",
+            "endpoint": "https://api.sendgrid.com/v3/mail/send",
+            "blockers": ["connector_live_send_disabled"],
+        }, "simulated")
+        first_write = persist_automation_execution_record(ledger_record)
+        second_write = persist_automation_execution_record(ledger_record)
+        assert first_write["created"] is True
+        assert second_write["created"] is False
+        assert find_automation_execution_record("smoke-key-1")["outcome"] == "simulated"
+    finally:
+        crowdfunding_server.AUTOMATION_LEDGER_PATH = original_ledger_path
     simulated_transport = execute_sendgrid_transport(disabled_plan, simulate=True)
     assert simulated_transport["status"] == "simulated"
     assert simulated_transport["sent"] is False
