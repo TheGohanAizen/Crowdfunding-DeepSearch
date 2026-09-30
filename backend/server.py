@@ -1535,7 +1535,9 @@ def automation_ledger_connection():
             blockers_json TEXT NOT NULL DEFAULT '[]',
             recorded_at TEXT NOT NULL,
             updated_at TEXT,
-            resolved_at TEXT
+            resolved_at TEXT,
+            parent_idempotency_key TEXT,
+            attempt_number INTEGER NOT NULL DEFAULT 1
         )"""
     )
     table_info = connection.execute("PRAGMA table_info(automation_execution_ledger)").fetchall()
@@ -1563,15 +1565,18 @@ def automation_ledger_connection():
         resolution_expr = "resolution_reason" if "resolution_reason" in columns else "NULL"
         updated_expr = "updated_at" if "updated_at" in columns else "recorded_at"
         resolved_expr = "resolved_at" if "resolved_at" in columns else "NULL"
+        parent_expr = "parent_idempotency_key" if "parent_idempotency_key" in columns else "NULL"
+        attempt_expr = "attempt_number" if "attempt_number" in columns else "1"
         mode_expr = "COALESCE(NULLIF(execution_mode, ''), 'live')" if "execution_mode" in columns else "'live'"
         connection.execute(
             f"""INSERT INTO automation_execution_ledger_v2
                 (ledger_key, idempotency_key, execution_mode, mechanism, endpoint, outcome,
                  sent, provider_message_id, resolution_reason, blockers_json, recorded_at,
-                 updated_at, resolved_at)
+                 updated_at, resolved_at, parent_idempotency_key, attempt_number)
                 SELECT idempotency_key || ':' || {mode_expr}, idempotency_key, {mode_expr},
                        mechanism, endpoint, outcome, sent, provider_message_id,
-                       {resolution_expr}, blockers_json, recorded_at, {updated_expr}, {resolved_expr}
+                       {resolution_expr}, blockers_json, recorded_at, {updated_expr}, {resolved_expr},
+                       {parent_expr}, {attempt_expr}
                 FROM automation_execution_ledger"""
         )
         connection.execute("DROP TABLE automation_execution_ledger")
@@ -1589,6 +1594,10 @@ def automation_ledger_connection():
         connection.execute("UPDATE automation_execution_ledger SET updated_at = recorded_at WHERE updated_at IS NULL")
     if "resolved_at" not in columns:
         connection.execute("ALTER TABLE automation_execution_ledger ADD COLUMN resolved_at TEXT")
+    if "parent_idempotency_key" not in columns:
+        connection.execute("ALTER TABLE automation_execution_ledger ADD COLUMN parent_idempotency_key TEXT")
+    if "attempt_number" not in columns:
+        connection.execute("ALTER TABLE automation_execution_ledger ADD COLUMN attempt_number INTEGER NOT NULL DEFAULT 1")
     connection.execute(
         "UPDATE automation_execution_ledger SET ledger_key = idempotency_key || ':' || execution_mode WHERE ledger_key IS NULL OR ledger_key = ''"
     )
