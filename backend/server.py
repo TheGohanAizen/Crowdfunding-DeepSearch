@@ -1230,6 +1230,13 @@ def enrich_audience_with_rule_checks(candidates, max_candidates=None):
             "permission_verified": False,
             "automatic_distribution": False,
             "requires_review": True,
+            "automation_eligibility": {
+                "status": "manual_review_only",
+                "eligible": False,
+                "supported_mechanism": None,
+                "evidence": [],
+                "send_enabled": False,
+            },
         })
     to_check = enriched[:max_candidates]
 
@@ -1242,6 +1249,13 @@ def enrich_audience_with_rule_checks(candidates, max_candidates=None):
                 "permission_verified": False,
                 "automatic_distribution": False,
                 "requires_review": True,
+                "automation_eligibility": {
+                    "status": "manual_review_only",
+                    "eligible": False,
+                    "supported_mechanism": None,
+                    "evidence": [],
+                    "send_enabled": False,
+                },
             }
             return item
         final_url = page.get("final_url", item.get("url", ""))
@@ -1251,6 +1265,17 @@ def enrich_audience_with_rule_checks(candidates, max_candidates=None):
             "source_url": final_url,
             "application_links": list(signals.get("application_links") or [])[:5],
             "contact_links": list(signals.get("contact_links") or [])[:5],
+        }
+        # Discovery of a form/link is not permission to automate it. Stage 6
+        # requires affirmative integration evidence before any send capability
+        # can ever be enabled.
+        rules["automation_eligibility"] = {
+            "status": "manual_review_only",
+            "eligible": False,
+            "supported_mechanism": None,
+            "evidence": [],
+            "reason": "No verified official API or explicitly automation-permitted submission mechanism has been established.",
+            "send_enabled": False,
         }
         rules["source_reachable"] = True
         rules["last_checked"] = page.get("last_checked")
