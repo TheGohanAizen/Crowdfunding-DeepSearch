@@ -260,6 +260,9 @@ try:
     assert 'AUTOMATION_DRY_RUN_URL' in live_discovery_html
     assert 'data-audience-automation-check="true"' in live_discovery_html
     assert 'Check automation readiness' in live_discovery_html
+    assert 'function automationBlockerLabel(code)' in live_discovery_html
+    assert 'no approved connector is registered for this mechanism' in live_discovery_html
+    assert 'the approved connector is not configured' in live_discovery_html
     assert 'connector gate passed in dry-run only — nothing was sent.' in live_discovery_html
     assert 'unregistered routes remain manual' in live_discovery_html
     assert 'AUDIENCE_DISCOVER_URL' in live_discovery_html
