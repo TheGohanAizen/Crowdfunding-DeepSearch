@@ -1366,6 +1366,31 @@ def automation_distribution_decision(candidate):
     }
 
 
+def validate_automation_execution_request(data):
+    """Validate user-controlled execution prerequisites without performing a send."""
+    if not isinstance(data, dict):
+        raise ValueError("A JSON request body is required.")
+    lead = data.get("lead")
+    if not isinstance(lead, dict):
+        raise ValueError("Audience lead must be an object.")
+    decision = automation_distribution_decision(lead)
+    blockers = list(decision["blockers"])
+    if data.get("user_authorized") is not True:
+        blockers.append("user_authorization_required")
+    if data.get("permission_review_current") is not True:
+        blockers.append("current_permission_review_required")
+    if data.get("deduplication_clear") is not True:
+        blockers.append("deduplication_clearance_required")
+    return {
+        "allowed": not blockers,
+        "dry_run": True,
+        "sent": False,
+        "decision": decision,
+        "blockers": blockers,
+        "reason": "execution_prerequisites_satisfied" if not blockers else blockers[0],
+    }
+
+
 def build_automation_dry_run(candidate):
     """Build a non-sending Stage 6 execution plan for a discovered audience lead."""
     if not isinstance(candidate, dict):
@@ -1741,6 +1766,20 @@ def create_app():
         except Exception:
             app.logger.exception("Audience discovery request failed")
             return jsonify({"status": "error", "message": "Audience discovery request failed."}), 500
+
+    @app.route("/api/automation/execution-check", methods=["POST", "OPTIONS"])
+    def automation_execution_check():
+        if request.method == "OPTIONS":
+            return ("", 204)
+        if request.content_length is not None and request.content_length > 65536:
+            return jsonify({"status": "error", "message": "Request body is too large."}), 413
+        data = request.get_json(silent=True)
+        try:
+            result = validate_automation_execution_request(data)
+            result["status"] = "ready" if result["allowed"] else "blocked"
+            return jsonify(result)
+        except ValueError as error:
+            return jsonify({"status": "error", "message": str(error)}), 400
 
     @app.route("/api/automation/dry-run", methods=["POST", "OPTIONS"])
     def automation_dry_run():
