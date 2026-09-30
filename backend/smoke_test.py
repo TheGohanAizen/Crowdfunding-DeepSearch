@@ -310,7 +310,7 @@ try:
     protected_source = open(os.path.join(ROOT, "backend", "protected_app.py"), encoding="utf-8").read()
     assert '"/api/audience/discover": "audience"' in protected_source
     assert '"namespace": namespace' in protected_source
-    assert 'protected_paths[path] + ":" + _client_key(environ)' in protected_source
+    assert 'key = protected_paths[path] + ":" + client' in protected_source
     server_source = open(os.path.join(ROOT, "backend", "server.py"), encoding="utf-8").read()
     assert '"credit_usage_known": not retrieval.get("configured", False)' in server_source
     assert 'does not claim zero credits' in server_source
