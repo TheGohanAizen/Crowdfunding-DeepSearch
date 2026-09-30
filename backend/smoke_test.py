@@ -357,6 +357,12 @@ try:
     assert 'item["_discovery_count"] = 1' in server_source
     assert 'current["_discovery_count"] = current.get("_discovery_count", 1) + 1' in server_source
     assert 'item.pop("_discovery_count", 1)' in server_source
+    protected_path = os.path.join(ROOT, "backend", "protected_app.py")
+    with open(protected_path, "r", encoding="utf-8") as protected_file:
+        protected_source = protected_file.read()
+    assert "MAX_TOTAL_DISCOVERY_REQUESTS = 7" in protected_source
+    assert '"all-discovery:" + client' in protected_source
+    assert "len(total_recent) >= MAX_TOTAL_DISCOVERY_REQUESTS" in protected_source
     assert 'outreach_intent:' in server_source
     assert 'low_signal_page' in server_source
     assert 'cross_search_corroboration' in server_source
