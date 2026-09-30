@@ -1810,6 +1810,9 @@ def build_live_sendgrid_execution_candidate(data):
     duplicate_status = automation_execution_duplicate_status(execution.get("idempotency_key"))
     if duplicate_status["duplicate"]:
         blockers.append("idempotency_key_already_recorded")
+    storage = automation_storage_status()
+    if not storage["live_ready"]:
+        blockers.append("durable_automation_storage_required")
     rate_limit = automation_rate_limit_status("sendgrid_mail_v3")
     if not rate_limit.get("allowed"):
         blockers.append("automation_rate_limit_unavailable_or_exhausted")
@@ -1831,6 +1834,7 @@ def build_live_sendgrid_execution_candidate(data):
         "idempotency_key": execution.get("idempotency_key"),
         "duplicate_status": duplicate_status,
         "rate_limit": rate_limit,
+        "storage": storage,
         "payload": payload,
         "endpoint": AUTOMATION_CONNECTOR_REGISTRY["sendgrid_mail_v3"]["endpoint"],
     }
@@ -1879,6 +1883,25 @@ def build_disabled_sendgrid_execution_plan(data):
         "send_authorization": send_authorization,
         "payload": payload,
         "endpoint": AUTOMATION_CONNECTOR_REGISTRY["sendgrid_mail_v3"]["endpoint"],
+    }
+
+
+def automation_storage_status():
+    """Describe whether the configured execution store is suitable for live automation."""
+    path = str(AUTOMATION_LEDGER_PATH or "").strip()
+    persistent_declared = env_flag("AUTOMATION_STORAGE_PERSISTENT")
+    ephemeral_path = path.startswith("/tmp/") or path == "/tmp"
+    return {
+        "backend": "sqlite",
+        "path_configured": bool(path),
+        "persistent_declared": persistent_declared,
+        "ephemeral_path": ephemeral_path,
+        "live_ready": bool(path and persistent_declared and not ephemeral_path),
+        "reason": (
+            "persistent_storage_ready"
+            if path and persistent_declared and not ephemeral_path
+            else "durable_automation_storage_required"
+        ),
     }
 
 
