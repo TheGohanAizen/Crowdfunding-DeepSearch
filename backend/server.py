@@ -1645,6 +1645,19 @@ def automation_execution_duplicate_status(idempotency_key):
     }
 
 
+def reserve_live_automation_execution(plan):
+    """Atomically reserve a live idempotency key before any future provider call."""
+    record = automation_execution_record(plan, "reserved", execution_mode="live")
+    result = persist_automation_execution_record(record)
+    stored = result.get("record") or {}
+    return {
+        "reserved": result.get("created") is True,
+        "duplicate": result.get("created") is not True,
+        "record": stored,
+        "reconciliation_required": stored.get("outcome") in {"reserved", "unknown"},
+    }
+
+
 def automation_execution_record(plan, outcome="blocked", provider_message_id=None, execution_mode="live"):
 
     """Build a non-secret execution record suitable for durable persistence later."""
