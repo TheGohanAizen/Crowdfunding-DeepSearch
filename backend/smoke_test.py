@@ -315,6 +315,11 @@ try:
     assert 'currentCampaignTrackingPrefix() + "opportunity:" + opportunityTrackingId' in live_discovery_html
     assert 'const legacyTrackingKey = TRACKING_PREFIX + campaignTrackingId + ":" + opportunityTrackingId' in live_discovery_html
     assert 'localStorage.removeItem(legacyTrackingKey)' in live_discovery_html
+    assert '"Permission reviewed at"' in live_discovery_html
+    assert '"Submission packet prepared at"' in live_discovery_html
+    assert '"Submission route"' in live_discovery_html
+    assert 'trackingHasStatus(record, "contacted") ? "yes" : "no"' in live_discovery_html
+    assert 'crowdfunding-deepsearch-audience-outreach-ledger.csv' in live_discovery_html
     assert 'key.startsWith(currentCampaignTrackingPrefix())' in live_discovery_html
     assert 'currentCampaignTrackingPrefix() + key.slice(TRACKING_PREFIX.length)' in live_discovery_html
     assert 'value="draft_ready"' in live_discovery_html
