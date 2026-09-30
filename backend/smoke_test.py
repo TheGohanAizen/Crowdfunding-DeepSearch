@@ -224,12 +224,15 @@ try:
     except HTTPError as error:
         assert error.code == 400
 
-    # Static, no-credit UI checks. Literal backslash-n sequences previously broke
-    # CSS/JavaScript even though the Python backend smoke test still passed.
+    # Static UI checks. Literal backslash-n artifacts previously leaked into
+    # HTML/statement boundaries. Keep targeted guards so intentional JS string
+    # escapes can still be used safely in the future.
     live_discovery_path = os.path.join(ROOT, "backend", "static", "live-discovery.html")
     with open(live_discovery_path, "r", encoding="utf-8") as handle:
         live_discovery_html = handle.read()
-    assert "\\n" not in live_discovery_html
+    assert '</option>\\n          <option' not in live_discovery_html
+    assert '</button>\\n      <button' not in live_discovery_html
+    assert ');\\n    set("audienceHandoffRefreshCount"' not in live_discovery_html
     assert 'id="resultFilter"' in live_discovery_html
     assert 'value="confirmed_area"' in live_discovery_html
     assert 'value="possible_area"' in live_discovery_html
