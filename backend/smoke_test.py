@@ -611,6 +611,12 @@ try:
     assert check_only_auth["allowed"] is False
     assert "live_send_authorization_required" in check_only_auth["blockers"]
     assert "dry_run_authorization_not_valid_for_send" in check_only_auth["blockers"]
+    original_admin_flag = os.environ.pop("AUTOMATION_ADMIN_ENDPOINTS_ENABLED", None)
+    try:
+        assert automation_admin_endpoints_enabled() is False
+    finally:
+        if original_admin_flag is not None:
+            os.environ["AUTOMATION_ADMIN_ENDPOINTS_ENABLED"] = original_admin_flag
     default_storage = automation_storage_status()
     assert default_storage["backend"] == "sqlite"
     assert default_storage["live_ready"] is False
@@ -642,6 +648,7 @@ try:
     build_live_sendgrid_execution_candidate = crowdfunding_server.build_live_sendgrid_execution_candidate
     automation_rate_limit_status = crowdfunding_server.automation_rate_limit_status
     automation_storage_status = crowdfunding_server.automation_storage_status
+    automation_admin_endpoints_enabled = crowdfunding_server.automation_admin_endpoints_enabled
     automation_ledger_connection = crowdfunding_server.automation_ledger_connection
     consume_automation_rate_limit = crowdfunding_server.consume_automation_rate_limit
     automation_idempotency_key = crowdfunding_server.automation_idempotency_key
