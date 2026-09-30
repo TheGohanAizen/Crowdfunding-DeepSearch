@@ -1405,6 +1405,19 @@ def automation_distribution_decision(candidate):
     }
 
 
+def automation_rate_limit_contract(mechanism):
+    """Return the configured bounded rate contract without consuming quota."""
+    status = automation_connector_status(mechanism)
+    limit = status.get("rate_limit_per_hour")
+    return {
+        "mechanism": status.get("mechanism"),
+        "registered": status.get("registered") is True,
+        "configured": status.get("configured") is True,
+        "limit_per_hour": limit if isinstance(limit, int) else None,
+        "enforcement_required": status.get("registered") is True,
+    }
+
+
 def automation_idempotency_key(workspace_id, tracking_id, mechanism, route):
     """Return a stable non-secret key for duplicate execution protection."""
     parts = [
@@ -1465,6 +1478,7 @@ def validate_automation_execution_request(data):
         "decision": decision,
         "blockers": blockers,
         "idempotency_key": idempotency_key,
+        "rate_limit": automation_rate_limit_contract(decision.get("mechanism")),
         "reason": "execution_prerequisites_satisfied" if not blockers else blockers[0],
     }
 
