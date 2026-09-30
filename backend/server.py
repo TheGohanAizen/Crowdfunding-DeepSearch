@@ -455,14 +455,18 @@ def retrieve_candidates(search_plan, per_lane=5):
             "configured": result["configured"],
             "message": result["message"]
         })
-        if result["configured"]:
+        if result["configured"] and result.get("candidates"):
             result["attempts"] = attempts
             return result
+        if result["configured"]:
+            attempts[-1]["fallback_reason"] = "configured_provider_returned_no_candidates"
+            continue
 
+    configured_attempts = [item for item in attempts if item.get("configured")]
     return {
-        "provider": "none",
-        "configured": False,
-        "message": "No configured live search provider is available.",
+        "provider": configured_attempts[-1]["provider"] if configured_attempts else "none",
+        "configured": bool(configured_attempts),
+        "message": "Configured providers returned no candidates." if configured_attempts else "No configured live search provider is available.",
         "errors": [],
         "candidates": [],
         "attempts": attempts
