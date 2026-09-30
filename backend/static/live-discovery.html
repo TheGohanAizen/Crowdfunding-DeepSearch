@@ -1364,10 +1364,10 @@ function exportTracking() {\n    saveCampaignWorkspaceProfile();
     try {
         for (let i = 0; i < localStorage.length; i += 1) {
             const key = localStorage.key(i);
-            if (key && key.startsWith(currentCampaignTrackingPrefix())) records[key] = readTrackingRecord(key);
+            if (key && key.startsWith(TRACKING_PREFIX + "campaign:") && !key.startsWith(CAMPAIGN_WORKSPACE_REGISTRY_KEY)) records[key] = readTrackingRecord(key);
         }
     } catch (error) {}
-    const blob = new Blob([JSON.stringify({version: 4, exported_at: new Date().toISOString(), campaign: currentCampaignTrackingProfile(), workspace_registry: campaignWorkspaceRegistry(), records: records}, null, 2)], {type: "application/json"});
+    const blob = new Blob([JSON.stringify({version: 5, exported_at: new Date().toISOString(), campaign: currentCampaignTrackingProfile(), workspace_registry: campaignWorkspaceRegistry(), records: records}, null, 2)], {type: "application/json"});
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
@@ -1432,9 +1432,12 @@ function importTracking(event) {
             let imported = 0;
             Object.keys(records).forEach(function(key) {
                 if (!key.startsWith(TRACKING_PREFIX)) return;
-                const importedKey = key.startsWith(destinationPrefix)
+                const preservesWorkspace = payload.version >= 5 && /^crowdfunding-deepsearch:campaign:[^:]+:(audience|opportunity):/.test(key);
+                const importedKey = preservesWorkspace
                     ? key
-                    : destinationPrefix + key.slice(TRACKING_PREFIX.length).replace(/^campaign:[^:]+:/, "");
+                    : (key.startsWith(destinationPrefix)
+                        ? key
+                        : destinationPrefix + key.slice(TRACKING_PREFIX.length).replace(/^campaign:[^:]+:/, ""));
                 const record = records[key];
                 if (record && ["saved", "reviewed", "contacted", "responded", "closed"].includes(record.status)) {
                     localStorage.setItem(importedKey, JSON.stringify(record));
@@ -1442,7 +1445,7 @@ function importTracking(event) {
                 }
             });
             const campaignLabel = campaign.need || campaign.location ? " Backup campaign: " + [campaign.need, campaign.location].filter(Boolean).join(" · ") + "." : "";
-            alert(imported + " tracking records imported." + campaignLabel + (profileRestored ? " Campaign profile restored." : " Current campaign profile left unchanged.") + " Run discovery to reload matching results and tracking.");
+            alert(imported + " tracking records imported across available campaign workspaces." + campaignLabel + (profileRestored ? " Campaign profile restored." : " Current campaign profile left unchanged.") + " Run discovery to reload matching results and tracking.");
         } catch (error) {
             alert("That tracking file could not be imported.");
         }
