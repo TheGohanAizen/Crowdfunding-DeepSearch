@@ -614,6 +614,7 @@ try:
     original_admin_flag = os.environ.pop("AUTOMATION_ADMIN_ENDPOINTS_ENABLED", None)
     try:
         assert automation_admin_endpoints_enabled() is False
+        assert automation_operational_tools_enabled() is False
     finally:
         if original_admin_flag is not None:
             os.environ["AUTOMATION_ADMIN_ENDPOINTS_ENABLED"] = original_admin_flag
@@ -649,6 +650,7 @@ try:
     automation_rate_limit_status = crowdfunding_server.automation_rate_limit_status
     automation_storage_status = crowdfunding_server.automation_storage_status
     automation_admin_endpoints_enabled = crowdfunding_server.automation_admin_endpoints_enabled
+    automation_operational_tools_enabled = crowdfunding_server.automation_operational_tools_enabled
     automation_attempt_idempotency_key = crowdfunding_server.automation_attempt_idempotency_key
     automation_retry_decision = crowdfunding_server.automation_retry_decision
     validate_automation_retry_request = crowdfunding_server.validate_automation_retry_request
