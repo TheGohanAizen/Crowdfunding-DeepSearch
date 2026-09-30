@@ -569,6 +569,7 @@ try:
     automation_distribution_decision = crowdfunding_server.automation_distribution_decision
     automation_connector_status = crowdfunding_server.automation_connector_status
     build_automation_dry_run = crowdfunding_server.build_automation_dry_run
+    validate_automation_execution_request = crowdfunding_server.validate_automation_execution_request
     finalize_audience_actions = crowdfunding_server.finalize_audience_actions
     campaign_tracking_id = crowdfunding_server.campaign_tracking_id
     opportunity_tracking_id = crowdfunding_server.opportunity_tracking_id
@@ -668,6 +669,12 @@ try:
     assert dry_run["decision"]["allowed"] is False
     assert "mechanism_not_registered" in dry_run["next_step"]
     assert "assisted/manual review" in dry_run["next_step"]
+    execution_check = validate_automation_execution_request({"lead": automation_candidate})
+    assert execution_check["allowed"] is False
+    assert execution_check["sent"] is False
+    assert "user_authorization_required" in execution_check["blockers"]
+    assert "current_permission_review_required" in execution_check["blockers"]
+    assert "deduplication_clearance_required" in execution_check["blockers"]
 
     draft_builder = crowdfunding_server.build_assisted_outreach_draft
     prepared_draft = draft_builder({"need": "Transportation", "location": "Austin, Texas", "campaign_url": "https://example.org/campaign", "lead": {"name": "Example Media", "type": "Local Media", "channel_rules": {"status": "rules_or_submission_route_found"}}})
