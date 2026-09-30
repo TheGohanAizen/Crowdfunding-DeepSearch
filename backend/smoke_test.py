@@ -265,6 +265,10 @@ try:
     assert 'id="audienceReadyCount"' in live_discovery_html
     assert 'value="draft_ready"' in live_discovery_html
     assert 'tracked === "reviewed" && !!(record && record.outreach_draft)' in live_discovery_html
+    assert 'audience-reviewed-routes' in live_discovery_html
+    assert 'Detected routes to review:' in live_discovery_html
+    assert 'Before marking contacted, this lead must have a detected rules/submission route' in live_discovery_html
+    assert 'rules["review_routes"]' in server_source
     assert 'audience-tracking-state' in live_discovery_html
     assert 'Recommended next action:</strong>' in live_discovery_html
     assert 'id="audienceDashboard"' in live_discovery_html
