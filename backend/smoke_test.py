@@ -592,6 +592,7 @@ try:
     automation_idempotency_key = crowdfunding_server.automation_idempotency_key
     automation_rate_limit_contract = crowdfunding_server.automation_rate_limit_contract
     build_sendgrid_mail_v3_payload = crowdfunding_server.build_sendgrid_mail_v3_payload
+    sendgrid_connector_preflight = crowdfunding_server.sendgrid_connector_preflight
     finalize_audience_actions = crowdfunding_server.finalize_audience_actions
     campaign_tracking_id = crowdfunding_server.campaign_tracking_id
     opportunity_tracking_id = crowdfunding_server.opportunity_tracking_id
@@ -722,6 +723,13 @@ try:
     assert sendgrid_status["registered"] is True
     assert sendgrid_status["send_enabled"] is False
     assert sendgrid_status["requires_user_authorization"] is True
+    preflight = sendgrid_connector_preflight({})
+    assert preflight["ready"] is False
+    assert preflight["send_enabled"] is False
+    assert "verified_sender_email_required" in preflight["blockers"]
+    assert "verified_sender_identity_required" in preflight["blockers"]
+    assert "email_compliance_confirmation_required" in preflight["blockers"]
+    assert "unsubscribe_mechanism_required" in preflight["blockers"]
     payload = build_sendgrid_mail_v3_payload(
         "recipient@example.com", "sender@example.com", "Campaign introduction", "Hello", "reply@example.com"
     )
