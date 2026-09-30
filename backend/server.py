@@ -1354,6 +1354,29 @@ SUPPORTED_AUTOMATION_MECHANISMS = frozenset(
 )
 
 
+def env_flag(name, default=False):
+    value = str(os.environ.get(name, "")).strip().lower()
+    if not value:
+        return bool(default)
+    return value in {"1", "true", "yes", "on"}
+
+
+def automation_live_send_policy(mechanism):
+    """Require independent deployment opt-in before any connector may send live."""
+    name = str(mechanism or "").strip()
+    connector = AUTOMATION_CONNECTOR_REGISTRY.get(name) or {}
+    registry_enabled = connector.get("send_enabled") is True
+    deployment_enabled = env_flag("AUTOMATION_LIVE_SEND_ENABLED", False)
+    connector_opt_in = env_flag("AUTOMATION_" + re.sub(r"[^A-Z0-9]+", "_", name.upper()) + "_ENABLED", False)
+    return {
+        "mechanism": name or None,
+        "registry_enabled": registry_enabled,
+        "deployment_enabled": deployment_enabled,
+        "connector_opt_in": connector_opt_in,
+        "live_send_enabled": registry_enabled and deployment_enabled and connector_opt_in,
+    }
+
+
 def automation_connector_status(mechanism):
     """Return non-secret connector capability metadata for UI/API diagnostics."""
     name = str(mechanism or "").strip()
@@ -1368,11 +1391,13 @@ def automation_connector_status(mechanism):
         }
     env_key = str(connector.get("credential_env") or "").strip()
     configured = bool(env_key and os.environ.get(env_key))
+    live_policy = automation_live_send_policy(name)
     return {
         "registered": True,
         "mechanism": name,
         "configured": configured,
-        "send_enabled": bool(connector.get("send_enabled") is True and configured),
+        "send_enabled": bool(live_policy["live_send_enabled"] and configured),
+        "live_send_policy": live_policy,
         "action_type": connector.get("action_type"),
         "rate_limit_per_hour": connector.get("rate_limit_per_hour"),
         "requires_user_authorization": connector.get("requires_user_authorization") is True,
