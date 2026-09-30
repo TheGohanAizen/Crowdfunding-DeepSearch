@@ -366,6 +366,11 @@ try:
     assert 'function startNewCampaignWorkspace()' in live_discovery_html
     assert 'const newId = createCampaignWorkspaceId();' in live_discovery_html
     assert 'Existing tracking will stay saved under the current workspace' in live_discovery_html
+    assert 'const CAMPAIGN_WORKSPACE_REGISTRY_KEY = "crowdfunding-deepsearch:workspace-registry"' in live_discovery_html
+    assert 'function saveCampaignWorkspaceProfile()' in live_discovery_html
+    assert 'function restoreCampaignWorkspace(id)' in live_discovery_html
+    assert 'function chooseCampaignWorkspace()' in live_discovery_html
+    assert 'id="switchCampaignWorkspaceButton"' in live_discovery_html
     assert 'permissionReviewIsCurrent(record, card.dataset.routeFingerprint || "")' in live_discovery_html
     assert 'key.startsWith(currentCampaignTrackingPrefix())' in live_discovery_html
     assert 'currentCampaignTrackingPrefix() + key.slice(TRACKING_PREFIX.length)' in live_discovery_html
