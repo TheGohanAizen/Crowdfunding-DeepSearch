@@ -603,7 +603,22 @@ try:
     automation_live_send_policy = crowdfunding_server.automation_live_send_policy
     validate_automation_connector_definition = crowdfunding_server.validate_automation_connector_definition
     build_automation_dry_run = crowdfunding_server.build_automation_dry_run
+    check_only_auth = validate_live_send_authorization({
+        "user_authorized_check": True,
+        "permission_review_current": True,
+        "deduplication_clear": True,
+    })
+    assert check_only_auth["allowed"] is False
+    assert "live_send_authorization_required" in check_only_auth["blockers"]
+    assert "dry_run_authorization_not_valid_for_send" in check_only_auth["blockers"]
+    explicit_send_auth = validate_live_send_authorization({
+        "user_authorized_send": True,
+        "permission_review_current": True,
+        "deduplication_clear": True,
+    })
+    assert explicit_send_auth["allowed"] is True
     validate_automation_execution_request = crowdfunding_server.validate_automation_execution_request
+    validate_live_send_authorization = crowdfunding_server.validate_live_send_authorization
     automation_idempotency_key = crowdfunding_server.automation_idempotency_key
     automation_rate_limit_contract = crowdfunding_server.automation_rate_limit_contract
     build_sendgrid_mail_v3_payload = crowdfunding_server.build_sendgrid_mail_v3_payload
@@ -871,7 +886,7 @@ try:
     execution_check = validate_automation_execution_request({"lead": automation_candidate})
     assert execution_check["allowed"] is False
     assert execution_check["sent"] is False
-    assert "user_authorization_required" in execution_check["blockers"]
+    assert "execution_check_authorization_required" in execution_check["blockers"]
     assert "current_permission_review_required" in execution_check["blockers"]
     assert "deduplication_clearance_required" in execution_check["blockers"]
     assert "verified_route_required" in execution_check["blockers"]
