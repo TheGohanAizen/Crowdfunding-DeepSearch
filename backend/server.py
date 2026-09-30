@@ -1756,8 +1756,10 @@ def build_disabled_sendgrid_execution_plan(data):
     if not isinstance(data, dict):
         raise ValueError("A JSON request body is required.")
     execution = validate_automation_execution_request(data)
+    send_authorization = validate_live_send_authorization(data)
     preflight = sendgrid_connector_preflight(data.get("sendgrid_settings"))
     blockers = list(execution["blockers"])
+    blockers.extend(code for code in send_authorization["blockers"] if code not in blockers)
     blockers.extend(code for code in preflight["blockers"] if code not in blockers)
     draft = data.get("draft") if isinstance(data.get("draft"), dict) else {}
     to_email = str(data.get("to_email") or "").strip()
@@ -1789,6 +1791,7 @@ def build_disabled_sendgrid_execution_plan(data):
         "blockers": blockers,
         "idempotency_key": execution.get("idempotency_key"),
         "duplicate_status": duplicate_status,
+        "send_authorization": send_authorization,
         "payload": payload,
         "endpoint": AUTOMATION_CONNECTOR_REGISTRY["sendgrid_mail_v3"]["endpoint"],
     }
