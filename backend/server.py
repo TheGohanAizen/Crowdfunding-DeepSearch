@@ -1953,6 +1953,11 @@ def build_disabled_sendgrid_execution_plan(data):
     }
 
 
+def automation_operational_tools_enabled():
+    """Gate stateful or execution-oriented automation tooling independently from diagnostics."""
+    return env_flag("AUTOMATION_OPERATIONAL_TOOLS_ENABLED")
+
+
 def automation_admin_endpoints_enabled():
     """Keep operational execution-history and reconciliation APIs disabled by default."""
     return env_flag("AUTOMATION_ADMIN_ENDPOINTS_ENABLED")
@@ -2680,6 +2685,8 @@ def create_app():
     def sendgrid_simulate():
         if request.method == "OPTIONS":
             return ("", 204)
+        if not automation_operational_tools_enabled():
+            return jsonify({"status": "disabled", "message": "Automation operational tools are disabled."}), 404
         data = request.get_json(silent=True)
         try:
             plan = build_disabled_sendgrid_execution_plan(data)
@@ -2708,6 +2715,8 @@ def create_app():
     def sendgrid_execution_plan():
         if request.method == "OPTIONS":
             return ("", 204)
+        if not automation_operational_tools_enabled():
+            return jsonify({"status": "disabled", "message": "Automation operational tools are disabled."}), 404
         data = request.get_json(silent=True)
         try:
             return jsonify(build_disabled_sendgrid_execution_plan(data))
@@ -2742,6 +2751,8 @@ def create_app():
     def automation_execution_check():
         if request.method == "OPTIONS":
             return ("", 204)
+        if not automation_operational_tools_enabled():
+            return jsonify({"status": "disabled", "message": "Automation operational tools are disabled."}), 404
         if request.content_length is not None and request.content_length > 65536:
             return jsonify({"status": "error", "message": "Request body is too large."}), 413
         data = request.get_json(silent=True)
