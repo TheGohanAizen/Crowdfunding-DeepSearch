@@ -1489,6 +1489,32 @@ def build_sendgrid_mail_v3_payload(to_email, from_email, subject, body, reply_to
     return payload
 
 
+def redact_automation_plan(plan):
+    """Return a diagnostics-safe execution plan without message body or credentials."""
+    if not isinstance(plan, dict):
+        return {}
+    payload = plan.get("payload") if isinstance(plan.get("payload"), dict) else {}
+    personalizations = payload.get("personalizations") if isinstance(payload, dict) else []
+    recipient_count = 0
+    if isinstance(personalizations, list):
+        for item in personalizations:
+            if isinstance(item, dict) and isinstance(item.get("to"), list):
+                recipient_count += len(item["to"])
+    return {
+        "status": plan.get("status"),
+        "allowed": plan.get("allowed") is True,
+        "sent": plan.get("sent") is True,
+        "mechanism": plan.get("mechanism"),
+        "blockers": list(plan.get("blockers") or []),
+        "idempotency_key": plan.get("idempotency_key"),
+        "endpoint": plan.get("endpoint"),
+        "payload_present": bool(payload),
+        "recipient_count": recipient_count,
+        "subject_present": bool(payload.get("subject")) if isinstance(payload, dict) else False,
+        "body_present": bool(payload.get("content")) if isinstance(payload, dict) else False,
+    }
+
+
 def build_disabled_sendgrid_execution_plan(data):
     """Build the final SendGrid execution envelope without performing network I/O."""
     if not isinstance(data, dict):
@@ -1981,6 +2007,16 @@ def create_app():
         except Exception:
             app.logger.exception("Audience discovery request failed")
             return jsonify({"status": "error", "message": "Audience discovery request failed."}), 500
+
+    @app.route("/api/automation/connectors/sendgrid/execution-diagnostics", methods=["POST", "OPTIONS"])
+    def sendgrid_execution_diagnostics():
+        if request.method == "OPTIONS":
+            return ("", 204)
+        data = request.get_json(silent=True)
+        try:
+            return jsonify(redact_automation_plan(build_disabled_sendgrid_execution_plan(data)))
+        except ValueError as error:
+            return jsonify({"status": "error", "message": str(error)}), 400
 
     @app.route("/api/automation/connectors/sendgrid/execution-plan", methods=["POST", "OPTIONS"])
     def sendgrid_execution_plan():
