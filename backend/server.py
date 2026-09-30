@@ -188,31 +188,32 @@ def build_audience_queries(need, location, scope="automatic"):
             ("Creators & Podcasts", "podcast creator community stories assistance interview"),
             ("Directories & Newsletters", "community newsletter resource directory public submissions"),
         ]
+
     stages = [
         ("local", geo_terms["local"]),
         ("state", (geo_terms["state"] + " statewide").strip()),
         ("national", (geo_terms["national"] + " national").strip()),
         ("worldwide", "international worldwide"),
     ]
-    queries = []
-    for index, (lane, terms) in enumerate(lanes):
-        if scope == "automatic":
-            geo_stage, geography = stages[index]
-        else:
-            geo_stage = scope
-            geography = dict(stages).get(scope, geo_terms["local"])
-        query = " ".join(part for part in [geography, topic, terms] if part).strip()
-        queries.append({
-            "lane": lane,
-            "query": query,
-            "geographic_stage": geo_stage,
-            "search_url": "https://www.google.com/search?q=" + quote_plus(query),
-            "status": "ready_for_provider",
-            "discovery_kind": "audience",
-            "action_mode": "review_required"
-        })
-    return queries
+    if scope == "automatic":
+        selected_stages = stages
+    else:
+        selected_stages = [(scope, dict(stages).get(scope, geo_terms["local"]))]
 
+    queries = []
+    for geo_stage, geography in selected_stages:
+        for lane, terms in lanes:
+            query = " ".join(part for part in [geography, topic, terms] if part).strip()
+            queries.append({
+                "lane": lane,
+                "query": query,
+                "geographic_stage": geo_stage,
+                "search_url": "https://www.google.com/search?q=" + quote_plus(query),
+                "status": "ready_for_provider",
+                "discovery_kind": "audience",
+                "action_mode": "review_required"
+            })
+    return queries
 
 def audience_channel_tracking_id(candidate):
     return stable_id("audience", candidate.get("url"), candidate.get("name"), candidate.get("type"))
