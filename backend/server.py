@@ -1641,7 +1641,8 @@ def create_app():
             "health": "/api/health",
             "deployment": "/api/deployment",
             "discovery": "/api/discover",
-            "audience_plan": "/api/audience/plan"
+            "audience_plan": "/api/audience/plan",
+            "automation_connectors": "/api/automation/connectors"
         })
 
     @app.get("/api/deployment")
@@ -1661,6 +1662,19 @@ def create_app():
             "service": "Crowdfunding DeepSearch Backend",
             "version": "1.13",
             "deployment_commit": deployment_info()["commit"]
+        })
+
+    @app.get("/api/automation/connectors")
+    def automation_connectors():
+        """Expose only non-secret Stage 6 connector readiness metadata."""
+        mechanisms = sorted(AUTOMATION_CONNECTOR_REGISTRY)
+        return jsonify({
+            "status": "ok",
+            "automatic_distribution_enabled": any(
+                automation_connector_status(name)["send_enabled"] for name in mechanisms
+            ),
+            "connectors": [automation_connector_status(name) for name in mechanisms],
+            "unregistered_routes_remain_manual": True,
         })
 
     @app.get("/api/test-discovery")
