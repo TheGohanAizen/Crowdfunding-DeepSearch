@@ -251,6 +251,8 @@ button:hover { background: #1d4ed8; }
       <div><strong id="audienceRespondedCount">0</strong><span>Responses</span></div>
       <div><strong id="audienceClosedCount">0</strong><span>Closed</span></div>
       <div><strong id="audienceFollowupCount">0</strong><span>Follow-ups Due</span></div>
+      <div><strong id="audienceDraftCount">0</strong><span>Drafts Prepared</span></div>
+      <div><strong id="audienceReadyCount">0</strong><span>Reviewed + Draft Ready</span></div>
       <div><strong id="audienceNotStartedCount">0</strong><span>Not Started</span></div>
       <div><strong id="audienceReviewProgress">0%</strong><span>Reviewed/Contacted</span></div>
     </div>
@@ -269,7 +271,8 @@ button:hover { background: #1d4ed8; }
           <option value="followup_due">Follow-up due</option>
           <option value="high_score">High relevance (70+)</option>
           <option value="high_priority">High priority (80+)</option>
-          <option value="contact_ready">Contact-ready candidates</option>
+          <option value="contact_ready">Reviewed + draft ready</option>
+          <option value="draft_ready">Draft prepared</option>
         </select>
       </label>
       <label>Channel
@@ -608,7 +611,8 @@ function applyAudienceFilters() {
             || (status === "followup_due" && followupDue)
             || (status === "high_score" && Number(card.dataset.audienceScore || 0) >= 70)
             || (status === "high_priority" && card.dataset.audiencePriority === "high")
-            || (status === "contact_ready" && rule === "rules_or_submission_route_found" && card.dataset.audiencePriority !== "standard")
+            || (status === "draft_ready" && !!(record && record.outreach_draft))
+            || (status === "contact_ready" && rule === "rules_or_submission_route_found" && tracked === "reviewed" && !!(record && record.outreach_draft))
             || status === tracked;
         const channelMatch = channel === "all" || card.dataset.channelType === channel;
         const show = statusMatch && channelMatch;
@@ -690,7 +694,7 @@ function exportAudienceCsv() {
 
 function updateAudienceTrackingDashboard() {
     const cards = Array.from(document.querySelectorAll("#audiencePlanList .result-card"));
-    const counts = {saved: 0, reviewed: 0, contacted: 0, responded: 0, closed: 0, followups: 0, notStarted: 0};
+    const counts = {saved: 0, reviewed: 0, contacted: 0, responded: 0, closed: 0, followups: 0, drafts: 0, ready: 0, notStarted: 0};
     const now = new Date();
     cards.forEach(function(card) {
         const record = card.dataset.audienceTrackingKey ? readTrackingRecord(card.dataset.audienceTrackingKey) : null;
@@ -702,6 +706,8 @@ function updateAudienceTrackingDashboard() {
         else if (record.status === "closed") counts.closed += 1;
         else counts.notStarted += 1;
         if (record && record.status !== "closed" && record.follow_up_at && new Date(record.follow_up_at) <= now) counts.followups += 1;
+        if (record && record.outreach_draft) counts.drafts += 1;
+        if (record && record.status === "reviewed" && record.outreach_draft && card.dataset.ruleStatus === "rules_or_submission_route_found") counts.ready += 1;
     });
     const set = function(id, value) { const el = document.getElementById(id); if (el) el.textContent = value; };
     set("audienceSavedCount", counts.saved);
@@ -711,6 +717,8 @@ function updateAudienceTrackingDashboard() {
     set("audienceClosedCount", counts.closed);
     set("audienceNotStartedCount", counts.notStarted);
     set("audienceFollowupCount", counts.followups);
+    set("audienceDraftCount", counts.drafts);
+    set("audienceReadyCount", counts.ready);
     const reviewedPercent = cards.length ? Math.round(((counts.reviewed + counts.contacted) / cards.length) * 100) : 0;
     set("audienceReviewProgress", reviewedPercent + "%");
 }
