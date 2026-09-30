@@ -1489,6 +1489,58 @@ def build_sendgrid_mail_v3_payload(to_email, from_email, subject, body, reply_to
     return payload
 
 
+def automation_execution_record(plan, outcome="blocked", provider_message_id=None):
+    """Build a non-secret execution record suitable for durable persistence later."""
+    if not isinstance(plan, dict):
+        raise ValueError("Execution plan must be an object.")
+    return {
+        "idempotency_key": plan.get("idempotency_key"),
+        "mechanism": plan.get("mechanism"),
+        "endpoint": plan.get("endpoint"),
+        "outcome": str(outcome or "blocked"),
+        "sent": outcome == "sent",
+        "provider_message_id": str(provider_message_id or "").strip() or None,
+        "blockers": list(plan.get("blockers") or []),
+        "recorded_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+def execute_sendgrid_transport(plan, simulate=True):
+    """Exercise the SendGrid transport boundary; network sending is not implemented."""
+    if not isinstance(plan, dict):
+        raise ValueError("Execution plan must be an object.")
+    policy = automation_live_send_policy("sendgrid_mail_v3")
+    blockers = list(plan.get("blockers") or [])
+    if simulate:
+        return {
+            "status": "simulated",
+            "sent": False,
+            "network_io": False,
+            "policy": policy,
+            "record": automation_execution_record(plan, "simulated"),
+        }
+    if not policy["live_send_enabled"]:
+        if "live_send_policy_disabled" not in blockers:
+            blockers.append("live_send_policy_disabled")
+        blocked_plan = dict(plan)
+        blocked_plan["blockers"] = blockers
+        return {
+            "status": "blocked",
+            "sent": False,
+            "network_io": False,
+            "policy": policy,
+            "record": automation_execution_record(blocked_plan, "blocked"),
+        }
+    return {
+        "status": "blocked",
+        "sent": False,
+        "network_io": False,
+        "policy": policy,
+        "record": automation_execution_record(plan, "transport_not_implemented"),
+        "reason": "live_transport_not_implemented",
+    }
+
+
 def redact_automation_plan(plan):
     """Return a diagnostics-safe execution plan without message body or credentials."""
     if not isinstance(plan, dict):
