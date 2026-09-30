@@ -1509,6 +1509,20 @@ def automation_ledger_connection():
             recorded_at TEXT NOT NULL
         )"""
     )
+    columns = {row["name"] for row in connection.execute("PRAGMA table_info(automation_execution_ledger)").fetchall()}
+    if "ledger_key" not in columns:
+        connection.execute("ALTER TABLE automation_execution_ledger ADD COLUMN ledger_key TEXT")
+    if "execution_mode" not in columns:
+        connection.execute("ALTER TABLE automation_execution_ledger ADD COLUMN execution_mode TEXT NOT NULL DEFAULT 'live'")
+    connection.execute(
+        "UPDATE automation_execution_ledger SET ledger_key = idempotency_key || ':' || execution_mode WHERE ledger_key IS NULL OR ledger_key = ''"
+    )
+    connection.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_automation_ledger_key ON automation_execution_ledger(ledger_key)"
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_automation_idempotency_mode ON automation_execution_ledger(idempotency_key, execution_mode)"
+    )
     return connection
 
 
