@@ -275,7 +275,9 @@ try:
     assert 'id="audienceContactRate"' in live_discovery_html
     assert 'id="audienceResponseRate"' in live_discovery_html
     assert 'id="audienceReadyBacklog"' in live_discovery_html
-    assert 'const contactedOrBeyond = counts.contacted + counts.responded + counts.closed;' in live_discovery_html
+    assert 'function trackingHasStatus(record, status)' in live_discovery_html
+    assert 'counts.everContacted / reviewedBase' in live_discovery_html
+    assert 'counts.everResponded / counts.everContacted' in live_discovery_html
     assert 'function currentCampaignTrackingProfile()' in live_discovery_html
     assert 'version: 2' in live_discovery_html
     assert 'campaign: currentCampaignTrackingProfile()' in live_discovery_html
