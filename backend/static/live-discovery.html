@@ -857,9 +857,17 @@ function exportAudienceCsv() {
     URL.revokeObjectURL(url);
 }
 
+function trackingHasStatus(record, status) {
+    if (!record) return false;
+    if (record.status === status) return true;
+    return Array.isArray(record.history) && record.history.some(function(entry) {
+        return entry && entry.status === status;
+    });
+}
+
 function updateAudienceTrackingDashboard() {
     const cards = Array.from(document.querySelectorAll("#audiencePlanList .result-card"));
-    const counts = {saved: 0, reviewed: 0, contacted: 0, responded: 0, closed: 0, followups: 0, drafts: 0, ready: 0, submissionReady: 0, awaiting: 0, blocked: 0, notStarted: 0};
+    const counts = {saved: 0, reviewed: 0, contacted: 0, responded: 0, closed: 0, everReviewed: 0, everContacted: 0, everResponded: 0, followups: 0, drafts: 0, ready: 0, submissionReady: 0, awaiting: 0, blocked: 0, notStarted: 0};
     const now = new Date();
     cards.forEach(function(card) {
         const record = card.dataset.audienceTrackingKey ? readTrackingRecord(card.dataset.audienceTrackingKey) : null;
@@ -870,6 +878,9 @@ function updateAudienceTrackingDashboard() {
         else if (record.status === "responded") counts.responded += 1;
         else if (record.status === "closed") counts.closed += 1;
         else counts.notStarted += 1;
+        if (trackingHasStatus(record, "reviewed")) counts.everReviewed += 1;
+        if (trackingHasStatus(record, "contacted")) counts.everContacted += 1;
+        if (trackingHasStatus(record, "responded")) counts.everResponded += 1;
         if (record && record.status !== "closed" && record.follow_up_at && new Date(record.follow_up_at) <= now) counts.followups += 1;
         if (record && record.outreach_draft) counts.drafts += 1;
         if (record && record.status === "reviewed" && record.outreach_draft && record.permission_review && record.permission_review.reviewed_at && card.dataset.ruleStatus === "rules_or_submission_route_found") counts.ready += 1;
@@ -889,16 +900,14 @@ function updateAudienceTrackingDashboard() {
     set("audienceReadyCount", counts.ready);
     set("audienceAwaitingCount", counts.awaiting);
     set("audienceBlockedCount", counts.blocked);
-    const contactedOrBeyond = counts.contacted + counts.responded + counts.closed;
-    const responseBase = counts.contacted + counts.responded;
-    const actionableBase = counts.reviewed + contactedOrBeyond;
-    const contactRate = actionableBase ? Math.round((contactedOrBeyond / actionableBase) * 100) : 0;
-    const responseRate = responseBase ? Math.round((counts.responded / responseBase) * 100) : 0;
+    const reviewedBase = counts.everReviewed;
+    const contactRate = reviewedBase ? Math.round((counts.everContacted / reviewedBase) * 100) : 0;
+    const responseRate = counts.everContacted ? Math.round((counts.everResponded / counts.everContacted) * 100) : 0;
     set("audienceContactRate", contactRate + "%");
     set("audienceResponseRate", responseRate + "%");
     set("audienceReadyBacklog", counts.ready);
     set("audienceSubmissionReadyCount", counts.submissionReady);
-    const reviewedPercent = cards.length ? Math.round(((counts.reviewed + counts.contacted + counts.responded + counts.closed) / cards.length) * 100) : 0;
+    const reviewedPercent = cards.length ? Math.round((counts.everReviewed / cards.length) * 100) : 0;
     set("audienceReviewProgress", reviewedPercent + "%");
 }
 
