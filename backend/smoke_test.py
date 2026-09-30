@@ -584,6 +584,7 @@ try:
     audience_next_action = crowdfunding_server.audience_next_action
     automation_distribution_decision = crowdfunding_server.automation_distribution_decision
     automation_connector_status = crowdfunding_server.automation_connector_status
+    validate_automation_connector_definition = crowdfunding_server.validate_automation_connector_definition
     build_automation_dry_run = crowdfunding_server.build_automation_dry_run
     validate_automation_execution_request = crowdfunding_server.validate_automation_execution_request
     finalize_audience_actions = crowdfunding_server.finalize_audience_actions
@@ -677,6 +678,29 @@ try:
     assert connector_status["registered"] is False
     assert connector_status["configured"] is False
     assert connector_status["send_enabled"] is False
+    invalid_connector = validate_automation_connector_definition("generic-form", {
+        "action_type": "generic_web_form",
+        "credential_env": "",
+        "rate_limit_per_hour": 0,
+        "send_enabled": True,
+        "requires_user_authorization": False,
+        "documentation_url": "http://example.invalid/docs",
+    })
+    assert invalid_connector["valid"] is False
+    assert "unsupported_action_type" in invalid_connector["errors"]
+    assert "credential_env_required" in invalid_connector["errors"]
+    assert "bounded_rate_limit_required" in invalid_connector["errors"]
+    assert "user_authorization_requirement_required" in invalid_connector["errors"]
+    assert "official_documentation_url_required" in invalid_connector["errors"]
+    valid_contract = validate_automation_connector_definition("official-test", {
+        "action_type": "official_api",
+        "credential_env": "OFFICIAL_TEST_TOKEN",
+        "rate_limit_per_hour": 10,
+        "send_enabled": False,
+        "requires_user_authorization": True,
+        "documentation_url": "https://example.com/official-api-docs",
+    })
+    assert valid_contract == {"valid": True, "errors": []}
     assert automation_decision["connector"]["registered"] is False
     dry_run = build_automation_dry_run(automation_candidate)
     assert dry_run["status"] == "blocked"
