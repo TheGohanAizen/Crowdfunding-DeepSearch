@@ -360,6 +360,11 @@ try:
     assert 'key.startsWith(TRACKING_PREFIX + "campaign:")' in live_discovery_html
     assert 'const preservesWorkspace = payload.version >= 5' in live_discovery_html
     assert 'tracking records imported across available campaign workspaces' in live_discovery_html
+    assert 'status === "contact_ready"' in live_discovery_html
+    contact_ready_start = live_discovery_html.index('status === "contact_ready"')
+    assert 'permissionReviewIsCurrent(record, card.dataset.routeFingerprint || "")' in live_discovery_html[contact_ready_start:contact_ready_start + 600]
+    assert 'const permissionReviewed = permissionReviewIsCurrent(previous, card.dataset.routeFingerprint || "");' in live_discovery_html
+    assert 'const submissionReady = !!(record && record.status === "reviewed" && draft && permissionReviewIsCurrent(record, card.dataset.routeFingerprint || "")' in live_discovery_html
     assert 'workspace_registry: campaignWorkspaceRegistry()' in live_discovery_html
     assert 'payload.version >= 4 && payload.workspace_registry' in live_discovery_html
     assert '{\\\\n    saveCampaignWorkspaceProfile();' not in live_discovery_html
