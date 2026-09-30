@@ -468,9 +468,9 @@ function renderAudienceLead(item) {
         '<div class="match-reason"><strong>Recommended next action:</strong> ' + escapeHtml((item.recommended_next_action && item.recommended_next_action.label) || "Verify channel rules") + '</div>' +
         '<div class="match-reason audience-priority-state"><strong>Priority:</strong> ' + escapeHtml(score >= 80 ? "High" : score >= 60 ? "Medium" : "Standard") + '</div>' +
         '<div class="match-reason audience-permission-state"><strong>Permission:</strong> ' + escapeHtml((item.channel_rules && item.channel_rules.status === "restriction_detected") ? "Restriction detected — review before outreach" : (item.channel_rules && item.channel_rules.status === "rules_or_submission_route_found") ? "Route/rules found — human review required" : "Not verified — verify before outreach") + '</div>' +
-        '<div class="tracking-actions"><button type="button" data-audience-track="saved">Save lead</button><button type="button" data-audience-track="reviewed">Mark reviewed</button><button type="button" data-audience-track="contacted">Mark contacted</button><button type="button" data-audience-track="responded">Mark responded</button><button type="button" data-audience-track="closed">Close lead</button><button type="button" data-audience-followup="tomorrow">Follow up tomorrow</button><button type="button" data-audience-followup="week">Follow up +7 days</button><button type="button" data-audience-followup="clear">Clear follow-up</button><button type="button" data-audience-note="true">Add note</button><button type="button" data-audience-draft="true">Prepare outreach draft</button></div>' +
+        '<div class="tracking-actions"><button type="button" data-audience-track="saved">Save lead</button><button type="button" data-audience-track="reviewed">Mark reviewed</button><button type="button" data-audience-track="contacted">Mark contacted</button><button type="button" data-audience-track="responded">Mark responded</button><button type="button" data-audience-response="true">Record response details</button><button type="button" data-audience-track="closed">Close lead</button><button type="button" data-audience-followup="tomorrow">Follow up tomorrow</button><button type="button" data-audience-followup="week">Follow up +7 days</button><button type="button" data-audience-followup="clear">Clear follow-up</button><button type="button" data-audience-note="true">Add note</button><button type="button" data-audience-draft="true">Prepare outreach draft</button></div>' +
         '<div class="tracking-state audience-tracking-state">Audience tracking: not started</div>' +
-        '<div class="tracking-state audience-note-state">Private note: none</div>' +
+        '<div class="tracking-state audience-note-state">Private note: none</div><div class="tracking-state audience-response-state">Response details: none</div>' +
         '<div class="tracking-state audience-history-state">History: no activity yet</div>' +
         '<div class="tracking-state audience-next-state">Next step: review channel rules</div>' +
         reviewedRouteHtml +
@@ -491,10 +491,12 @@ function renderAudienceLead(item) {
     }
     const audienceState = card.querySelector(".audience-tracking-state");
     const audienceNoteState = card.querySelector(".audience-note-state");
+    const audienceResponseState = card.querySelector(".audience-response-state");
     const audienceHistoryState = card.querySelector(".audience-history-state");
     const audienceNextState = card.querySelector(".audience-next-state");
     if (existingAudienceTracking && audienceState) audienceState.textContent = "Audience tracking: " + existingAudienceTracking.status;
     if (existingAudienceTracking && existingAudienceTracking.notes && audienceNoteState) audienceNoteState.textContent = "Private note: " + existingAudienceTracking.notes;
+    if (existingAudienceTracking && existingAudienceTracking.response && audienceResponseState) audienceResponseState.textContent = responseDetailsLabel(existingAudienceTracking.response);
     if (existingAudienceTracking && existingAudienceTracking.outreach_draft) {
         renderSavedAudienceDraft(card, audienceTrackingKey, existingAudienceTracking.outreach_draft);
     }
@@ -562,6 +564,31 @@ function renderAudienceLead(item) {
             draftButton.disabled = false;
             draftButton.textContent = originalText;
         }
+    });
+    const responseButton = card.querySelector("[data-audience-response]");
+    if (responseButton) responseButton.addEventListener("click", function() {
+        const previous = readTrackingRecord(audienceTrackingKey) || {};
+        if (previous.status !== "contacted" && previous.status !== "responded") {
+            alert("Record response details after the lead has been contacted.");
+            return;
+        }
+        const outcome = prompt("Response outcome (interested, needs information, submitted, declined, no fit, other):", previous.response && previous.response.outcome || "");
+        if (outcome === null) return;
+        const details = prompt("Response details / next action:", previous.response && previous.response.details || "");
+        if (details === null) return;
+        const record = writeTrackingRecord(audienceTrackingKey, "responded");
+        record.response = {
+            outcome: String(outcome).trim().slice(0, 120),
+            details: String(details).trim().slice(0, 1500),
+            received_at: previous.response && previous.response.received_at || new Date().toISOString()
+        };
+        try { localStorage.setItem(audienceTrackingKey, JSON.stringify(record)); } catch (error) {}
+        if (audienceState) audienceState.textContent = "Audience tracking: responded";
+        if (audienceResponseState) audienceResponseState.textContent = responseDetailsLabel(record.response);
+        if (audienceHistoryState) audienceHistoryState.textContent = trackingHistoryLabel(record);
+        if (audienceNextState) audienceNextState.textContent = "Next step: " + responseNextAction(record.response);
+        updateAudienceTrackingDashboard();
+        applyAudienceFilters();
     });
     const noteButton = card.querySelector("[data-audience-note]");
     if (noteButton) noteButton.addEventListener("click", function() {
@@ -919,6 +946,7 @@ function writeTrackingRecord(key, status) {
         first_saved_at: previous.first_saved_at || now,
         notes: previous.notes || "",
         outreach_draft: previous.outreach_draft || null,
+        response: previous.response || null,
         follow_up_at: status === "contacted"
             ? (previous.follow_up_at || new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString())
             : ((status === "responded" || status === "closed") ? null : (previous.follow_up_at || null)),
@@ -926,6 +954,22 @@ function writeTrackingRecord(key, status) {
     };
     try { localStorage.setItem(key, JSON.stringify(record)); } catch (error) {}
     return record;
+}
+
+function responseDetailsLabel(response) {
+    if (!response) return "Response details: none";
+    const outcome = response.outcome || "response recorded";
+    const details = response.details ? " · " + response.details : "";
+    return "Response: " + outcome + details;
+}
+
+function responseNextAction(response) {
+    const outcome = String(response && response.outcome || "").toLowerCase();
+    if (outcome.includes("declin") || outcome.includes("no fit")) return "close the lead unless another permitted route is appropriate";
+    if (outcome.includes("needs information") || outcome.includes("more information")) return "prepare the requested information and reply through the reviewed route";
+    if (outcome.includes("submitted")) return "track the submission and wait for the stated review period";
+    if (outcome.includes("interest")) return "review the response and continue the conversation through the approved route";
+    return "review the recorded response and choose the appropriate follow-up";
 }
 
 function trackingHistoryLabel(record) {
