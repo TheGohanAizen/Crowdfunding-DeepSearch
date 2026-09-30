@@ -2236,6 +2236,25 @@ def create_app():
             app.logger.exception("Audience discovery request failed")
             return jsonify({"status": "error", "message": "Audience discovery request failed."}), 500
 
+    @app.route("/api/automation/executions/reconciliation", methods=["GET", "OPTIONS"])
+    def automation_reconciliation_queue():
+        if request.method == "OPTIONS":
+            return ("", 204)
+        with automation_ledger_connection() as connection:
+            rows = connection.execute(
+                """SELECT idempotency_key, mechanism, endpoint, outcome, sent,
+                          provider_message_id, recorded_at
+                   FROM automation_execution_ledger
+                   WHERE execution_mode = 'live' AND outcome IN ('reserved', 'unknown')
+                   ORDER BY recorded_at ASC
+                   LIMIT 100"""
+            ).fetchall()
+        return jsonify({
+            "status": "ok",
+            "count": len(rows),
+            "records": [dict(row) for row in rows],
+        })
+
     @app.route("/api/automation/executions/<idempotency_key>", methods=["GET", "OPTIONS"])
     def automation_execution_lookup(idempotency_key):
         if request.method == "OPTIONS":
