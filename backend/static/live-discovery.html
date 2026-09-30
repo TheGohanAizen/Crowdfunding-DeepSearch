@@ -260,6 +260,7 @@ button:hover { background: #1d4ed8; }
     <button id="switchCampaignWorkspaceButton" type="button" onclick="chooseCampaignWorkspace()">Switch Campaign Workspace</button>
     <button id="audiencePlanButton" type="button" onclick="runAudiencePlan()">Preview Audience DeepSearch</button>
     <button id="audienceDiscoverButton" type="button" onclick="runAudienceDiscovery()">Run Audience DeepSearch</button>
+    <div id="automationConnectorStatus" class="notice">Automatic distribution status: checking connector readiness…</div>
 
     <div class="notice">
         Live Discovery mode: choose how far DeepSearch should expand from the campaign location. Automatic expansion is designed to begin with the strongest geographic match and later broaden to state, national, and worldwide opportunities that can actually serve the campaign location. Results remain screening leads until eligibility and current availability are confirmed.
@@ -291,7 +292,8 @@ button:hover { background: #1d4ed8; }
       <div><strong id="audienceResponseRate">0%</strong><span>Response Rate</span></div>
       <div><strong id="audienceReadyBacklog">0</strong><span>Ready Backlog</span></div>
       <div><strong id="audienceSubmissionReadyCount">0</strong><span>Submission Ready</span></div>
-      <div><strong id="audienceHandoffPreparedCount">0</strong><span>Handoffs Prepared</span></div>\n      <div><strong id="audienceHandoffRefreshCount">0</strong><span>Handoffs Need Refresh</span></div>
+      <div><strong id="audienceHandoffPreparedCount">0</strong><span>Handoffs Prepared</span></div>
+      <div><strong id="audienceHandoffRefreshCount">0</strong><span>Handoffs Need Refresh</span></div>
     </div>
     <div class="filters" id="audienceFilters">
       <label>Audience view
@@ -399,6 +401,24 @@ const API_URL = apiRoot + "/api/discover";
 const AUDIENCE_PLAN_URL = apiRoot + "/api/audience/plan";
 const AUDIENCE_DISCOVER_URL = apiRoot + "/api/audience/discover";
 const AUDIENCE_OUTREACH_DRAFT_URL = apiRoot + "/api/audience/outreach-draft";
+const AUTOMATION_CONNECTORS_URL = apiRoot + "/api/automation/connectors";
+
+async function loadAutomationConnectorStatus() {
+    const status = document.getElementById("automationConnectorStatus");
+    if (!status) return;
+    try {
+        const response = await fetch(AUTOMATION_CONNECTORS_URL);
+        const data = await response.json();
+        if (!response.ok || data.status !== "ok") throw new Error("Connector readiness unavailable.");
+        const enabled = data.automatic_distribution_enabled === true;
+        const connectorCount = Array.isArray(data.connectors) ? data.connectors.length : 0;
+        status.textContent = enabled
+            ? "Automatic distribution status: approved connector available."
+            : "Automatic distribution status: disabled — " + connectorCount + " approved connector" + (connectorCount === 1 ? "" : "s") + " available; unregistered routes remain manual.";
+    } catch (error) {
+        status.textContent = "Automatic distribution status: unavailable — manual review remains required.";
+    }
+}
 
 function loadCampaignProfile() {
     const need = params.get("need");
@@ -428,6 +448,7 @@ function loadCampaignProfile() {
 }
 
 loadCampaignProfile();
+loadAutomationConnectorStatus();
 
 function renderSavedAudienceDraft(card, trackingKey, draft) {
     if (!draft) return;
