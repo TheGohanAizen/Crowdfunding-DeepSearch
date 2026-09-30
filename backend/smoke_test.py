@@ -636,6 +636,8 @@ try:
     validate_live_send_authorization = crowdfunding_server.validate_live_send_authorization
     sendgrid_server_preflight = crowdfunding_server.sendgrid_server_preflight
     build_live_sendgrid_execution_candidate = crowdfunding_server.build_live_sendgrid_execution_candidate
+    automation_rate_limit_status = crowdfunding_server.automation_rate_limit_status
+    consume_automation_rate_limit = crowdfunding_server.consume_automation_rate_limit
     automation_idempotency_key = crowdfunding_server.automation_idempotency_key
     automation_rate_limit_contract = crowdfunding_server.automation_rate_limit_contract
     build_sendgrid_mail_v3_payload = crowdfunding_server.build_sendgrid_mail_v3_payload
@@ -858,6 +860,13 @@ try:
         assert prune_result["retention_days"] == 7
         assert prune_result["deleted"] >= 1
         assert find_automation_execution_record("smoke-old-key") is None
+        quota_before = automation_rate_limit_status("sendgrid_mail_v3")
+        assert quota_before["limit_per_hour"] == 20
+        quota_consumed = consume_automation_rate_limit("sendgrid_mail_v3", "quota-smoke-1")
+        assert quota_consumed["consumed"] is True
+        quota_duplicate = consume_automation_rate_limit("sendgrid_mail_v3", "quota-smoke-1")
+        assert quota_duplicate["consumed"] is False
+        assert automation_rate_limit_status("sendgrid_mail_v3")["used_last_hour"] == 1
         duplicate_status = automation_execution_duplicate_status("smoke-key-1")
         assert duplicate_status["duplicate"] is True
         assert duplicate_status["previous_outcome"] == "blocked"
