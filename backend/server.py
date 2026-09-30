@@ -2130,6 +2130,32 @@ def automation_retry_decision(base_idempotency_key):
     }
 
 
+def validate_automation_retry_request(data):
+    """Require a fresh, explicit authorization before creating a retry attempt."""
+    if not isinstance(data, dict):
+        raise ValueError("A JSON request body is required.")
+    base_key = str(data.get("base_idempotency_key") or "").strip()
+    if not base_key:
+        raise ValueError("Base idempotency key is required.")
+    decision = automation_retry_decision(base_key)
+    blockers = []
+    if not decision["retry_allowed"]:
+        blockers.append(decision["reason"])
+    if data.get("user_authorized_retry") is not True:
+        blockers.append("explicit_retry_authorization_required")
+    if data.get("permission_review_current") is not True:
+        blockers.append("current_permission_review_required")
+    return {
+        "allowed": not blockers,
+        "blockers": blockers,
+        "reason": "retry_authorized" if not blockers else blockers[0],
+        "base_idempotency_key": base_key,
+        "next_attempt": decision.get("next_attempt"),
+        "next_idempotency_key": decision.get("next_idempotency_key"),
+        "previous_outcome": decision.get("previous_outcome"),
+    }
+
+
 def automation_execution_receipt(candidate, prerequisite_result):
     """Create a non-secret, non-sending audit receipt for an execution check."""
     return {
