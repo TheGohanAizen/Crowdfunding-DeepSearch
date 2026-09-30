@@ -356,7 +356,10 @@ try:
     assert 'function setCurrentCampaignWorkspaceId(id)' in live_discovery_html
     assert 'return "campaign:" + currentCampaignWorkspaceId() + ":"' in live_discovery_html
     assert 'campaign_workspace_id: currentCampaignWorkspaceId()' in live_discovery_html
-    assert 'JSON.stringify({version: 3, exported_at:' in live_discovery_html
+    assert 'JSON.stringify({version: 4, exported_at:' in live_discovery_html
+    assert 'workspace_registry: campaignWorkspaceRegistry()' in live_discovery_html
+    assert 'payload.version >= 4 && payload.workspace_registry' in live_discovery_html
+    assert '{\\\\n    saveCampaignWorkspaceProfile();' not in live_discovery_html
     assert 'if (campaign.campaign_workspace_id) setCurrentCampaignWorkspaceId(campaign.campaign_workspace_id)' in live_discovery_html
     assert 'function legacyCampaignTrackingPrefixes()' in live_discovery_html
     assert 'function migrateLegacyCampaignRecord(suffix, destinationKey)' in live_discovery_html
