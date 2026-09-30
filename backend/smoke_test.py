@@ -473,6 +473,14 @@ try:
     assert prepared_draft["status"] == "success"
     assert prepared_draft["send_enabled"] is False
     assert "https://example.org/campaign" in prepared_draft["draft"]["body"]
+    assert prepared_draft["draft"]["subject"].startswith("Community story tip:")
+    assert "not representing your organization" in prepared_draft["draft"]["body"]
+    podcast_draft = draft_builder({"need": "Transportation", "location": "Austin, Texas", "goal": 10000, "campaign_summary": "Seeking reliable transportation to support stable work.", "lead": {"name": "Example Podcast", "type": "Creators & Podcasts", "channel_rules": {"status": "rules_or_submission_route_found"}}})
+    assert podcast_draft["draft"]["subject"].startswith("Possible community story or interview:")
+    assert "$10,000" in podcast_draft["draft"]["body"]
+    assert "Seeking reliable transportation" in podcast_draft["draft"]["body"]
+    directory_draft = draft_builder({"need": "Housing Assistance", "lead": {"name": "Example Directory", "type": "Directories & Newsletters", "channel_rules": {"status": "rules_or_submission_route_found"}}})
+    assert directory_draft["draft"]["subject"].startswith("Resource submission for consideration:")
     blocked_draft = draft_builder({"need": "Transportation", "lead": {"name": "Restricted Forum", "type": "Community Forums", "channel_rules": {"status": "restriction_detected"}}})
     assert blocked_draft["status"] == "blocked"
     assert blocked_draft["automatic_distribution"] is False
