@@ -280,6 +280,13 @@ try:
     assert 'the approved connector is not configured' in live_discovery_html
     assert 'AUTOMATION_EXECUTION_CHECK_URL' in live_discovery_html
     assert 'SENDGRID_PREFLIGHT_URL' in live_discovery_html
+    assert 'SENDGRID_SIMULATE_URL' in live_discovery_html
+    assert 'Simulate SendGrid transport' in live_discovery_html
+    assert 'data-audience-sendgrid-simulate="true"' in live_discovery_html
+    assert 'network I/O: ' in live_discovery_html
+    assert 'sender_verified: false' in live_discovery_html
+    assert 'compliance_confirmed: false' in live_discovery_html
+    assert 'unsubscribe_ready: false' in live_discovery_html
     assert 'sendgridPreflightStatus' in live_discovery_html
     assert 'function loadSendGridPreflightStatus()' in live_discovery_html
     assert 'live sending is still disabled' in live_discovery_html
