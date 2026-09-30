@@ -262,6 +262,9 @@ try:
     assert 'id="automationConnectorStatus"' in live_discovery_html
     assert 'AUTOMATION_CONNECTORS_URL' in live_discovery_html
     assert 'function loadAutomationConnectorStatus()' in live_discovery_html
+    assert 'connector.mechanism === "sendgrid_mail_v3"' in live_discovery_html
+    assert 'credentials not configured' in live_discovery_html
+    assert 'live send disabled' in live_discovery_html
     assert 'AUTOMATION_DRY_RUN_URL' in live_discovery_html
     assert 'data-audience-automation-check="true"' in live_discovery_html
     assert 'Check automation readiness' in live_discovery_html
