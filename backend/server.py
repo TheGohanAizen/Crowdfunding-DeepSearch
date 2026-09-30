@@ -2060,6 +2060,17 @@ def create_app():
             app.logger.exception("Audience discovery request failed")
             return jsonify({"status": "error", "message": "Audience discovery request failed."}), 500
 
+    @app.route("/api/automation/connectors/sendgrid/simulate", methods=["POST", "OPTIONS"])
+    def sendgrid_simulate():
+        if request.method == "OPTIONS":
+            return ("", 204)
+        data = request.get_json(silent=True)
+        try:
+            plan = build_disabled_sendgrid_execution_plan(data)
+            return jsonify(execute_sendgrid_transport(plan, simulate=True))
+        except ValueError as error:
+            return jsonify({"status": "error", "message": str(error)}), 400
+
     @app.route("/api/automation/connectors/sendgrid/execution-diagnostics", methods=["POST", "OPTIONS"])
     def sendgrid_execution_diagnostics():
         if request.method == "OPTIONS":
