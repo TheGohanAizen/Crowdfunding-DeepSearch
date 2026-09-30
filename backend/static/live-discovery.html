@@ -712,7 +712,9 @@ function renderAudienceLead(item) {
                     lead: item,
                     user_authorized: true,
                     permission_review_current: permissionCurrent,
-                    deduplication_clear: !contactedAlready
+                    deduplication_clear: !contactedAlready,
+                    workspace_id: currentCampaignWorkspaceId(),
+                    route: verifiedApplicationRouteLinks[0] || ""
                 })
             });
             const data = await response.json();
