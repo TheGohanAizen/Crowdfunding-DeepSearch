@@ -276,6 +276,11 @@ try:
     assert 'id="audienceResponseRate"' in live_discovery_html
     assert 'id="audienceReadyBacklog"' in live_discovery_html
     assert 'const contactedOrBeyond = counts.contacted + counts.responded + counts.closed;' in live_discovery_html
+    assert 'function currentCampaignTrackingProfile()' in live_discovery_html
+    assert 'version: 2' in live_discovery_html
+    assert 'campaign: currentCampaignTrackingProfile()' in live_discovery_html
+    assert 'Invalid tracking backup' in live_discovery_html
+    assert 'tracking records imported.' in live_discovery_html
     assert 'value="draft_ready"' in live_discovery_html
     assert 'tracked === "reviewed" && !!(record && record.outreach_draft)' in live_discovery_html
     assert 'audience-reviewed-routes' in live_discovery_html
