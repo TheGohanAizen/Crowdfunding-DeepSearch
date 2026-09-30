@@ -281,6 +281,10 @@ try:
     assert 'campaign: currentCampaignTrackingProfile()' in live_discovery_html
     assert 'Invalid tracking backup' in live_discovery_html
     assert 'tracking records imported.' in live_discovery_html
+    assert 'id="campaignUrl"' in live_discovery_html
+    assert 'id="campaignSummary"' in live_discovery_html
+    assert 'document.getElementById("campaignUrl").value.trim()' in live_discovery_html
+    assert 'document.getElementById("campaignSummary").value.trim()' in live_discovery_html
     assert 'value="draft_ready"' in live_discovery_html
     assert 'tracked === "reviewed" && !!(record && record.outreach_draft)' in live_discovery_html
     assert 'audience-reviewed-routes' in live_discovery_html
