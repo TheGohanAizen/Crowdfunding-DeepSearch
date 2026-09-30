@@ -32,6 +32,7 @@ MAX_SEARCH_LANES = env_int("MAX_SEARCH_LANES", 4, 1, 4)
 MAX_AUDIENCE_SEARCH_QUERIES = env_int("MAX_AUDIENCE_SEARCH_QUERIES", 4, 1, 8)
 MAX_RESULTS_PER_LANE = env_int("MAX_RESULTS_PER_LANE", 4, 1, 10)
 AUTOMATION_LEDGER_PATH = os.environ.get("AUTOMATION_LEDGER_PATH", "/tmp/crowdfunding-deepsearch-automation.sqlite3")
+AUTOMATION_LEDGER_RETENTION_DAYS = env_int("AUTOMATION_LEDGER_RETENTION_DAYS", 90, 7, 365)
 ALLOWED_ORIGIN = os.environ.get("ALLOWED_ORIGIN", "*")
 ALLOWED_ORIGINS = {origin.strip() for origin in ALLOWED_ORIGIN.split(",") if origin.strip()}
 
@@ -1534,6 +1535,33 @@ def persist_automation_execution_record(record):
             (record["idempotency_key"],),
         ).fetchone()
         return {"created": cursor.rowcount == 1, "record": dict(stored) if stored else record}
+
+
+def prune_automation_execution_ledger(retention_days=None):
+    """Delete old non-secret execution metadata according to bounded retention."""
+    days = retention_days if isinstance(retention_days, int) else AUTOMATION_LEDGER_RETENTION_DAYS
+    days = max(7, min(days, 365))
+    cutoff = datetime.now(timezone.utc).timestamp() - (days * 86400)
+    with automation_ledger_connection() as connection:
+        rows = connection.execute(
+            "SELECT idempotency_key, recorded_at FROM automation_execution_ledger"
+        ).fetchall()
+        expired = []
+        for row in rows:
+            try:
+                recorded = datetime.fromisoformat(str(row["recorded_at"]).replace("Z", "+00:00"))
+                if recorded.tzinfo is None:
+                    recorded = recorded.replace(tzinfo=timezone.utc)
+                if recorded.timestamp() < cutoff:
+                    expired.append(row["idempotency_key"])
+            except (TypeError, ValueError):
+                continue
+        if expired:
+            connection.executemany(
+                "DELETE FROM automation_execution_ledger WHERE idempotency_key = ?",
+                [(key,) for key in expired],
+            )
+        return {"retention_days": days, "deleted": len(expired)}
 
 
 def find_automation_execution_record(idempotency_key):
