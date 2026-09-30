@@ -303,7 +303,9 @@
 <script>
 
 function analyzeCampaign() {
-    const description = document.getElementById("description").value.toLowerCase();
+    const rawDescription = document.getElementById("description").value.trim();
+    const description = rawDescription.toLowerCase();
+    const campaignUrl = document.getElementById("campaignUrl").value.trim();
     const selectedCategory = document.getElementById("category").value;
     const goal = document.getElementById("goal").value;
     const location = document.getElementById("location").value.trim();
@@ -433,6 +435,8 @@ function analyzeCampaign() {
     deepSearchButton.dataset.need = need;
     deepSearchButton.dataset.location = location || "Location not specified";
     deepSearchButton.dataset.goal = goal || "";
+    deepSearchButton.dataset.campaignUrl = campaignUrl;
+    deepSearchButton.dataset.campaignSummary = rawDescription.slice(0, 1200);
     deepSearchButton.style.display = "inline-block";
 }
 
@@ -441,7 +445,9 @@ function sendToDeepSearch() {
     const params = new URLSearchParams({
         need: button.dataset.need || "General Financial Assistance",
         location: button.dataset.location || "Location not specified",
-        goal: button.dataset.goal || ""
+        goal: button.dataset.goal || "",
+        campaign_url: button.dataset.campaignUrl || "",
+        campaign_summary: button.dataset.campaignSummary || ""
     });
     window.location.href = "/static/live-discovery.html?" + params.toString();
 }
