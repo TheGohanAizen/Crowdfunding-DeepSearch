@@ -1595,6 +1595,44 @@ def find_automation_execution_record(idempotency_key, execution_mode="live"):
         return dict(row) if row else None
 
 
+AUTOMATION_EXECUTION_TRANSITIONS = {
+    "reserved": {"sent", "failed", "cancelled", "unknown"},
+    "unknown": {"sent", "failed", "cancelled"},
+    "failed": set(),
+    "cancelled": set(),
+    "sent": set(),
+}
+
+
+def transition_automation_execution(idempotency_key, new_outcome, provider_message_id=None):
+    """Move a live execution record through an explicit reconciliation state machine."""
+    key = str(idempotency_key or "").strip()
+    target = str(new_outcome or "").strip().lower()
+    if not key or target not in {"sent", "failed", "cancelled", "unknown"}:
+        raise ValueError("A valid live execution transition is required.")
+    with automation_ledger_connection() as connection:
+        row = connection.execute(
+            "SELECT * FROM automation_execution_ledger WHERE idempotency_key = ? AND execution_mode = 'live'",
+            (key,),
+        ).fetchone()
+        if not row:
+            raise ValueError("Live execution record was not found.")
+        current = str(row["outcome"] or "").lower()
+        if target not in AUTOMATION_EXECUTION_TRANSITIONS.get(current, set()):
+            raise ValueError("Invalid execution transition from %s to %s." % (current, target))
+        connection.execute(
+            """UPDATE automation_execution_ledger
+               SET outcome = ?, sent = ?, provider_message_id = ?
+               WHERE idempotency_key = ? AND execution_mode = 'live'""",
+            (target, 1 if target == "sent" else 0, str(provider_message_id or "").strip() or None, key),
+        )
+        updated = connection.execute(
+            "SELECT * FROM automation_execution_ledger WHERE idempotency_key = ? AND execution_mode = 'live'",
+            (key,),
+        ).fetchone()
+        return dict(updated)
+
+
 def automation_execution_duplicate_status(idempotency_key):
     """Return whether an execution key already has durable history."""
     record = find_automation_execution_record(idempotency_key)
@@ -1602,6 +1640,7 @@ def automation_execution_duplicate_status(idempotency_key):
         "duplicate": record is not None,
         "previous_outcome": record.get("outcome") if record else None,
         "previous_sent": bool(record.get("sent")) if record else False,
+        "reconciliation_required": bool(record and record.get("outcome") in {"reserved", "unknown"}),
         "provider_message_id": record.get("provider_message_id") if record else None,
     }
 
