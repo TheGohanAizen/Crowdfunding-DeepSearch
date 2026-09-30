@@ -344,6 +344,13 @@ try:
     assert 'function submissionPacketIsCurrent(record, routeFingerprint)' in live_discovery_html
     assert 'route_fingerprint: routeFingerprint' in live_discovery_html
     assert 'submissionPacketIsCurrent(record, card.dataset.routeFingerprint || "")' in live_discovery_html
+    import_pos = live_discovery_html.index('function importTracking(event)')
+    restore_pos = live_discovery_html.index('if (restore) profileRestored = applyImportedCampaignProfile(campaign);', import_pos)
+    destination_pos = live_discovery_html.index('const destinationPrefix = currentCampaignTrackingPrefix();', import_pos)
+    assert restore_pos < destination_pos
+    namespace_start = live_discovery_html.index('function campaignTrackingNamespace()')
+    namespace_end = live_discovery_html.index('function currentCampaignTrackingPrefix()', namespace_start)
+    assert 'profile.goal' not in live_discovery_html[namespace_start:namespace_end]
     assert 'permissionReviewIsCurrent(record, card.dataset.routeFingerprint || "")' in live_discovery_html
     assert 'key.startsWith(currentCampaignTrackingPrefix())' in live_discovery_html
     assert 'currentCampaignTrackingPrefix() + key.slice(TRACKING_PREFIX.length)' in live_discovery_html
