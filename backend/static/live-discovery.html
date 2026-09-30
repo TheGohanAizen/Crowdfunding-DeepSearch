@@ -495,7 +495,7 @@ function renderAudienceLead(item) {
         reviewedRouteHtml +
         (url ? '<div class="action-links"><a href="' + escapeHtml(url) + '" target="_blank" rel="noopener noreferrer">Review audience source</a></div>' : '');
     const audienceTrackingId = item.tracking_id || (item.url || item.name || "lead");
-    const audienceTrackingKey = TRACKING_PREFIX + "audience:" + audienceTrackingId;
+    const audienceTrackingKey = currentCampaignTrackingPrefix() + "audience:" + audienceTrackingId;
     const legacyAudienceTrackingKey = TRACKING_PREFIX + audienceTrackingId;
     let existingAudienceTracking = readTrackingRecord(audienceTrackingKey);
     if (!existingAudienceTracking) {
@@ -1037,6 +1037,26 @@ function escapeHtml(value) {
 
 const TRACKING_PREFIX = "crowdfunding-deepsearch:";
 
+function campaignTrackingNamespace() {
+    const profile = currentCampaignTrackingProfile();
+    const source = [
+        String(profile.campaign_url || "").trim().toLowerCase(),
+        String(profile.need || "").trim().toLowerCase(),
+        String(profile.location || "").trim().toLowerCase(),
+        String(profile.goal || "").trim()
+    ].join("|");
+    let hash = 2166136261;
+    for (let i = 0; i < source.length; i += 1) {
+        hash ^= source.charCodeAt(i);
+        hash = Math.imul(hash, 16777619);
+    }
+    return "campaign:" + (hash >>> 0).toString(36) + ":";
+}
+
+function currentCampaignTrackingPrefix() {
+    return TRACKING_PREFIX + campaignTrackingNamespace();
+}
+
 function readTrackingRecord(key) {
     try {
         const raw = localStorage.getItem(key);
@@ -1149,7 +1169,7 @@ function exportTracking() {
     try {
         for (let i = 0; i < localStorage.length; i += 1) {
             const key = localStorage.key(i);
-            if (key && key.startsWith(TRACKING_PREFIX)) records[key] = readTrackingRecord(key);
+            if (key && key.startsWith(currentCampaignTrackingPrefix())) records[key] = readTrackingRecord(key);
         }
     } catch (error) {}
     const blob = new Blob([JSON.stringify({version: 2, exported_at: new Date().toISOString(), campaign: currentCampaignTrackingProfile(), records: records}, null, 2)], {type: "application/json"});
@@ -1196,9 +1216,12 @@ function importTracking(event) {
             let imported = 0;
             Object.keys(records).forEach(function(key) {
                 if (!key.startsWith(TRACKING_PREFIX)) return;
+                const importedKey = key.startsWith(currentCampaignTrackingPrefix())
+                    ? key
+                    : currentCampaignTrackingPrefix() + key.slice(TRACKING_PREFIX.length).replace(/^campaign:[^:]+:/, "");
                 const record = records[key];
                 if (record && ["saved", "reviewed", "contacted", "responded", "closed"].includes(record.status)) {
-                    localStorage.setItem(key, JSON.stringify(record));
+                    localStorage.setItem(importedKey, JSON.stringify(record));
                     imported += 1;
                 }
             });
