@@ -351,6 +351,13 @@ try:
     namespace_start = live_discovery_html.index('function campaignTrackingNamespace()')
     namespace_end = live_discovery_html.index('function currentCampaignTrackingPrefix()', namespace_start)
     assert 'profile.goal' not in live_discovery_html[namespace_start:namespace_end]
+    assert 'const CAMPAIGN_WORKSPACE_ID_KEY = "crowdfunding-deepsearch:active-workspace-id"' in live_discovery_html
+    assert 'function currentCampaignWorkspaceId()' in live_discovery_html
+    assert 'function setCurrentCampaignWorkspaceId(id)' in live_discovery_html
+    assert 'return "campaign:" + currentCampaignWorkspaceId() + ":"' in live_discovery_html
+    assert 'campaign_workspace_id: currentCampaignWorkspaceId()' in live_discovery_html
+    assert 'JSON.stringify({version: 3, exported_at:' in live_discovery_html
+    assert 'if (campaign.campaign_workspace_id) setCurrentCampaignWorkspaceId(campaign.campaign_workspace_id)' in live_discovery_html
     assert 'permissionReviewIsCurrent(record, card.dataset.routeFingerprint || "")' in live_discovery_html
     assert 'key.startsWith(currentCampaignTrackingPrefix())' in live_discovery_html
     assert 'currentCampaignTrackingPrefix() + key.slice(TRACKING_PREFIX.length)' in live_discovery_html
