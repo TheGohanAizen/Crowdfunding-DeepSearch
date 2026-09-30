@@ -611,6 +611,21 @@ try:
     assert check_only_auth["allowed"] is False
     assert "live_send_authorization_required" in check_only_auth["blockers"]
     assert "dry_run_authorization_not_valid_for_send" in check_only_auth["blockers"]
+    original_env = dict(os.environ)
+    try:
+        for env_name in (
+            "SENDGRID_API_KEY", "SENDGRID_FROM_EMAIL", "SENDGRID_SENDER_VERIFIED",
+            "SENDGRID_COMPLIANCE_CONFIRMED", "SENDGRID_UNSUBSCRIBE_READY",
+            "AUTOMATION_LIVE_SEND_ENABLED", "AUTOMATION_SENDGRID_MAIL_V3_ENABLED",
+        ):
+            os.environ.pop(env_name, None)
+        trusted_preflight = sendgrid_server_preflight()
+        assert trusted_preflight["ready"] is False
+        assert "sendgrid_api_key_not_configured" in trusted_preflight["blockers"]
+        assert trusted_preflight["credentials_configured"] is False
+    finally:
+        os.environ.clear()
+        os.environ.update(original_env)
     explicit_send_auth = validate_live_send_authorization({
         "user_authorized_send": True,
         "permission_review_current": True,
@@ -619,6 +634,8 @@ try:
     assert explicit_send_auth["allowed"] is True
     validate_automation_execution_request = crowdfunding_server.validate_automation_execution_request
     validate_live_send_authorization = crowdfunding_server.validate_live_send_authorization
+    sendgrid_server_preflight = crowdfunding_server.sendgrid_server_preflight
+    build_live_sendgrid_execution_candidate = crowdfunding_server.build_live_sendgrid_execution_candidate
     automation_idempotency_key = crowdfunding_server.automation_idempotency_key
     automation_rate_limit_contract = crowdfunding_server.automation_rate_limit_contract
     build_sendgrid_mail_v3_payload = crowdfunding_server.build_sendgrid_mail_v3_payload
