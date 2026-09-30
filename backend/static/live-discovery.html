@@ -406,7 +406,18 @@ const AUDIENCE_OUTREACH_DRAFT_URL = apiRoot + "/api/audience/outreach-draft";
 const AUTOMATION_CONNECTORS_URL = apiRoot + "/api/automation/connectors";
 const AUTOMATION_DRY_RUN_URL = apiRoot + "/api/automation/dry-run";
 
-async function loadAutomationConnectorStatus() {
+async function automationBlockerLabel(code) {
+    const labels = {
+        lead_not_automation_eligible: "this lead has not been verified as automation-eligible",
+        lead_send_not_enabled: "automatic sending is not enabled for this lead",
+        mechanism_not_registered: "no approved connector is registered for this mechanism",
+        connector_not_configured: "the approved connector is not configured",
+        connector_send_disabled: "sending is disabled for the approved connector"
+    };
+    return labels[code] || String(code || "automation authorization is incomplete").replaceAll("_", " ");
+}
+
+function loadAutomationConnectorStatus() {
     const status = document.getElementById("automationConnectorStatus");
     if (!status) return;
     try {
@@ -698,9 +709,12 @@ function renderAudienceLead(item) {
                 state.className = "tracking-state audience-automation-check-state";
                 card.appendChild(state);
             }
+            const blockers = data.decision && Array.isArray(data.decision.blockers)
+                ? data.decision.blockers.map(automationBlockerLabel)
+                : [];
             state.textContent = data.status === "ready"
                 ? "Automation readiness: connector gate passed in dry-run only — nothing was sent."
-                : "Automation readiness: blocked — " + (data.next_step || "assisted/manual review remains required.");
+                : "Automation readiness: blocked — " + (blockers.length ? blockers.join("; ") : "assisted/manual review remains required.") + ".";
         } catch (error) {
             alert(error.message);
         } finally {
