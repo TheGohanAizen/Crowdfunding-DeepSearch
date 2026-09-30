@@ -10,8 +10,10 @@ permissions:
   issues: write
 
 concurrency:
+  # Only the newest verified main commit needs a production deployment.
+  # Cancel an older verification instead of queueing stale Render deploys.
   group: production-deployment-verification
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   verify-production:
