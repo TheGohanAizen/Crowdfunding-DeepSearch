@@ -352,6 +352,7 @@ const apiRoot = configuredApiBase
 const API_URL = apiRoot + "/api/discover";
 const AUDIENCE_PLAN_URL = apiRoot + "/api/audience/plan";
 const AUDIENCE_DISCOVER_URL = apiRoot + "/api/audience/discover";
+const AUDIENCE_OUTREACH_DRAFT_URL = apiRoot + "/api/audience/outreach-draft";
 
 function loadCampaignProfile() {
     const need = params.get("need");
@@ -410,7 +411,7 @@ function renderAudienceLead(item) {
         '<div class="match-reason"><strong>Recommended next action:</strong> ' + escapeHtml((item.recommended_next_action && item.recommended_next_action.label) || "Verify channel rules") + '</div>' +
         '<div class="match-reason audience-priority-state"><strong>Priority:</strong> ' + escapeHtml(score >= 80 ? "High" : score >= 60 ? "Medium" : "Standard") + '</div>' +
         '<div class="match-reason audience-permission-state"><strong>Permission:</strong> ' + escapeHtml((item.channel_rules && item.channel_rules.status === "restriction_detected") ? "Restriction detected — review before outreach" : (item.channel_rules && item.channel_rules.status === "rules_or_submission_route_found") ? "Route/rules found — human review required" : "Not verified — verify before outreach") + '</div>' +
-        '<div class="tracking-actions"><button type="button" data-audience-track="saved">Save lead</button><button type="button" data-audience-track="reviewed">Mark reviewed</button><button type="button" data-audience-track="contacted">Mark contacted</button><button type="button" data-audience-track="responded">Mark responded</button><button type="button" data-audience-track="closed">Close lead</button><button type="button" data-audience-followup="tomorrow">Follow up tomorrow</button><button type="button" data-audience-followup="week">Follow up +7 days</button><button type="button" data-audience-followup="clear">Clear follow-up</button><button type="button" data-audience-note="true">Add note</button></div>' +
+        '<div class="tracking-actions"><button type="button" data-audience-track="saved">Save lead</button><button type="button" data-audience-track="reviewed">Mark reviewed</button><button type="button" data-audience-track="contacted">Mark contacted</button><button type="button" data-audience-track="responded">Mark responded</button><button type="button" data-audience-track="closed">Close lead</button><button type="button" data-audience-followup="tomorrow">Follow up tomorrow</button><button type="button" data-audience-followup="week">Follow up +7 days</button><button type="button" data-audience-followup="clear">Clear follow-up</button><button type="button" data-audience-note="true">Add note</button><button type="button" data-audience-draft="true">Prepare outreach draft</button></div>' +
         '<div class="tracking-state audience-tracking-state">Audience tracking: not started</div>' +
         '<div class="tracking-state audience-note-state">Private note: none</div>' +
         '<div class="tracking-state audience-history-state">History: no activity yet</div>' +
@@ -463,6 +464,46 @@ function renderAudienceLead(item) {
             updateAudienceTrackingDashboard();
             applyAudienceFilters();
         });
+    });
+    const draftButton = card.querySelector("[data-audience-draft]");
+    if (draftButton) draftButton.addEventListener("click", async function() {
+        draftButton.disabled = true;
+        const originalText = draftButton.textContent;
+        draftButton.textContent = "Preparing...";
+        try {
+            const response = await fetch(AUDIENCE_OUTREACH_DRAFT_URL, {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({
+                    need: document.getElementById("need").value,
+                    location: document.getElementById("location").value.trim(),
+                    campaign_url: params.get("campaignUrl") || params.get("campaign_url") || "",
+                    lead: item
+                })
+            });
+            const data = await response.json();
+            if (!response.ok || data.status !== "success") throw new Error(data.message || "Draft could not be prepared.");
+            const existing = card.querySelector(".audience-draft-box");
+            if (existing) existing.remove();
+            const box = document.createElement("div");
+            box.className = "verification audience-draft-box";
+            box.innerHTML = '<strong>Prepared outreach draft — review before sending</strong>' +
+                '<div style="margin-top:8px;"><strong>Subject:</strong> ' + escapeHtml(data.draft.subject) + '</div>' +
+                '<textarea class="audience-draft-text" style="width:100%;min-height:180px;margin-top:8px;">' + escapeHtml(data.draft.body) + '</textarea>' +
+                '<div class="tracking-actions"><button type="button" data-copy-draft="true">Copy draft</button></div>' +
+                '<small>' + escapeHtml(data.note) + '</small>';
+            card.appendChild(box);
+            box.querySelector("[data-copy-draft]").addEventListener("click", async function() {
+                const draftText = box.querySelector(".audience-draft-text").value;
+                try { await navigator.clipboard.writeText(draftText); this.textContent = "Copied"; }
+                catch (error) { this.textContent = "Select and copy manually"; }
+            });
+        } catch (error) {
+            alert(error.message);
+        } finally {
+            draftButton.disabled = false;
+            draftButton.textContent = originalText;
+        }
     });
     const noteButton = card.querySelector("[data-audience-note]");
     if (noteButton) noteButton.addEventListener("click", function() {
