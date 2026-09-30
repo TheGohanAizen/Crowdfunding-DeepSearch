@@ -345,6 +345,12 @@ try:
     assert 'result["configured"] and result.get("candidates")' in server_source
     assert 'configured_provider_returned_no_candidates' in server_source
     assert 'Configured providers returned no candidates.' in server_source
+    workflow_path = os.path.join(ROOT, ".github", "workflows", "production-deployment.yml")
+    with open(workflow_path, "r", encoding="utf-8") as workflow_file:
+        production_workflow = workflow_file.read()
+    assert 'workflows: ["Backend checks"]' in production_workflow
+    assert "cancel-in-progress: true" in production_workflow
+    assert "github.event.workflow_run.head_sha" in production_workflow
     assert 'outreach_intent:' in server_source
     assert 'low_signal_page' in server_source
     assert 'cross_search_corroboration' in server_source
