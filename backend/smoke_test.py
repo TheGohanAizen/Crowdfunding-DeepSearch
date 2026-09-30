@@ -320,6 +320,10 @@ try:
     assert '"Submission route"' in live_discovery_html
     assert 'trackingHasStatus(record, "contacted") ? "yes" : "no"' in live_discovery_html
     assert 'crowdfunding-deepsearch-audience-outreach-ledger.csv' in live_discovery_html
+    assert 'draft_prepared_at: previous.draft_prepared_at || null' in live_discovery_html
+    assert 'record.draft_prepared_at = record.draft_prepared_at || new Date().toISOString()' in live_discovery_html
+    assert 'record.draft_prepared_at = null' in live_discovery_html
+    assert '"Draft prepared at"' in live_discovery_html
     assert 'key.startsWith(currentCampaignTrackingPrefix())' in live_discovery_html
     assert 'currentCampaignTrackingPrefix() + key.slice(TRACKING_PREFIX.length)' in live_discovery_html
     assert 'value="draft_ready"' in live_discovery_html
