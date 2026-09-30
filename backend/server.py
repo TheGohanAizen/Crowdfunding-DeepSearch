@@ -2060,6 +2060,76 @@ def automation_idempotency_key(workspace_id, tracking_id, mechanism, route):
     return hashlib.sha256("|".join(parts).encode("utf-8")).hexdigest()
 
 
+def automation_attempt_idempotency_key(base_key, attempt=1):
+    """Derive a stable execution key for an explicit retry generation."""
+    base = str(base_key or "").strip()
+    try:
+        attempt_number = int(attempt)
+    except (TypeError, ValueError):
+        raise ValueError("Attempt number must be an integer.")
+    if not base:
+        raise ValueError("Base idempotency key is required.")
+    if attempt_number < 1 or attempt_number > 100:
+        raise ValueError("Attempt number must be between 1 and 100.")
+    if attempt_number == 1:
+        return base
+    return hashlib.sha256((base + "|attempt:" + str(attempt_number)).encode("utf-8")).hexdigest()
+
+
+def automation_retry_decision(base_idempotency_key):
+    """Describe whether a terminal live outcome may produce a new explicit retry attempt."""
+    record = find_automation_execution_record(base_idempotency_key)
+    if not record:
+        return {
+            "retry_allowed": False,
+            "reason": "original_execution_not_found",
+            "previous_outcome": None,
+            "next_attempt": None,
+            "next_idempotency_key": None,
+        }
+    outcome = str(record.get("outcome") or "").lower()
+    if outcome in {"sent", "reserved", "unknown"}:
+        return {
+            "retry_allowed": False,
+            "reason": "retry_blocked_for_" + (outcome or "unknown"),
+            "previous_outcome": outcome,
+            "next_attempt": None,
+            "next_idempotency_key": None,
+        }
+    if outcome not in {"failed", "cancelled"}:
+        return {
+            "retry_allowed": False,
+            "reason": "retry_requires_terminal_no_send_outcome",
+            "previous_outcome": outcome,
+            "next_attempt": None,
+            "next_idempotency_key": None,
+        }
+    with automation_ledger_connection() as connection:
+        rows = connection.execute(
+            """SELECT idempotency_key FROM automation_execution_ledger
+               WHERE execution_mode = 'live'"""
+        ).fetchall()
+    attempt = 2
+    while attempt <= 100:
+        candidate = automation_attempt_idempotency_key(base_idempotency_key, attempt)
+        if not any(str(row["idempotency_key"]) == candidate for row in rows):
+            return {
+                "retry_allowed": True,
+                "reason": "explicit_retry_available",
+                "previous_outcome": outcome,
+                "next_attempt": attempt,
+                "next_idempotency_key": candidate,
+            }
+        attempt += 1
+    return {
+        "retry_allowed": False,
+        "reason": "retry_attempt_limit_reached",
+        "previous_outcome": outcome,
+        "next_attempt": None,
+        "next_idempotency_key": None,
+    }
+
+
 def automation_execution_receipt(candidate, prerequisite_result):
     """Create a non-secret, non-sending audit receipt for an execution check."""
     return {
