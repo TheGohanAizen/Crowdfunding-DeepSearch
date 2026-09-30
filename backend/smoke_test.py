@@ -728,6 +728,8 @@ try:
     assert sendgrid_status["registered"] is True
     assert sendgrid_status["send_enabled"] is False
     assert sendgrid_status["requires_user_authorization"] is True
+    assert sendgrid_status["requires_verified_sender"] is True
+    assert sendgrid_status["requires_unsubscribe_compliance"] is True
     preflight = sendgrid_connector_preflight({})
     assert preflight["ready"] is False
     assert preflight["send_enabled"] is False
