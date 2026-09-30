@@ -29,3 +29,7 @@ services:
         sync: false
       - key: GOOGLE_CSE_ID
         sync: false
+      - key: AUTOMATION_ADMIN_ENDPOINTS_ENABLED
+        value: "false"
+      - key: AUTOMATION_STORAGE_PERSISTENT
+        value: "false"
