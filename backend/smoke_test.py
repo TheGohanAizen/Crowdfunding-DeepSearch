@@ -561,6 +561,7 @@ try:
     audience_next_action = crowdfunding_server.audience_next_action
     automation_distribution_decision = crowdfunding_server.automation_distribution_decision
     automation_connector_status = crowdfunding_server.automation_connector_status
+    build_automation_dry_run = crowdfunding_server.build_automation_dry_run
     finalize_audience_actions = crowdfunding_server.finalize_audience_actions
     campaign_tracking_id = crowdfunding_server.campaign_tracking_id
     opportunity_tracking_id = crowdfunding_server.opportunity_tracking_id
@@ -652,6 +653,12 @@ try:
     assert connector_status["configured"] is False
     assert connector_status["send_enabled"] is False
     assert automation_decision["connector"]["registered"] is False
+    dry_run = build_automation_dry_run(automation_candidate)
+    assert dry_run["status"] == "blocked"
+    assert dry_run["dry_run"] is True
+    assert dry_run["sent"] is False
+    assert dry_run["decision"]["allowed"] is False
+    assert "assisted/manual review" in dry_run["next_step"]
 
     draft_builder = crowdfunding_server.build_assisted_outreach_draft
     prepared_draft = draft_builder({"need": "Transportation", "location": "Austin, Texas", "campaign_url": "https://example.org/campaign", "lead": {"name": "Example Media", "type": "Local Media", "channel_rules": {"status": "rules_or_submission_route_found"}}})
