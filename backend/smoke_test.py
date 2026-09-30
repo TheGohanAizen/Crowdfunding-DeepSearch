@@ -856,6 +856,8 @@ try:
             "SELECT * FROM automation_execution_ledger WHERE idempotency_key = 'legacy-key'"
         ).fetchone()
         assert preserved["execution_mode"] == "live"
+        assert preserved["updated_at"] == preserved["recorded_at"]
+        assert preserved["resolved_at"] is None
         migrated.close()
         os.remove(crowdfunding_server.AUTOMATION_LEDGER_PATH)
         ledger_record = automation_execution_record({
@@ -897,6 +899,9 @@ try:
         )
         assert transitioned["outcome"] == "failed"
         assert transitioned["resolution_reason"] == "provider request was not attempted"
+        assert transitioned["updated_at"]
+        assert transitioned["resolved_at"]
+        assert transitioned["resolved_at"] >= transitioned["recorded_at"]
         assert automation_execution_duplicate_status("smoke-key-1")["reconciliation_required"] is False
         old_record = dict(ledger_record)
         old_record["idempotency_key"] = "smoke-old-key"
