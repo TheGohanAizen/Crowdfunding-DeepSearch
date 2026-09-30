@@ -257,6 +257,10 @@ try:
     assert 'id="automationConnectorStatus"' in live_discovery_html
     assert 'AUTOMATION_CONNECTORS_URL' in live_discovery_html
     assert 'function loadAutomationConnectorStatus()' in live_discovery_html
+    assert 'AUTOMATION_DRY_RUN_URL' in live_discovery_html
+    assert 'data-audience-automation-check="true"' in live_discovery_html
+    assert 'Check automation readiness' in live_discovery_html
+    assert 'connector gate passed in dry-run only — nothing was sent.' in live_discovery_html
     assert 'unregistered routes remain manual' in live_discovery_html
     assert 'AUDIENCE_DISCOVER_URL' in live_discovery_html
     assert 'function runAudienceDiscovery()' in live_discovery_html
