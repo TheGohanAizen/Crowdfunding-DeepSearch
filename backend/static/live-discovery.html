@@ -434,6 +434,17 @@ function renderAudienceLead(item) {
     const ruleEvidence = Object.entries(rules.evidence || {}).map(function(entry) {
         return entry[0] + ": " + entry[1].join(", ");
     }).join(" · ") || "No explicit rule evidence detected yet.";
+    const reviewRoutes = rules.review_routes || {};
+    const routeLinks = []
+        .concat(reviewRoutes.application_links || [])
+        .concat(reviewRoutes.contact_links || [])
+        .filter(function(route, index, routes) { return /^https?:\/\//i.test(route) && routes.indexOf(route) === index; })
+        .slice(0, 5);
+    const reviewedRouteHtml = routeLinks.length
+        ? '<div class="action-links audience-reviewed-routes"><strong>Detected routes to review:</strong> ' + routeLinks.map(function(route, index) {
+            return '<a href="' + escapeHtml(route) + '" target="_blank" rel="noopener noreferrer">Route ' + (index + 1) + '</a>';
+        }).join(' ') + '</div>'
+        : '';
     const ruleLabel = rules.status === "restriction_detected"
         ? "Restriction detected — do not outreach until reviewed"
         : rules.status === "rules_or_submission_route_found"
@@ -458,6 +469,7 @@ function renderAudienceLead(item) {
         '<div class="tracking-state audience-note-state">Private note: none</div>' +
         '<div class="tracking-state audience-history-state">History: no activity yet</div>' +
         '<div class="tracking-state audience-next-state">Next step: review channel rules</div>' +
+        reviewedRouteHtml +
         (url ? '<div class="action-links"><a href="' + escapeHtml(url) + '" target="_blank" rel="noopener noreferrer">Review audience source</a></div>' : '');
     const audienceTrackingId = item.tracking_id || (item.url || item.name || "lead");
     const audienceTrackingKey = TRACKING_PREFIX + "audience:" + audienceTrackingId;
@@ -562,6 +574,16 @@ function renderAudienceLead(item) {
     card.querySelectorAll("[data-audience-track]").forEach(function(trackButton) {
         trackButton.addEventListener("click", function() {
             const status = trackButton.dataset.audienceTrack;
+            const previous = readTrackingRecord(audienceTrackingKey);
+            if (status === "contacted") {
+                const routeFound = card.dataset.ruleStatus === "rules_or_submission_route_found";
+                const reviewed = previous && previous.status === "reviewed";
+                const draftReady = previous && previous.outreach_draft;
+                if (!routeFound || !reviewed || !draftReady) {
+                    alert("Before marking contacted, this lead must have a detected rules/submission route, be marked reviewed, and have a saved outreach draft.");
+                    return;
+                }
+            }
             const record = writeTrackingRecord(audienceTrackingKey, status);
             if (audienceState) audienceState.textContent = "Audience tracking: " + record.status;
             if (audienceHistoryState) audienceHistoryState.textContent = trackingHistoryLabel(record);
