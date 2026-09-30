@@ -1842,8 +1842,8 @@ def validate_automation_execution_request(data):
         raise ValueError("Audience lead must be an object.")
     decision = automation_distribution_decision(lead)
     blockers = list(decision["blockers"])
-    if data.get("user_authorized") is not True:
-        blockers.append("user_authorization_required")
+    if data.get("user_authorized_check") is not True:
+        blockers.append("execution_check_authorization_required")
     if data.get("permission_review_current") is not True:
         blockers.append("current_permission_review_required")
     if data.get("deduplication_clear") is not True:
@@ -1869,6 +1869,26 @@ def validate_automation_execution_request(data):
         "idempotency_key": idempotency_key,
         "rate_limit": automation_rate_limit_contract(decision.get("mechanism")),
         "reason": "execution_prerequisites_satisfied" if not blockers else blockers[0],
+    }
+
+
+def validate_live_send_authorization(data):
+    """Validate explicit authorization for a future live send, separate from dry-run consent."""
+    if not isinstance(data, dict):
+        raise ValueError("A JSON request body is required.")
+    blockers = []
+    if data.get("user_authorized_send") is not True:
+        blockers.append("live_send_authorization_required")
+    if data.get("permission_review_current") is not True:
+        blockers.append("current_permission_review_required")
+    if data.get("deduplication_clear") is not True:
+        blockers.append("deduplication_clearance_required")
+    if data.get("user_authorized_check") is True and data.get("user_authorized_send") is not True:
+        blockers.append("dry_run_authorization_not_valid_for_send")
+    return {
+        "allowed": not blockers,
+        "blockers": blockers,
+        "reason": "live_send_authorized" if not blockers else blockers[0],
     }
 
 
