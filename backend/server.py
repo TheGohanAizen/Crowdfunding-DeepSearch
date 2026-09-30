@@ -1462,6 +1462,45 @@ def build_sendgrid_mail_v3_payload(to_email, from_email, subject, body, reply_to
     return payload
 
 
+def build_disabled_sendgrid_execution_plan(data):
+    """Build the final SendGrid execution envelope without performing network I/O."""
+    if not isinstance(data, dict):
+        raise ValueError("A JSON request body is required.")
+    execution = validate_automation_execution_request(data)
+    preflight = sendgrid_connector_preflight(data.get("sendgrid_settings"))
+    blockers = list(execution["blockers"])
+    blockers.extend(code for code in preflight["blockers"] if code not in blockers)
+    draft = data.get("draft") if isinstance(data.get("draft"), dict) else {}
+    to_email = str(data.get("to_email") or "").strip()
+    payload = None
+    if not to_email:
+        blockers.append("recipient_email_required")
+    if not str(draft.get("subject") or "").strip():
+        blockers.append("outreach_subject_required")
+    if not str(draft.get("body") or "").strip():
+        blockers.append("outreach_body_required")
+    if not blockers:
+        payload = build_sendgrid_mail_v3_payload(
+            to_email,
+            preflight["from_email"],
+            draft["subject"],
+            draft["body"],
+            data.get("reply_to"),
+        )
+    if "connector_live_send_disabled" not in blockers:
+        blockers.append("connector_live_send_disabled")
+    return {
+        "status": "blocked",
+        "allowed": False,
+        "sent": False,
+        "mechanism": "sendgrid_mail_v3",
+        "blockers": blockers,
+        "idempotency_key": execution.get("idempotency_key"),
+        "payload": payload,
+        "endpoint": AUTOMATION_CONNECTOR_REGISTRY["sendgrid_mail_v3"]["endpoint"],
+    }
+
+
 def automation_rate_limit_contract(mechanism):
     """Return the configured bounded rate contract without consuming quota."""
     status = automation_connector_status(mechanism)
@@ -1915,6 +1954,16 @@ def create_app():
         except Exception:
             app.logger.exception("Audience discovery request failed")
             return jsonify({"status": "error", "message": "Audience discovery request failed."}), 500
+
+    @app.route("/api/automation/connectors/sendgrid/execution-plan", methods=["POST", "OPTIONS"])
+    def sendgrid_execution_plan():
+        if request.method == "OPTIONS":
+            return ("", 204)
+        data = request.get_json(silent=True)
+        try:
+            return jsonify(build_disabled_sendgrid_execution_plan(data))
+        except ValueError as error:
+            return jsonify({"status": "error", "message": str(error)}), 400
 
     @app.route("/api/automation/connectors/sendgrid/preflight", methods=["POST", "OPTIONS"])
     def sendgrid_preflight():
