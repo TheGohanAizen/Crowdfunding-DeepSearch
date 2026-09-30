@@ -1575,6 +1575,17 @@ def find_automation_execution_record(idempotency_key):
         return dict(row) if row else None
 
 
+def automation_execution_duplicate_status(idempotency_key):
+    """Return whether an execution key already has durable history."""
+    record = find_automation_execution_record(idempotency_key)
+    return {
+        "duplicate": record is not None,
+        "previous_outcome": record.get("outcome") if record else None,
+        "previous_sent": bool(record.get("sent")) if record else False,
+        "provider_message_id": record.get("provider_message_id") if record else None,
+    }
+
+
 def automation_execution_record(plan, outcome="blocked", provider_message_id=None):
     """Build a non-secret execution record suitable for durable persistence later."""
     if not isinstance(plan, dict):
@@ -1678,6 +1689,9 @@ def build_disabled_sendgrid_execution_plan(data):
             draft["body"],
             data.get("reply_to"),
         )
+    duplicate_status = automation_execution_duplicate_status(execution.get("idempotency_key"))
+    if duplicate_status["duplicate"]:
+        blockers.append("idempotency_key_already_recorded")
     if "connector_live_send_disabled" not in blockers:
         blockers.append("connector_live_send_disabled")
     return {
@@ -1687,6 +1701,7 @@ def build_disabled_sendgrid_execution_plan(data):
         "mechanism": "sendgrid_mail_v3",
         "blockers": blockers,
         "idempotency_key": execution.get("idempotency_key"),
+        "duplicate_status": duplicate_status,
         "payload": payload,
         "endpoint": AUTOMATION_CONNECTOR_REGISTRY["sendgrid_mail_v3"]["endpoint"],
     }
