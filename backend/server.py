@@ -1298,6 +1298,62 @@ def audience_next_action(candidate):
         "blocked_by_rules": False,
     }
 
+
+def build_assisted_outreach_draft(data):
+    """Prepare a truthful review-first outreach draft without sending or posting it."""
+    if not isinstance(data, dict):
+        raise ValueError("A JSON request body is required.")
+    need = str(data.get("need") or "General Financial Assistance").strip()
+    location = str(data.get("location") or "").strip()
+    campaign_url = str(data.get("campaign_url") or "").strip()
+    lead = data.get("lead") or {}
+    if not isinstance(lead, dict):
+        raise ValueError("Audience lead must be an object.")
+    name = str(lead.get("name") or "this community").strip()[:300]
+    channel = str(lead.get("channel_type") or lead.get("type") or "Audience").strip()[:100]
+    rules = lead.get("channel_rules") or {}
+    rule_status = str(rules.get("status") or "not_checked")
+    if rule_status == "restriction_detected":
+        return {
+            "status": "blocked",
+            "reason": "restriction_detected",
+            "message": "A restriction was detected for this channel. Review the source rules before preparing outreach.",
+            "automatic_distribution": False,
+            "requires_user_review": True,
+        }
+    if len(need) > MAX_QUERY_LENGTH or len(location) > MAX_QUERY_LENGTH:
+        raise ValueError("Outreach fields are too long.")
+    if campaign_url and not campaign_url.lower().startswith(("http://", "https://")):
+        raise ValueError("Campaign URL must use HTTP or HTTPS.")
+
+    location_phrase = (" in " + location) if location else ""
+    subject = "Community assistance story" if channel == "Local Media" else "Relevant community resource"
+    if channel == "Creators & Podcasts":
+        subject = "Possible community story or interview"
+    elif channel == "Directories & Newsletters":
+        subject = "Resource submission for consideration"
+
+    intro = "Hello, I am reaching out because I found " + name + " while looking for places relevant to " + need.lower() + location_phrase + "."
+    purpose = "I have a crowdfunding campaign related to this need and would like to ask whether sharing it here, submitting it for consideration, or contacting your team about it is permitted."
+    respect = "I do not want to post or send anything that conflicts with your rules. If there is a preferred submission process, eligibility requirement, or contact route, please let me know."
+    link_line = ("Campaign link: " + campaign_url) if campaign_url else "Campaign link: [add campaign URL after review]"
+    body = "\n\n".join([intro, purpose, respect, link_line, "Thank you for your time."])
+
+    return {
+        "status": "success",
+        "draft": {
+            "subject": subject,
+            "body": body,
+            "channel_type": channel,
+            "lead_name": name,
+        },
+        "permission_status": rule_status,
+        "automatic_distribution": False,
+        "requires_user_review": True,
+        "send_enabled": False,
+        "note": "This is a prepared draft only. Review the destination's current rules and edit the message before sending or posting.",
+    }
+
 def finalize_audience_actions(candidates):
     finalized = []
     for candidate in candidates:
