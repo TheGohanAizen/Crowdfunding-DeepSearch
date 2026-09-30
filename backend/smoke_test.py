@@ -603,6 +603,8 @@ try:
     sendgrid_connector_preflight = crowdfunding_server.sendgrid_connector_preflight
     build_disabled_sendgrid_execution_plan = crowdfunding_server.build_disabled_sendgrid_execution_plan
     redact_automation_plan = crowdfunding_server.redact_automation_plan
+    automation_execution_record = crowdfunding_server.automation_execution_record
+    execute_sendgrid_transport = crowdfunding_server.execute_sendgrid_transport
     finalize_audience_actions = crowdfunding_server.finalize_audience_actions
     campaign_tracking_id = crowdfunding_server.campaign_tracking_id
     opportunity_tracking_id = crowdfunding_server.opportunity_tracking_id
@@ -758,6 +760,16 @@ try:
     assert disabled_plan["payload"] is None
     assert "connector_live_send_disabled" in disabled_plan["blockers"]
     assert "recipient_email_required" in disabled_plan["blockers"]
+    simulated_transport = execute_sendgrid_transport(disabled_plan, simulate=True)
+    assert simulated_transport["status"] == "simulated"
+    assert simulated_transport["sent"] is False
+    assert simulated_transport["network_io"] is False
+    assert simulated_transport["record"]["outcome"] == "simulated"
+    blocked_transport = execute_sendgrid_transport(disabled_plan, simulate=False)
+    assert blocked_transport["status"] == "blocked"
+    assert blocked_transport["sent"] is False
+    assert blocked_transport["network_io"] is False
+    assert blocked_transport["record"]["outcome"] == "blocked"
     diagnostics = redact_automation_plan(disabled_plan)
     assert diagnostics["sent"] is False
     assert diagnostics["payload_present"] is False
