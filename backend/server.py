@@ -1366,6 +1366,19 @@ def automation_distribution_decision(candidate):
     }
 
 
+def automation_execution_receipt(candidate, prerequisite_result):
+    """Create a non-secret, non-sending audit receipt for an execution check."""
+    return {
+        "tracking_id": (candidate or {}).get("tracking_id"),
+        "lead_name": (candidate or {}).get("name"),
+        "mechanism": prerequisite_result.get("decision", {}).get("mechanism"),
+        "allowed": prerequisite_result.get("allowed") is True,
+        "sent": False,
+        "blockers": list(prerequisite_result.get("blockers") or []),
+        "checked_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
 def validate_automation_execution_request(data):
     """Validate user-controlled execution prerequisites without performing a send."""
     if not isinstance(data, dict):
@@ -1777,6 +1790,7 @@ def create_app():
         try:
             result = validate_automation_execution_request(data)
             result["status"] = "ready" if result["allowed"] else "blocked"
+            result["receipt"] = automation_execution_receipt(data.get("lead"), result)
             return jsonify(result)
         except ValueError as error:
             return jsonify({"status": "error", "message": str(error)}), 400
