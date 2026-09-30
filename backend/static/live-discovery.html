@@ -477,7 +477,9 @@ function renderAudienceLead(item) {
                 body: JSON.stringify({
                     need: document.getElementById("need").value,
                     location: document.getElementById("location").value.trim(),
+                    goal: document.getElementById("goal").value || null,
                     campaign_url: params.get("campaignUrl") || params.get("campaign_url") || "",
+                    campaign_summary: params.get("summary") || params.get("campaign_summary") || "",
                     lead: item
                 })
             });
