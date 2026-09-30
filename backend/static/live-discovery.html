@@ -227,6 +227,12 @@ button:hover { background: #1d4ed8; }
     <label for="goal">Fundraising Goal</label>
     <input id="goal" type="number" placeholder="10000">
 
+    <label for="campaignUrl">Campaign URL</label>
+    <input id="campaignUrl" type="url" placeholder="https://example.com/your-campaign">
+
+    <label for="campaignSummary">Campaign Summary</label>
+    <textarea id="campaignSummary" style="width:100%;min-height:110px;padding:13px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:white;font-size:15px;" placeholder="Briefly explain the campaign, the need, and what the funds will help accomplish."></textarea>
+
     <button id="runButton" onclick="runDiscovery()">Run Opportunity Discovery</button>
     <button id="audiencePlanButton" type="button" onclick="runAudiencePlan()">Preview Audience DeepSearch</button>
     <button id="audienceDiscoverButton" type="button" onclick="runAudienceDiscovery()">Run Audience DeepSearch</button>
@@ -368,6 +374,8 @@ function loadCampaignProfile() {
     const need = params.get("need");
     const location = params.get("location");
     const goal = params.get("goal");
+    const campaignUrl = params.get("campaignUrl") || params.get("campaign_url");
+    const campaignSummary = params.get("summary") || params.get("campaign_summary");
 
     if (need) {
         const needSelect = document.getElementById("need");
@@ -384,6 +392,9 @@ function loadCampaignProfile() {
     if (goal) {
         document.getElementById("goal").value = goal;
     }
+
+    if (campaignUrl) document.getElementById("campaignUrl").value = campaignUrl;
+    if (campaignSummary) document.getElementById("campaignSummary").value = campaignSummary;
 }
 
 loadCampaignProfile();
@@ -544,8 +555,8 @@ function renderAudienceLead(item) {
                     need: document.getElementById("need").value,
                     location: document.getElementById("location").value.trim(),
                     goal: document.getElementById("goal").value || null,
-                    campaign_url: params.get("campaignUrl") || params.get("campaign_url") || "",
-                    campaign_summary: params.get("summary") || params.get("campaign_summary") || "",
+                    campaign_url: document.getElementById("campaignUrl").value.trim(),
+                    campaign_summary: document.getElementById("campaignSummary").value.trim(),
                     lead: item
                 })
             });
@@ -1030,8 +1041,8 @@ function currentCampaignTrackingProfile() {
         location: document.getElementById("location").value.trim(),
         goal: document.getElementById("goal").value || null,
         scope: document.getElementById("scope").value,
-        campaign_url: params.get("campaignUrl") || params.get("campaign_url") || "",
-        campaign_summary: params.get("summary") || params.get("campaign_summary") || ""
+        campaign_url: document.getElementById("campaignUrl").value.trim(),
+        campaign_summary: document.getElementById("campaignSummary").value.trim()
     };
 }
 
