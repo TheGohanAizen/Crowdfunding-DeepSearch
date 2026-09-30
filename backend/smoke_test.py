@@ -263,6 +263,10 @@ try:
     assert 'Saved locally with this lead.' in live_discovery_html
     assert 'id="audienceDraftCount"' in live_discovery_html
     assert 'id="audienceReadyCount"' in live_discovery_html
+    assert 'id="audienceAwaitingCount"' in live_discovery_html
+    assert 'id="audienceBlockedCount"' in live_discovery_html
+    assert 'function setAudienceAwaitingQueue()' in live_discovery_html
+    assert 'function setAudienceRespondedQueue()' in live_discovery_html
     assert 'value="draft_ready"' in live_discovery_html
     assert 'tracked === "reviewed" && !!(record && record.outreach_draft)' in live_discovery_html
     assert 'audience-reviewed-routes' in live_discovery_html
