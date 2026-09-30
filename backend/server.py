@@ -1300,12 +1300,14 @@ def audience_next_action(candidate):
 
 
 def build_assisted_outreach_draft(data):
-    """Prepare a truthful review-first outreach draft without sending or posting it."""
+    """Prepare a truthful, channel-aware outreach draft without sending or posting it."""
     if not isinstance(data, dict):
         raise ValueError("A JSON request body is required.")
     need = str(data.get("need") or "General Financial Assistance").strip()
     location = str(data.get("location") or "").strip()
     campaign_url = str(data.get("campaign_url") or "").strip()
+    campaign_summary = " ".join(str(data.get("campaign_summary") or "").split()).strip()[:1200]
+    goal = data.get("goal")
     lead = data.get("lead") or {}
     if not isinstance(lead, dict):
         raise ValueError("Audience lead must be an object.")
@@ -1315,43 +1317,64 @@ def build_assisted_outreach_draft(data):
     rule_status = str(rules.get("status") or "not_checked")
     if rule_status == "restriction_detected":
         return {
-            "status": "blocked",
-            "reason": "restriction_detected",
+            "status": "blocked", "reason": "restriction_detected",
             "message": "A restriction was detected for this channel. Review the source rules before preparing outreach.",
-            "automatic_distribution": False,
-            "requires_user_review": True,
+            "automatic_distribution": False, "requires_user_review": True,
         }
     if len(need) > MAX_QUERY_LENGTH or len(location) > MAX_QUERY_LENGTH:
         raise ValueError("Outreach fields are too long.")
     if campaign_url and not campaign_url.lower().startswith(("http://", "https://")):
         raise ValueError("Campaign URL must use HTTP or HTTPS.")
+    if goal not in (None, ""):
+        try:
+            goal = float(goal)
+            if goal < 0:
+                raise ValueError
+        except (TypeError, ValueError):
+            raise ValueError("Fundraising goal must be a non-negative number.")
+    else:
+        goal = None
 
     location_phrase = (" in " + location) if location else ""
-    subject = "Community assistance story" if channel == "Local Media" else "Relevant community resource"
-    if channel == "Creators & Podcasts":
-        subject = "Possible community story or interview"
-    elif channel == "Directories & Newsletters":
-        subject = "Resource submission for consideration"
+    need_phrase = need.lower()
+    goal_line = ("The campaign goal is $" + format(goal, ",.0f") + ".") if goal is not None else ""
+    summary_line = campaign_summary if campaign_summary else "The campaign is seeking support related to " + need_phrase + location_phrase + "."
 
-    intro = "Hello, I am reaching out because I found " + name + " while looking for places relevant to " + need.lower() + location_phrase + "."
-    purpose = "I have a crowdfunding campaign related to this need and would like to ask whether sharing it here, submitting it for consideration, or contacting your team about it is permitted."
-    respect = "I do not want to post or send anything that conflicts with your rules. If there is a preferred submission process, eligibility requirement, or contact route, please let me know."
+    if channel == "Local Media":
+        subject = "Community story tip: " + need
+        purpose = "I am sharing this as a possible community or human-interest story for your editorial consideration."
+        request = "If this fits your coverage, please let me know the appropriate story-tip or submission route."
+    elif channel == "Creators & Podcasts":
+        subject = "Possible community story or interview: " + need
+        purpose = "I am reaching out to see whether this campaign may fit your community stories, interviews, or resource-focused coverage."
+        request = "If it is relevant to your audience, please let me know whether there is an appropriate way to submit the story for consideration."
+    elif channel == "Directories & Newsletters":
+        subject = "Resource submission for consideration: " + need
+        purpose = "I would like to ask whether this campaign is eligible to be considered for your resource list, directory, or newsletter."
+        request = "If submissions are accepted, please point me to the preferred submission process and any eligibility requirements."
+    else:
+        subject = "Question about sharing a " + need + " crowdfunding campaign"
+        purpose = "I found this community while looking for relevant public resources and would like to ask whether sharing this campaign here is permitted."
+        request = "If campaign sharing is allowed, please let me know the appropriate section, format, or posting rules."
+
+    intro = "Hello, I found " + name + " while researching resources related to " + need_phrase + location_phrase + "."
+    transparency = "I am contacting you about a crowdfunding campaign; I am not representing your organization or claiming that you endorse it."
+    respect = "I do not want to post or send anything that conflicts with your rules."
     link_line = ("Campaign link: " + campaign_url) if campaign_url else "Campaign link: [add campaign URL after review]"
-    body = "\n\n".join([intro, purpose, respect, link_line, "Thank you for your time."])
+    paragraphs = [intro, summary_line]
+    if goal_line:
+        paragraphs.append(goal_line)
+    paragraphs.extend([purpose, transparency, respect + " " + request, link_line, "Thank you for your time."])
+    body = "\n\n".join(paragraphs)
 
     return {
         "status": "success",
-        "draft": {
-            "subject": subject,
-            "body": body,
-            "channel_type": channel,
-            "lead_name": name,
-        },
+        "draft": {"subject": subject, "body": body, "channel_type": channel, "lead_name": name},
         "permission_status": rule_status,
         "automatic_distribution": False,
         "requires_user_review": True,
         "send_enabled": False,
-        "note": "This is a prepared draft only. Review the destination's current rules and edit the message before sending or posting.",
+        "note": "This is a prepared draft only. Review the destination's current rules, verify every campaign detail, and edit the message before sending or posting.",
     }
 
 def finalize_audience_actions(candidates):
