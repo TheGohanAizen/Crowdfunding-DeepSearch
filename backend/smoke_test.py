@@ -35,6 +35,12 @@ try:
             assert status == 200
             assert health["status"] == "ok"
             assert health["service"] == "Crowdfunding DeepSearch Backend"
+            connector_status_code, connector_readiness = read_json("http://127.0.0.1:8099/api/automation/connectors")
+            assert connector_status_code == 200
+            assert connector_readiness["status"] == "ok"
+            assert connector_readiness["automatic_distribution_enabled"] is False
+            assert connector_readiness["connectors"] == []
+            assert connector_readiness["unregistered_routes_remain_manual"] is True
             break
         except Exception as error:
             last_error = error
