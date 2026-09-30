@@ -802,8 +802,21 @@ try:
         duplicate_reservation = reserve_live_automation_execution(reservation_plan)
         assert duplicate_reservation["duplicate"] is True
         assert automation_execution_duplicate_status("smoke-key-1")["reconciliation_required"] is True
-        transitioned = transition_automation_execution("smoke-key-1", "failed")
+        try:
+            transition_automation_execution("smoke-key-1", "sent")
+            raise AssertionError("Sent transition must require provider evidence")
+        except ValueError:
+            pass
+        try:
+            transition_automation_execution("smoke-key-1", "failed")
+            raise AssertionError("Failed transition must require a reason")
+        except ValueError:
+            pass
+        transitioned = transition_automation_execution(
+            "smoke-key-1", "failed", resolution_reason="provider request was not attempted"
+        )
         assert transitioned["outcome"] == "failed"
+        assert transitioned["resolution_reason"] == "provider request was not attempted"
         assert automation_execution_duplicate_status("smoke-key-1")["reconciliation_required"] is False
         old_record = dict(ledger_record)
         old_record["idempotency_key"] = "smoke-old-key"
