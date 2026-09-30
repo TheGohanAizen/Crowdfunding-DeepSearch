@@ -1405,6 +1405,19 @@ def automation_distribution_decision(candidate):
     }
 
 
+def automation_idempotency_key(workspace_id, tracking_id, mechanism, route):
+    """Return a stable non-secret key for duplicate execution protection."""
+    parts = [
+        str(workspace_id or "").strip(),
+        str(tracking_id or "").strip(),
+        str(mechanism or "").strip().lower(),
+        str(route or "").strip().rstrip("/").lower(),
+    ]
+    if not all(parts):
+        raise ValueError("Workspace, tracking ID, mechanism, and route are required for idempotency.")
+    return hashlib.sha256("|".join(parts).encode("utf-8")).hexdigest()
+
+
 def automation_execution_receipt(candidate, prerequisite_result):
     """Create a non-secret, non-sending audit receipt for an execution check."""
     return {
