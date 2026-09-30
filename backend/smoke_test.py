@@ -260,6 +260,11 @@ try:
     assert 'AUTOMATION_DRY_RUN_URL' in live_discovery_html
     assert 'data-audience-automation-check="true"' in live_discovery_html
     assert 'Check automation readiness' in live_discovery_html
+    assert 'Check execution prerequisites' in live_discovery_html
+    assert 'data-audience-execution-check="true"' in live_discovery_html
+    assert 'last_automation_execution_check' in live_discovery_html
+    assert 'permission_review_current: permissionCurrent' in live_discovery_html
+    assert 'deduplication_clear: !contactedAlready' in live_discovery_html
     assert 'function automationBlockerLabel(code)' in live_discovery_html
     assert 'no approved connector is registered for this mechanism' in live_discovery_html
     assert 'the approved connector is not configured' in live_discovery_html
@@ -275,6 +280,8 @@ try:
     assert 'Automation eligibility:</strong>' in live_discovery_html
     assert 'Manual review only — automatic submission not enabled' in live_discovery_html
     assert 'card.dataset.automationEligible' in live_discovery_html
+    assert 'card.dataset.verifiedApplicationRoutes = JSON.stringify(verifiedApplicationRouteLinks);' in live_discovery_html
+    assert 'JSON.parse(card.dataset.verifiedApplicationRoutes || "[]")' in live_discovery_html
     assert 'Channel rules:</strong>' in live_discovery_html
     assert 'data-audience-track="saved"' in live_discovery_html
     assert 'data-audience-track="reviewed"' in live_discovery_html
