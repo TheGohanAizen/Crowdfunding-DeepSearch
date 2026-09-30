@@ -1536,7 +1536,43 @@ def automation_ledger_connection():
             recorded_at TEXT NOT NULL
         )"""
     )
-    columns = {row["name"] for row in connection.execute("PRAGMA table_info(automation_execution_ledger)").fetchall()}
+    table_info = connection.execute("PRAGMA table_info(automation_execution_ledger)").fetchall()
+    columns = {row["name"] for row in table_info}
+    idempotency_is_primary = any(
+        row["name"] == "idempotency_key" and int(row["pk"] or 0) > 0 for row in table_info
+    )
+    if idempotency_is_primary:
+        connection.execute("BEGIN IMMEDIATE")
+        connection.execute(
+            """CREATE TABLE automation_execution_ledger_v2 (
+                ledger_key TEXT PRIMARY KEY,
+                idempotency_key TEXT NOT NULL,
+                execution_mode TEXT NOT NULL,
+                mechanism TEXT NOT NULL,
+                endpoint TEXT,
+                outcome TEXT NOT NULL,
+                sent INTEGER NOT NULL DEFAULT 0,
+                provider_message_id TEXT,
+                resolution_reason TEXT,
+                blockers_json TEXT NOT NULL DEFAULT '[]',
+                recorded_at TEXT NOT NULL
+            )"""
+        )
+        resolution_expr = "resolution_reason" if "resolution_reason" in columns else "NULL"
+        mode_expr = "COALESCE(NULLIF(execution_mode, ''), 'live')" if "execution_mode" in columns else "'live'"
+        connection.execute(
+            f"""INSERT INTO automation_execution_ledger_v2
+                (ledger_key, idempotency_key, execution_mode, mechanism, endpoint, outcome,
+                 sent, provider_message_id, resolution_reason, blockers_json, recorded_at)
+                SELECT idempotency_key || ':' || {mode_expr}, idempotency_key, {mode_expr},
+                       mechanism, endpoint, outcome, sent, provider_message_id,
+                       {resolution_expr}, blockers_json, recorded_at
+                FROM automation_execution_ledger"""
+        )
+        connection.execute("DROP TABLE automation_execution_ledger")
+        connection.execute("ALTER TABLE automation_execution_ledger_v2 RENAME TO automation_execution_ledger")
+        connection.commit()
+        columns = {row["name"] for row in connection.execute("PRAGMA table_info(automation_execution_ledger)").fetchall()}
     if "ledger_key" not in columns:
         connection.execute("ALTER TABLE automation_execution_ledger ADD COLUMN ledger_key TEXT")
     if "execution_mode" not in columns:
@@ -1565,7 +1601,6 @@ def automation_ledger_connection():
         "CREATE INDEX IF NOT EXISTS idx_automation_rate_events_window ON automation_rate_events(mechanism, consumed_at)"
     )
     return connection
-
 
 def persist_automation_execution_record(record):
     """Persist a non-secret execution record once per idempotency key."""
