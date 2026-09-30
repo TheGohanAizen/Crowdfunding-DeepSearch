@@ -1387,9 +1387,20 @@ async function runDiscovery() {
                 : "No source URL";
             const campaignTrackingId = data.campaign_tracking_id || "campaign_unknown";
             const opportunityTrackingId = item.tracking_id || (item.url || item.name || geographicStage);
-            const trackingKey = TRACKING_PREFIX + campaignTrackingId + ":" + opportunityTrackingId;
+            const trackingKey = currentCampaignTrackingPrefix() + "opportunity:" + opportunityTrackingId;
+            const legacyTrackingKey = TRACKING_PREFIX + campaignTrackingId + ":" + opportunityTrackingId;
             card.dataset.trackingKey = trackingKey;
-            const trackedRecord = readTrackingRecord(trackingKey);
+            let trackedRecord = readTrackingRecord(trackingKey);
+            if (!trackedRecord) {
+                const legacyRecord = readTrackingRecord(legacyTrackingKey);
+                if (legacyRecord) {
+                    try {
+                        localStorage.setItem(trackingKey, JSON.stringify(legacyRecord));
+                        localStorage.removeItem(legacyTrackingKey);
+                        trackedRecord = legacyRecord;
+                    } catch (error) {}
+                }
+            }
             const trackingHtml =
                 '<div class="tracking-actions">' +
                 '<button type="button" data-track="saved">Save for review</button>' +
