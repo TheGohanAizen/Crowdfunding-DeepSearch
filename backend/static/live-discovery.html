@@ -245,6 +245,7 @@ button:hover { background: #1d4ed8; }
     <textarea id="campaignSummary" style="width:100%;min-height:110px;padding:13px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:white;font-size:15px;" placeholder="Briefly explain the campaign, the need, and what the funds will help accomplish."></textarea>
 
     <button id="runButton" onclick="runDiscovery()">Run Opportunity Discovery</button>
+    <button id="newCampaignWorkspaceButton" type="button" onclick="startNewCampaignWorkspace()">Start New Campaign Workspace</button>
     <button id="audiencePlanButton" type="button" onclick="runAudiencePlan()">Preview Audience DeepSearch</button>
     <button id="audienceDiscoverButton" type="button" onclick="runAudienceDiscovery()">Run Audience DeepSearch</button>
 
@@ -1158,6 +1159,29 @@ function migrateLegacyCampaignRecord(suffix, destinationKey) {
         return record;
     }
     return null;
+}
+
+function startNewCampaignWorkspace() {
+    const confirmed = confirm("Start a new campaign workspace? Existing tracking will stay saved under the current workspace, but this page will switch to a fresh tracking workspace.");
+    if (!confirmed) return;
+    const newId = createCampaignWorkspaceId();
+    if (!setCurrentCampaignWorkspaceId(newId)) {
+        alert("A new campaign workspace could not be created in this browser.");
+        return;
+    }
+    document.getElementById("location").value = "";
+    document.getElementById("goal").value = "";
+    document.getElementById("campaignUrl").value = "";
+    document.getElementById("campaignSummary").value = "";
+    document.getElementById("resultList").innerHTML = "";
+    document.getElementById("audiencePlanList").innerHTML = "";
+    const resultsPanel = document.getElementById("results");
+    if (resultsPanel) resultsPanel.style.display = "none";
+    const audiencePanel = document.getElementById("audiencePlan");
+    if (audiencePanel) audiencePanel.style.display = "none";
+    updateOutreachDashboard();
+    updateAudienceTrackingDashboard();
+    alert("New campaign workspace started. Previous workspace tracking remains saved and can be restored from its tracking backup.");
 }
 
 function campaignTrackingNamespace() {
