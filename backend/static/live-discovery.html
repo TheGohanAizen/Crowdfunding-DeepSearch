@@ -255,6 +255,8 @@ button:hover { background: #1d4ed8; }
       <div><strong id="audienceReadyCount">0</strong><span>Reviewed + Draft Ready</span></div>
       <div><strong id="audienceNotStartedCount">0</strong><span>Not Started</span></div>
       <div><strong id="audienceReviewProgress">0%</strong><span>Reviewed/Contacted</span></div>
+      <div><strong id="audienceAwaitingCount">0</strong><span>Awaiting Response</span></div>
+      <div><strong id="audienceBlockedCount">0</strong><span>Blocked / Restricted</span></div>
     </div>
     <div class="filters" id="audienceFilters">
       <label>Audience view
@@ -297,6 +299,8 @@ button:hover { background: #1d4ed8; }
       <button type="button" id="audienceFollowupQueueButton" onclick="setAudienceFollowupQueue()">Follow-up queue</button>
       <button type="button" id="audienceRestrictedQueueButton" onclick="setAudienceRestrictedQueue()">Restrictions queue</button>
       <button type="button" id="audienceContactReadyButton" onclick="setAudienceContactReadyQueue()">Contact-ready queue</button>
+      <button type="button" id="audienceAwaitingButton" onclick="setAudienceAwaitingQueue()">Awaiting response</button>
+      <button type="button" id="audienceRespondedButton" onclick="setAudienceRespondedQueue()">Responses queue</button>
     </div>
     <div id="audiencePlanList"></div>
     <div class="notice">This preview uses zero live-search credits. It plans relevant public-web discovery lanes first; posting or contacting remains disabled until channel rules and permissions are reviewed.</div>
@@ -653,6 +657,22 @@ function setAudienceContactReadyQueue() {
     applyAudienceFilters();
 }
 
+function setAudienceAwaitingQueue() {
+    const status = document.getElementById("audienceStatusFilter");
+    const sort = document.getElementById("audienceSort");
+    if (status) status.value = "contacted";
+    if (sort) sort.value = "score_desc";
+    applyAudienceFilters();
+}
+
+function setAudienceRespondedQueue() {
+    const status = document.getElementById("audienceStatusFilter");
+    const sort = document.getElementById("audienceSort");
+    if (status) status.value = "responded";
+    if (sort) sort.value = "score_desc";
+    applyAudienceFilters();
+}
+
 function setAudienceFollowupQueue() {
     const status = document.getElementById("audienceStatusFilter");
     const sort = document.getElementById("audienceSort");
@@ -716,7 +736,7 @@ function exportAudienceCsv() {
 
 function updateAudienceTrackingDashboard() {
     const cards = Array.from(document.querySelectorAll("#audiencePlanList .result-card"));
-    const counts = {saved: 0, reviewed: 0, contacted: 0, responded: 0, closed: 0, followups: 0, drafts: 0, ready: 0, notStarted: 0};
+    const counts = {saved: 0, reviewed: 0, contacted: 0, responded: 0, closed: 0, followups: 0, drafts: 0, ready: 0, awaiting: 0, blocked: 0, notStarted: 0};
     const now = new Date();
     cards.forEach(function(card) {
         const record = card.dataset.audienceTrackingKey ? readTrackingRecord(card.dataset.audienceTrackingKey) : null;
@@ -730,6 +750,8 @@ function updateAudienceTrackingDashboard() {
         if (record && record.status !== "closed" && record.follow_up_at && new Date(record.follow_up_at) <= now) counts.followups += 1;
         if (record && record.outreach_draft) counts.drafts += 1;
         if (record && record.status === "reviewed" && record.outreach_draft && card.dataset.ruleStatus === "rules_or_submission_route_found") counts.ready += 1;
+        if (record && record.status === "contacted") counts.awaiting += 1;
+        if (card.dataset.ruleStatus === "restriction_detected") counts.blocked += 1;
     });
     const set = function(id, value) { const el = document.getElementById(id); if (el) el.textContent = value; };
     set("audienceSavedCount", counts.saved);
@@ -741,6 +763,8 @@ function updateAudienceTrackingDashboard() {
     set("audienceFollowupCount", counts.followups);
     set("audienceDraftCount", counts.drafts);
     set("audienceReadyCount", counts.ready);
+    set("audienceAwaitingCount", counts.awaiting);
+    set("audienceBlockedCount", counts.blocked);
     const reviewedPercent = cards.length ? Math.round(((counts.reviewed + counts.contacted) / cards.length) * 100) : 0;
     set("audienceReviewProgress", reviewedPercent + "%");
 }
