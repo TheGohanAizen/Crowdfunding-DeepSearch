@@ -1552,6 +1552,18 @@ def automation_ledger_connection():
     connection.execute(
         "CREATE INDEX IF NOT EXISTS idx_automation_idempotency_mode ON automation_execution_ledger(idempotency_key, execution_mode)"
     )
+    connection.execute(
+        """CREATE TABLE IF NOT EXISTS automation_rate_events (
+            event_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            mechanism TEXT NOT NULL,
+            idempotency_key TEXT NOT NULL,
+            consumed_at TEXT NOT NULL,
+            UNIQUE(mechanism, idempotency_key)
+        )"""
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_automation_rate_events_window ON automation_rate_events(mechanism, consumed_at)"
+    )
     return connection
 
 
@@ -1877,6 +1889,50 @@ def automation_rate_limit_contract(mechanism):
         "limit_per_hour": limit if isinstance(limit, int) else None,
         "enforcement_required": status.get("registered") is True,
     }
+
+
+def automation_rate_limit_status(mechanism, now=None):
+    """Read durable hourly quota status without consuming it."""
+    contract = automation_rate_limit_contract(mechanism)
+    limit = contract.get("limit_per_hour")
+    if not contract.get("enforcement_required") or not isinstance(limit, int):
+        return {"allowed": False, "reason": "rate_limit_contract_unavailable", **contract}
+    current = now if isinstance(now, datetime) else datetime.now(timezone.utc)
+    cutoff = current.timestamp() - 3600
+    with automation_ledger_connection() as connection:
+        rows = connection.execute(
+            "SELECT consumed_at FROM automation_rate_events WHERE mechanism = ?",
+            (str(mechanism or "").strip(),),
+        ).fetchall()
+    used = 0
+    for row in rows:
+        try:
+            consumed = datetime.fromisoformat(str(row["consumed_at"]).replace("Z", "+00:00"))
+            if consumed.tzinfo is None:
+                consumed = consumed.replace(tzinfo=timezone.utc)
+            if consumed.timestamp() > cutoff:
+                used += 1
+        except (TypeError, ValueError):
+            continue
+    remaining = max(0, limit - used)
+    return {**contract, "allowed": remaining > 0, "used_last_hour": used, "remaining": remaining}
+
+
+def consume_automation_rate_limit(mechanism, idempotency_key):
+    """Atomically consume at most one quota event per execution key."""
+    status = automation_rate_limit_status(mechanism)
+    if not status.get("allowed"):
+        return {**status, "consumed": False}
+    key = str(idempotency_key or "").strip()
+    if not key:
+        raise ValueError("Idempotency key is required to consume automation quota.")
+    with automation_ledger_connection() as connection:
+        cursor = connection.execute(
+            """INSERT OR IGNORE INTO automation_rate_events
+               (mechanism, idempotency_key, consumed_at) VALUES (?, ?, ?)""",
+            (str(mechanism or "").strip(), key, datetime.now(timezone.utc).isoformat()),
+        )
+    return {**automation_rate_limit_status(mechanism), "consumed": cursor.rowcount == 1}
 
 
 def automation_idempotency_key(workspace_id, tracking_id, mechanism, route):
