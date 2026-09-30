@@ -1176,10 +1176,12 @@ def deduplicate_audience_candidates(candidates):
         if key not in merged:
             item["discovered_in_lanes"] = [item.get("type")] if item.get("type") else []
             item["discovered_in_stages"] = [item.get("geographic_stage")] if item.get("geographic_stage") else []
+            item["_discovery_count"] = 1
             merged[key] = item
             order.append(key)
             continue
         current = merged[key]
+        current["_discovery_count"] = current.get("_discovery_count", 1) + 1
         lane = item.get("type")
         stage = item.get("geographic_stage")
         if lane and lane not in current["discovered_in_lanes"]:
@@ -1195,12 +1197,9 @@ def deduplicate_audience_candidates(candidates):
             current["discovered_in_lanes"] = preserved_lanes
             current["discovered_in_stages"] = preserved_stages
     results = [merged[key] for key in order]
-    duplicate_count = max(0, len(candidates) - len(results))
     for item in results:
-        item["duplicate_discoveries_merged"] = duplicate_count if len(results) == 1 else max(
-            0,
-            len(item.get("discovered_in_lanes", [])) + len(item.get("discovered_in_stages", [])) - 2
-        )
+        discovery_count = item.pop("_discovery_count", 1)
+        item["duplicate_discoveries_merged"] = max(0, discovery_count - 1)
     return results
 
 
