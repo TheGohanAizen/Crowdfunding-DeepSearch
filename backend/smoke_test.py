@@ -304,6 +304,11 @@ try:
     assert 'Automatic submission: disabled — complete the official route manually.' in live_discovery_html
     assert 'submission_packet: previous.submission_packet || null' in live_discovery_html
     assert 'window.open(applicationRoute' in live_discovery_html
+    assert 'function applyImportedCampaignProfile(campaign)' in live_discovery_html
+    assert 'function campaignProfilesDiffer(a, b)' in live_discovery_html
+    assert 'Restore the backup campaign profile too?' in live_discovery_html
+    assert 'Campaign profile restored.' in live_discovery_html
+    assert 'Current campaign profile left unchanged.' in live_discovery_html
     assert 'value="draft_ready"' in live_discovery_html
     assert 'tracked === "reviewed" && !!(record && record.outreach_draft)' in live_discovery_html
     assert 'audience-reviewed-routes' in live_discovery_html
