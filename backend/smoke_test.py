@@ -363,6 +363,9 @@ try:
     assert "MAX_TOTAL_DISCOVERY_REQUESTS = 7" in protected_source
     assert '"all-discovery:" + client' in protected_source
     assert "len(total_recent) >= MAX_TOTAL_DISCOVERY_REQUESTS" in protected_source
+    assert 'MAX_AUDIENCE_SEARCH_QUERIES = env_int("MAX_AUDIENCE_SEARCH_QUERIES", 4, 1, 8)' in server_source
+    assert 'len(full_plan) > budget' in server_source
+    assert 'round(i * (len(full_plan) - 1) / (budget - 1))' in server_source
     assert "selected_stages = stages" in server_source
     assert "for geo_stage, geography in selected_stages:" in server_source
     assert "for lane, terms in lanes:" in server_source
