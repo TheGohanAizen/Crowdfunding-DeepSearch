@@ -416,6 +416,7 @@ function renderSavedAudienceDraft(card, trackingKey, draft) {
     card.appendChild(box);
     box.querySelector("[data-save-draft]").addEventListener("click", function() {
         const record = readTrackingRecord(trackingKey) || writeTrackingRecord(trackingKey, "saved");
+        record.draft_prepared_at = record.draft_prepared_at || new Date().toISOString();
         record.outreach_draft = {
             subject: box.querySelector(".audience-draft-subject").value.trim().slice(0, 300),
             body: box.querySelector(".audience-draft-text").value.trim().slice(0, 8000),
@@ -435,6 +436,7 @@ function renderSavedAudienceDraft(card, trackingKey, draft) {
         const record = readTrackingRecord(trackingKey);
         if (record) {
             record.outreach_draft = null;
+            record.draft_prepared_at = null;
             try { localStorage.setItem(trackingKey, JSON.stringify(record)); } catch (error) {}
         }
         box.remove();
@@ -571,6 +573,7 @@ function renderAudienceLead(item) {
             if (!response.ok || data.status !== "success") throw new Error(data.message || "Draft could not be prepared.");
             const previous = readTrackingRecord(audienceTrackingKey) || {};
             const record = previous.status ? writeTrackingRecord(audienceTrackingKey, previous.status) : writeTrackingRecord(audienceTrackingKey, "saved");
+            record.draft_prepared_at = previous.draft_prepared_at || new Date().toISOString();
             record.outreach_draft = {
                 subject: data.draft.subject,
                 body: data.draft.body,
@@ -829,7 +832,7 @@ function exportAudienceCsv() {
     const cards = Array.from(document.querySelectorAll("#audiencePlanList .result-card")).filter(function(card) {
         return card.style.display !== "none";
     });
-    const rows = [["Name", "Channel", "Geographic stage", "Relevance score", "Rule status", "Tracking status", "Ever reviewed", "Ever contacted", "Ever responded", "Permission reviewed at", "Draft prepared", "Draft saved at", "Response outcome", "Response details", "Follow-up", "Submission ready", "Submission packet prepared at", "Submission route", "Private note", "Source URL"]];
+    const rows = [["Name", "Channel", "Geographic stage", "Relevance score", "Rule status", "Tracking status", "Ever reviewed", "Ever contacted", "Ever responded", "Permission reviewed at", "Draft prepared", "Draft prepared at", "Draft saved at", "Response outcome", "Response details", "Follow-up", "Submission ready", "Submission packet prepared at", "Submission route", "Private note", "Source URL"]];
     cards.forEach(function(card) {
         const key = card.dataset.audienceTrackingKey;
         const record = key ? readTrackingRecord(key) : null;
@@ -852,6 +855,7 @@ function exportAudienceCsv() {
             trackingHasStatus(record, "responded") ? "yes" : "no",
             permissionReviewed,
             draft ? "yes" : "no",
+            record && record.draft_prepared_at ? record.draft_prepared_at : "",
             draft && draft.saved_at ? draft.saved_at : "",
             response && response.outcome ? response.outcome : "",
             response && response.details ? response.details : "",
@@ -1100,6 +1104,7 @@ function writeTrackingRecord(key, status) {
         first_saved_at: previous.first_saved_at || now,
         notes: previous.notes || "",
         outreach_draft: previous.outreach_draft || null,
+        draft_prepared_at: previous.draft_prepared_at || null,
         permission_review: previous.permission_review || null,
         submission_packet: previous.submission_packet || null,
         response: previous.response || null,
