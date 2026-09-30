@@ -535,7 +535,7 @@ function renderAudienceLead(item) {
     const audienceTrackingId = item.tracking_id || (item.url || item.name || "lead");
     const audienceTrackingKey = currentCampaignTrackingPrefix() + "audience:" + audienceTrackingId;
     const legacyAudienceTrackingKey = TRACKING_PREFIX + audienceTrackingId;
-    let existingAudienceTracking = readTrackingRecord(audienceTrackingKey);
+    let existingAudienceTracking = migrateLegacyCampaignRecord("audience:" + audienceTrackingId, audienceTrackingKey);
     if (!existingAudienceTracking) {
         const legacyAudienceTracking = readTrackingRecord(legacyAudienceTrackingKey);
         if (legacyAudienceTracking) {
@@ -1119,6 +1119,47 @@ function setCurrentCampaignWorkspaceId(id) {
     return true;
 }
 
+function legacyCampaignTrackingPrefixes() {
+    const profile = currentCampaignTrackingProfile();
+    const sources = [
+        [
+            String(profile.campaign_url || "").trim().toLowerCase(),
+            String(profile.need || "").trim().toLowerCase(),
+            String(profile.location || "").trim().toLowerCase()
+        ].join("|"),
+        [
+            String(profile.campaign_url || "").trim().toLowerCase(),
+            String(profile.need || "").trim().toLowerCase(),
+            String(profile.location || "").trim().toLowerCase(),
+            String(profile.goal || "").trim()
+        ].join("|")
+    ];
+    return Array.from(new Set(sources.map(function(source) {
+        let hash = 2166136261;
+        for (let i = 0; i < source.length; i += 1) {
+            hash ^= source.charCodeAt(i);
+            hash = Math.imul(hash, 16777619);
+        }
+        return TRACKING_PREFIX + "campaign:" + (hash >>> 0).toString(36) + ":";
+    })));
+}
+
+function migrateLegacyCampaignRecord(suffix, destinationKey) {
+    if (readTrackingRecord(destinationKey)) return readTrackingRecord(destinationKey);
+    const prefixes = legacyCampaignTrackingPrefixes();
+    for (let i = 0; i < prefixes.length; i += 1) {
+        const legacyKey = prefixes[i] + suffix;
+        const record = readTrackingRecord(legacyKey);
+        if (!record) continue;
+        try {
+            localStorage.setItem(destinationKey, JSON.stringify(record));
+            localStorage.removeItem(legacyKey);
+        } catch (error) {}
+        return record;
+    }
+    return null;
+}
+
 function campaignTrackingNamespace() {
     return "campaign:" + currentCampaignWorkspaceId() + ":";
 }
@@ -1464,7 +1505,7 @@ async function runDiscovery() {
             const trackingKey = currentCampaignTrackingPrefix() + "opportunity:" + opportunityTrackingId;
             const legacyTrackingKey = TRACKING_PREFIX + campaignTrackingId + ":" + opportunityTrackingId;
             card.dataset.trackingKey = trackingKey;
-            let trackedRecord = readTrackingRecord(trackingKey);
+            let trackedRecord = migrateLegacyCampaignRecord("opportunity:" + opportunityTrackingId, trackingKey);
             if (!trackedRecord) {
                 const legacyRecord = readTrackingRecord(legacyTrackingKey);
                 if (legacyRecord) {
