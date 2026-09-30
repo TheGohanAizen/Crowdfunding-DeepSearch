@@ -238,6 +238,10 @@ try:
     assert 'id="audiencePlanButton"' in live_discovery_html
     assert 'id="audienceResults"' in live_discovery_html
     assert 'AUDIENCE_PLAN_URL' in live_discovery_html
+    # Audience cards must initialize score before dataset/priority expressions use it.
+    score_init = live_discovery_html.index("const score = item.audience_relevance_score ?? 0;")
+    score_use = live_discovery_html.index("card.dataset.audienceScore = String(score);")
+    assert score_init != -1 and score_use != -1 and score_init < score_use
     assert 'function runAudiencePlan()' in live_discovery_html
     assert 'No automatic posting' in live_discovery_html
     assert 'id="audienceDiscoverButton"' in live_discovery_html
