@@ -342,6 +342,9 @@ try:
     assert '(status === "responded" || status === "closed") ? null' in live_discovery_html
     assert 'legacyAudienceTrackingKey' in live_discovery_html
     assert 'localStorage.removeItem(legacyAudienceTrackingKey)' in live_discovery_html
+    assert 'result["configured"] and result.get("candidates")' in server_source
+    assert 'configured_provider_returned_no_candidates' in server_source
+    assert 'Configured providers returned no candidates.' in server_source
     assert 'outreach_intent:' in server_source
     assert 'low_signal_page' in server_source
     assert 'cross_search_corroboration' in server_source
