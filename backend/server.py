@@ -28,6 +28,7 @@ MAX_AUDIENCE_RULE_CHECKS = env_int("MAX_AUDIENCE_RULE_CHECKS", 4, 0, 12)
 MAX_DISCOVERY_RESULTS = env_int("MAX_DISCOVERY_RESULTS", 25, 1, 100)
 MAX_QUERY_LENGTH = env_int("MAX_QUERY_LENGTH", 500, 100, 2000)
 MAX_SEARCH_LANES = env_int("MAX_SEARCH_LANES", 4, 1, 4)
+MAX_AUDIENCE_SEARCH_QUERIES = env_int("MAX_AUDIENCE_SEARCH_QUERIES", 4, 1, 8)
 MAX_RESULTS_PER_LANE = env_int("MAX_RESULTS_PER_LANE", 4, 1, 10)
 ALLOWED_ORIGIN = os.environ.get("ALLOWED_ORIGIN", "*")
 ALLOWED_ORIGINS = {origin.strip() for origin in ALLOWED_ORIGIN.split(",") if origin.strip()}
@@ -1126,7 +1127,16 @@ def detect_audience_channel_rules(signals):
 
 def retrieve_audience_candidates(search_plan, per_lane=2):
     """Reuse the configured provider under a smaller audience-specific budget."""
-    bounded_plan = list(search_plan)[:MAX_SEARCH_LANES]
+    # Audience plans can contain the same lanes at several geographic stages.
+    # Spread the bounded live-search budget across stages instead of always
+    # spending it on the first (local) stage.
+    full_plan = list(search_plan)
+    budget = min(MAX_AUDIENCE_SEARCH_QUERIES, len(full_plan))
+    if budget and len(full_plan) > budget:
+        indexes = [round(i * (len(full_plan) - 1) / (budget - 1)) for i in range(budget)] if budget > 1 else [0]
+        bounded_plan = [full_plan[index] for index in dict.fromkeys(indexes)]
+    else:
+        bounded_plan = full_plan
     retrieval = retrieve_candidates(bounded_plan, per_lane=min(max(int(per_lane), 1), 2))
     normalized = []
     plan_by_query = {
