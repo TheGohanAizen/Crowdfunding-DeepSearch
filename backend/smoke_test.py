@@ -263,6 +263,10 @@ try:
     assert 'function automationBlockerLabel(code)' in live_discovery_html
     assert 'no approved connector is registered for this mechanism' in live_discovery_html
     assert 'the approved connector is not configured' in live_discovery_html
+    assert 'AUTOMATION_EXECUTION_CHECK_URL' in live_discovery_html
+    assert 'explicit user authorization is required' in live_discovery_html
+    assert 'the route permission review must be current' in live_discovery_html
+    assert 'the lead must pass duplicate-contact protection' in live_discovery_html
     assert 'connector gate passed in dry-run only — nothing was sent.' in live_discovery_html
     assert 'unregistered routes remain manual' in live_discovery_html
     assert 'AUDIENCE_DISCOVER_URL' in live_discovery_html
