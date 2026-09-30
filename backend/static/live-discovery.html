@@ -1098,8 +1098,7 @@ function campaignTrackingNamespace() {
     const source = [
         String(profile.campaign_url || "").trim().toLowerCase(),
         String(profile.need || "").trim().toLowerCase(),
-        String(profile.location || "").trim().toLowerCase(),
-        String(profile.goal || "").trim()
+        String(profile.location || "").trim().toLowerCase()
     ].join("|");
     let hash = 2166136261;
     for (let i = 0; i < source.length; i += 1) {
@@ -1269,19 +1268,6 @@ function importTracking(event) {
         try {
             const payload = JSON.parse(reader.result);
             if (!payload || typeof payload !== "object" || !payload.records || typeof payload.records !== "object") throw new Error("Invalid tracking backup");
-            const records = payload.records;
-            let imported = 0;
-            Object.keys(records).forEach(function(key) {
-                if (!key.startsWith(TRACKING_PREFIX)) return;
-                const importedKey = key.startsWith(currentCampaignTrackingPrefix())
-                    ? key
-                    : currentCampaignTrackingPrefix() + key.slice(TRACKING_PREFIX.length).replace(/^campaign:[^:]+:/, "");
-                const record = records[key];
-                if (record && ["saved", "reviewed", "contacted", "responded", "closed"].includes(record.status)) {
-                    localStorage.setItem(importedKey, JSON.stringify(record));
-                    imported += 1;
-                }
-            });
             const campaign = payload.campaign || {};
             let profileRestored = false;
             if (payload.version >= 2 && campaign && Object.keys(campaign).length) {
@@ -1291,6 +1277,20 @@ function importTracking(event) {
                 const restore = !differs || !hasCurrentDetails || confirm("This backup belongs to a different campaign profile than the one currently shown. Restore the backup campaign profile too?");
                 if (restore) profileRestored = applyImportedCampaignProfile(campaign);
             }
+            const destinationPrefix = currentCampaignTrackingPrefix();
+            const records = payload.records;
+            let imported = 0;
+            Object.keys(records).forEach(function(key) {
+                if (!key.startsWith(TRACKING_PREFIX)) return;
+                const importedKey = key.startsWith(destinationPrefix)
+                    ? key
+                    : destinationPrefix + key.slice(TRACKING_PREFIX.length).replace(/^campaign:[^:]+:/, "");
+                const record = records[key];
+                if (record && ["saved", "reviewed", "contacted", "responded", "closed"].includes(record.status)) {
+                    localStorage.setItem(importedKey, JSON.stringify(record));
+                    imported += 1;
+                }
+            });
             const campaignLabel = campaign.need || campaign.location ? " Backup campaign: " + [campaign.need, campaign.location].filter(Boolean).join(" · ") + "." : "";
             alert(imported + " tracking records imported." + campaignLabel + (profileRestored ? " Campaign profile restored." : " Current campaign profile left unchanged.") + " Run discovery to reload matching results and tracking.");
         } catch (error) {
