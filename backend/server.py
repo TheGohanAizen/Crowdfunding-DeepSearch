@@ -1301,10 +1301,36 @@ def enrich_audience_with_rule_checks(candidates, max_candidates=None):
 
 
 
-SUPPORTED_AUTOMATION_MECHANISMS = frozenset({
-    # Add a mechanism only after its official integration and permission model
-    # are implemented and tested. An empty allowlist keeps Stage 6 fail-closed.
-})
+AUTOMATION_CONNECTOR_REGISTRY = {
+    # Provider connectors are registered only after an official API/submission
+    # mechanism, required authorization scope, and bounded rate policy exist.
+}
+
+SUPPORTED_AUTOMATION_MECHANISMS = frozenset(AUTOMATION_CONNECTOR_REGISTRY)
+
+
+def automation_connector_status(mechanism):
+    """Return non-secret connector capability metadata for UI/API diagnostics."""
+    name = str(mechanism or "").strip()
+    connector = AUTOMATION_CONNECTOR_REGISTRY.get(name)
+    if not connector:
+        return {
+            "registered": False,
+            "mechanism": name or None,
+            "configured": False,
+            "send_enabled": False,
+            "action_type": None,
+        }
+    env_key = str(connector.get("credential_env") or "").strip()
+    configured = bool(env_key and os.environ.get(env_key))
+    return {
+        "registered": True,
+        "mechanism": name,
+        "configured": configured,
+        "send_enabled": bool(connector.get("send_enabled") is True and configured),
+        "action_type": connector.get("action_type"),
+        "rate_limit_per_hour": connector.get("rate_limit_per_hour"),
+    }
 
 
 def automation_distribution_decision(candidate):
@@ -1314,14 +1340,16 @@ def automation_distribution_decision(candidate):
     mechanism = str(eligibility.get("supported_mechanism") or "").strip()
     eligible = eligibility.get("eligible") is True
     send_enabled = eligibility.get("send_enabled") is True
+    connector = automation_connector_status(mechanism)
     supported = bool(mechanism and mechanism in SUPPORTED_AUTOMATION_MECHANISMS)
-    allowed = eligible and send_enabled and supported
+    allowed = eligible and send_enabled and supported and connector["configured"] and connector["send_enabled"]
     return {
         "allowed": allowed,
         "mechanism": mechanism or None,
         "eligible": eligible,
         "send_enabled": send_enabled,
         "supported": supported,
+        "connector": connector,
         "reason": "supported_automation_mechanism" if allowed else "automation_not_authorized",
     }
 
