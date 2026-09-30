@@ -10,6 +10,12 @@ function submissionPacketIsCurrent(record, routeFingerprint, verifiedApplication
     });
 }
 
+function setAudienceHandoffRefreshQueue() {
+    const status = document.getElementById("audienceStatusFilter");
+    if (status) status.value = "handoff_refresh";
+    applyAudienceFilters();
+}
+
 function setAudienceHandoffPreparedQueue() {
     const status = document.getElementById("audienceStatusFilter");
     if (status) status.value = "handoff_prepared";
@@ -250,7 +256,8 @@ button:hover { background: #1d4ed8; }
     <textarea id="campaignSummary" style="width:100%;min-height:110px;padding:13px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:white;font-size:15px;" placeholder="Briefly explain the campaign, the need, and what the funds will help accomplish."></textarea>
 
     <button id="runButton" onclick="runDiscovery()">Run Opportunity Discovery</button>
-    <button id="newCampaignWorkspaceButton" type="button" onclick="startNewCampaignWorkspace()">Start New Campaign Workspace</button>\n    <button id="switchCampaignWorkspaceButton" type="button" onclick="chooseCampaignWorkspace()">Switch Campaign Workspace</button>
+    <button id="newCampaignWorkspaceButton" type="button" onclick="startNewCampaignWorkspace()">Start New Campaign Workspace</button>
+    <button id="switchCampaignWorkspaceButton" type="button" onclick="chooseCampaignWorkspace()">Switch Campaign Workspace</button>
     <button id="audiencePlanButton" type="button" onclick="runAudiencePlan()">Preview Audience DeepSearch</button>
     <button id="audienceDiscoverButton" type="button" onclick="runAudienceDiscovery()">Run Audience DeepSearch</button>
 
@@ -283,7 +290,8 @@ button:hover { background: #1d4ed8; }
       <div><strong id="audienceContactRate">0%</strong><span>Contact Rate</span></div>
       <div><strong id="audienceResponseRate">0%</strong><span>Response Rate</span></div>
       <div><strong id="audienceReadyBacklog">0</strong><span>Ready Backlog</span></div>
-      <div><strong id="audienceSubmissionReadyCount">0</strong><span>Submission Ready</span></div>\n      <div><strong id="audienceHandoffPreparedCount">0</strong><span>Handoffs Prepared</span></div>
+      <div><strong id="audienceSubmissionReadyCount">0</strong><span>Submission Ready</span></div>
+      <div><strong id="audienceHandoffPreparedCount">0</strong><span>Handoffs Prepared</span></div>\n      <div><strong id="audienceHandoffRefreshCount">0</strong><span>Handoffs Need Refresh</span></div>
     </div>
     <div class="filters" id="audienceFilters">
       <label>Audience view
@@ -302,7 +310,8 @@ button:hover { background: #1d4ed8; }
           <option value="high_priority">High priority (80+)</option>
           <option value="contact_ready">Reviewed + draft ready</option>
           <option value="draft_ready">Draft prepared</option>
-          <option value="submission_ready">Same-site submission route + permission confirmed</option>\n          <option value="handoff_prepared">Submission handoff prepared</option>
+          <option value="submission_ready">Same-site submission route + permission confirmed</option>
+          <option value="handoff_prepared">Submission handoff prepared</option>\n          <option value="handoff_refresh">Submission handoff needs refresh</option>
         </select>
       </label>
       <label>Channel
@@ -329,7 +338,8 @@ button:hover { background: #1d4ed8; }
       <button type="button" id="audienceContactReadyButton" onclick="setAudienceContactReadyQueue()">Contact-ready queue</button>
       <button type="button" id="audienceAwaitingButton" onclick="setAudienceAwaitingQueue()">Awaiting response</button>
       <button type="button" id="audienceRespondedButton" onclick="setAudienceRespondedQueue()">Responses queue</button>
-      <button type="button" id="audienceSubmissionReadyButton" onclick="setAudienceSubmissionReadyQueue()">Submission-ready queue</button>\n      <button type="button" id="audienceHandoffPreparedButton" onclick="setAudienceHandoffPreparedQueue()">Handoffs prepared</button>
+      <button type="button" id="audienceSubmissionReadyButton" onclick="setAudienceSubmissionReadyQueue()">Submission-ready queue</button>
+      <button type="button" id="audienceHandoffPreparedButton" onclick="setAudienceHandoffPreparedQueue()">Handoffs prepared</button>\n      <button type="button" id="audienceHandoffRefreshButton" onclick="setAudienceHandoffRefreshQueue()">Handoffs need refresh</button>
     </div>
     <div id="audiencePlanList"></div>
     <div class="notice">This preview uses zero live-search credits. It plans relevant public-web discovery lanes first; posting or contacting remains disabled until channel rules and permissions are reviewed.</div>
@@ -445,7 +455,9 @@ function renderSavedAudienceDraft(card, trackingKey, draft) {
     box.querySelector("[data-copy-draft]").addEventListener("click", async function() {
         const subject = box.querySelector(".audience-draft-subject").value.trim();
         const body = box.querySelector(".audience-draft-text").value;
-        const draftText = (subject ? "Subject: " + subject + "\n\n" : "") + body;
+        const draftText = (subject ? "Subject: " + subject + "
+
+" : "") + body;
         try { await navigator.clipboard.writeText(draftText); this.textContent = "Copied"; }
         catch (error) { this.textContent = "Select and copy manually"; }
     });
@@ -499,7 +511,9 @@ function renderAudienceLead(item) {
     const reviewRoutes = rules.review_routes || {};
     const applicationRouteLinks = (reviewRoutes.application_links || []).filter(function(route) { return /^https?:\/\//i.test(route); });
     const verifiedApplicationRouteLinks = applicationRouteLinks.filter(function(route) { return sameSiteRoute(url, route); });
-    card.dataset.hasApplicationRoute = verifiedApplicationRouteLinks.length ? "true" : "false";\n    card.dataset.verifiedApplicationRoutes = verifiedApplicationRouteLinks.join("\\n");
+    card.dataset.hasApplicationRoute = verifiedApplicationRouteLinks.length ? "true" : "false";
+    card.dataset.verifiedApplicationRoutes = verifiedApplicationRouteLinks.join("\
+");
     const routeLinks = []
         .concat(reviewRoutes.application_links || [])
         .concat(reviewRoutes.contact_links || [])
@@ -667,7 +681,8 @@ function renderAudienceLead(item) {
             "",
             "Permission review confirmed: " + record.permission_review.reviewed_at,
             "Automatic submission: disabled — complete the official route manually."
-        ].join("\n");
+        ].join("
+");
         record.submission_packet = {prepared_at: new Date().toISOString(), route: applicationRoute, route_fingerprint: routeFingerprint};
         try { localStorage.setItem(audienceTrackingKey, JSON.stringify(record)); } catch (error) {}
         try {
@@ -799,7 +814,8 @@ function applyAudienceFilters() {
             || (status === "draft_ready" && !!(record && record.outreach_draft))
             || (status === "contact_ready" && rule === "rules_or_submission_route_found" && tracked === "reviewed" && !!(record && record.outreach_draft) && permissionReviewIsCurrent(record, card.dataset.routeFingerprint || ""))
             || (status === "submission_ready" && rule === "rules_or_submission_route_found" && tracked === "reviewed" && card.dataset.hasApplicationRoute === "true" && !!(record && record.outreach_draft) && permissionReviewIsCurrent(record, card.dataset.routeFingerprint || ""))
-            || (status === "handoff_prepared" && submissionPacketIsCurrent(record, card.dataset.routeFingerprint || "", (card.dataset.verifiedApplicationRoutes || "").split("\\n").filter(Boolean)))
+            || (status === "handoff_prepared" && submissionPacketIsCurrent(record, card.dataset.routeFingerprint || "", (card.dataset.verifiedApplicationRoutes || "").split("\
+").filter(Boolean)))
             || status === tracked;
         const channelMatch = channel === "all" || card.dataset.channelType === channel;
         const show = statusMatch && channelMatch;
@@ -930,7 +946,7 @@ function trackingHasStatus(record, status) {
 
 function updateAudienceTrackingDashboard() {
     const cards = Array.from(document.querySelectorAll("#audiencePlanList .result-card"));
-    const counts = {saved: 0, reviewed: 0, contacted: 0, responded: 0, closed: 0, everReviewed: 0, everContacted: 0, everResponded: 0, followups: 0, drafts: 0, ready: 0, submissionReady: 0, handoffsPrepared: 0, awaiting: 0, blocked: 0, notStarted: 0};
+    const counts = {saved: 0, reviewed: 0, contacted: 0, responded: 0, closed: 0, everReviewed: 0, everContacted: 0, everResponded: 0, followups: 0, drafts: 0, ready: 0, submissionReady: 0, handoffsPrepared: 0, handoffsRefresh: 0, awaiting: 0, blocked: 0, notStarted: 0};
     const now = new Date();
     cards.forEach(function(card) {
         const record = card.dataset.audienceTrackingKey ? readTrackingRecord(card.dataset.audienceTrackingKey) : null;
@@ -948,7 +964,8 @@ function updateAudienceTrackingDashboard() {
         if (record && record.outreach_draft) counts.drafts += 1;
         if (record && record.status === "reviewed" && record.outreach_draft && permissionReviewIsCurrent(record, card.dataset.routeFingerprint || "") && card.dataset.ruleStatus === "rules_or_submission_route_found") counts.ready += 1;
         if (record && record.status === "reviewed" && record.outreach_draft && permissionReviewIsCurrent(record, card.dataset.routeFingerprint || "") && card.dataset.ruleStatus === "rules_or_submission_route_found" && card.dataset.hasApplicationRoute === "true") counts.submissionReady += 1;
-        if (submissionPacketIsCurrent(record, card.dataset.routeFingerprint || "", (card.dataset.verifiedApplicationRoutes || "").split("\\n").filter(Boolean))) counts.handoffsPrepared += 1;
+        if (submissionPacketIsCurrent(record, card.dataset.routeFingerprint || "", (card.dataset.verifiedApplicationRoutes || "").split("\
+").filter(Boolean))) counts.handoffsPrepared += 1;
         if (record && record.status === "contacted") counts.awaiting += 1;
         if (card.dataset.ruleStatus === "restriction_detected") counts.blocked += 1;
     });
@@ -970,7 +987,8 @@ function updateAudienceTrackingDashboard() {
     set("audienceContactRate", contactRate + "%");
     set("audienceResponseRate", responseRate + "%");
     set("audienceReadyBacklog", counts.ready);
-    set("audienceSubmissionReadyCount", counts.submissionReady);\n    set("audienceHandoffPreparedCount", counts.handoffsPrepared);
+    set("audienceSubmissionReadyCount", counts.submissionReady);
+    set("audienceHandoffPreparedCount", counts.handoffsPrepared);\n    set("audienceHandoffRefreshCount", counts.handoffsRefresh);
     const reviewedPercent = cards.length ? Math.round((counts.everReviewed / cards.length) * 100) : 0;
     set("audienceReviewProgress", reviewedPercent + "%");
 }
@@ -984,7 +1002,8 @@ function updateAudienceDashboard(results) {
     set("audienceReviewCount", items.filter(function(item) { return !item.channel_rules || !["restriction_detected", "rules_or_submission_route_found"].includes(item.channel_rules.status); }).length);
 }
 
-async function runAudienceDiscovery() {\n    saveCampaignWorkspaceProfile();
+async function runAudienceDiscovery() {
+    saveCampaignWorkspaceProfile();
     const panel = document.getElementById("audienceResults");
     const summary = document.getElementById("audienceSummary");
     const list = document.getElementById("audiencePlanList");
@@ -1026,7 +1045,8 @@ async function runAudienceDiscovery() {\n    saveCampaignWorkspaceProfile();
     }
 }
 
-async function runAudiencePlan() {\n    saveCampaignWorkspaceProfile();
+async function runAudiencePlan() {
+    saveCampaignWorkspaceProfile();
     const panel = document.getElementById("audienceResults");
     const summary = document.getElementById("audienceSummary");
     const list = document.getElementById("audiencePlanList");
@@ -1178,8 +1198,11 @@ function chooseCampaignWorkspace() {
         const profile = registry[id] || {};
         const label = [profile.need, profile.location, profile.goal ? "$" + profile.goal : ""].filter(Boolean).join(" · ") || "Untitled campaign";
         return (index + 1) + ". " + label;
-    }).join("\n");
-    const choice = prompt("Choose a campaign workspace by number:\n\n" + menu);
+    }).join("
+");
+    const choice = prompt("Choose a campaign workspace by number:
+
+" + menu);
     const index = Number(choice) - 1;
     if (!Number.isInteger(index) || index < 0 || index >= ids.length) return;
     restoreCampaignWorkspace(ids[index]);
@@ -1227,7 +1250,8 @@ function migrateLegacyCampaignRecord(suffix, destinationKey) {
 }
 
 function startNewCampaignWorkspace() {
-    saveCampaignWorkspaceProfile();\n    const confirmed = confirm("Start a new campaign workspace? Existing tracking will stay saved under the current workspace, but this page will switch to a fresh tracking workspace.");
+    saveCampaignWorkspaceProfile();
+    const confirmed = confirm("Start a new campaign workspace? Existing tracking will stay saved under the current workspace, but this page will switch to a fresh tracking workspace.");
     if (!confirmed) return;
     const newId = createCampaignWorkspaceId();
     if (!setCurrentCampaignWorkspaceId(newId)) {
@@ -1246,7 +1270,8 @@ function startNewCampaignWorkspace() {
     if (audiencePanel) audiencePanel.style.display = "none";
     updateOutreachDashboard();
     updateAudienceTrackingDashboard();
-    saveCampaignWorkspaceProfile();\n    alert("New campaign workspace started. Previous workspace tracking remains saved in this browser and in any exported backup.");
+    saveCampaignWorkspaceProfile();
+    alert("New campaign workspace started. Previous workspace tracking remains saved in this browser and in any exported backup.");
 }
 
 function campaignTrackingNamespace() {
@@ -1366,7 +1391,8 @@ function currentCampaignTrackingProfile() {
     };
 }
 
-function exportTracking() {\n    saveCampaignWorkspaceProfile();
+function exportTracking() {
+    saveCampaignWorkspaceProfile();
     const records = {};
     try {
         for (let i = 0; i < localStorage.length; i += 1) {
@@ -1461,7 +1487,8 @@ function importTracking(event) {
     reader.readAsText(file);
 }
 
-async function runDiscovery() {\n    saveCampaignWorkspaceProfile();
+async function runDiscovery() {
+    saveCampaignWorkspaceProfile();
     const need = document.getElementById("need").value;
     const scope = document.getElementById("scope").value;
     const location = document.getElementById("location").value.trim()
