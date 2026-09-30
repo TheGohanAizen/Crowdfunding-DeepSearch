@@ -276,6 +276,10 @@ try:
     assert 'no approved connector is registered for this mechanism' in live_discovery_html
     assert 'the approved connector is not configured' in live_discovery_html
     assert 'AUTOMATION_EXECUTION_CHECK_URL' in live_discovery_html
+    assert 'SENDGRID_PREFLIGHT_URL' in live_discovery_html
+    assert 'sendgridPreflightStatus' in live_discovery_html
+    assert 'function loadSendGridPreflightStatus()' in live_discovery_html
+    assert 'live sending is still disabled' in live_discovery_html
     assert 'explicit user authorization is required' in live_discovery_html
     assert 'the route permission review must be current' in live_discovery_html
     assert 'the lead must pass duplicate-contact protection' in live_discovery_html
@@ -593,6 +597,7 @@ try:
     automation_rate_limit_contract = crowdfunding_server.automation_rate_limit_contract
     build_sendgrid_mail_v3_payload = crowdfunding_server.build_sendgrid_mail_v3_payload
     sendgrid_connector_preflight = crowdfunding_server.sendgrid_connector_preflight
+    build_disabled_sendgrid_execution_plan = crowdfunding_server.build_disabled_sendgrid_execution_plan
     finalize_audience_actions = crowdfunding_server.finalize_audience_actions
     campaign_tracking_id = crowdfunding_server.campaign_tracking_id
     opportunity_tracking_id = crowdfunding_server.opportunity_tracking_id
@@ -730,6 +735,17 @@ try:
     assert "verified_sender_identity_required" in preflight["blockers"]
     assert "email_compliance_confirmation_required" in preflight["blockers"]
     assert "unsubscribe_mechanism_required" in preflight["blockers"]
+    disabled_plan = build_disabled_sendgrid_execution_plan({
+        "lead": automation_candidate,
+        "sendgrid_settings": {},
+        "draft": {},
+    })
+    assert disabled_plan["status"] == "blocked"
+    assert disabled_plan["allowed"] is False
+    assert disabled_plan["sent"] is False
+    assert disabled_plan["payload"] is None
+    assert "connector_live_send_disabled" in disabled_plan["blockers"]
+    assert "recipient_email_required" in disabled_plan["blockers"]
     payload = build_sendgrid_mail_v3_payload(
         "recipient@example.com", "sender@example.com", "Campaign introduction", "Hello", "reply@example.com"
     )
