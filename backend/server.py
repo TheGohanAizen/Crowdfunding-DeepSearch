@@ -1505,6 +1505,7 @@ def automation_ledger_connection():
             outcome TEXT NOT NULL,
             sent INTEGER NOT NULL DEFAULT 0,
             provider_message_id TEXT,
+            resolution_reason TEXT,
             blockers_json TEXT NOT NULL DEFAULT '[]',
             recorded_at TEXT NOT NULL
         )"""
@@ -1514,6 +1515,8 @@ def automation_ledger_connection():
         connection.execute("ALTER TABLE automation_execution_ledger ADD COLUMN ledger_key TEXT")
     if "execution_mode" not in columns:
         connection.execute("ALTER TABLE automation_execution_ledger ADD COLUMN execution_mode TEXT NOT NULL DEFAULT 'live'")
+    if "resolution_reason" not in columns:
+        connection.execute("ALTER TABLE automation_execution_ledger ADD COLUMN resolution_reason TEXT")
     connection.execute(
         "UPDATE automation_execution_ledger SET ledger_key = idempotency_key || ':' || execution_mode WHERE ledger_key IS NULL OR ledger_key = ''"
     )
@@ -1604,12 +1607,20 @@ AUTOMATION_EXECUTION_TRANSITIONS = {
 }
 
 
-def transition_automation_execution(idempotency_key, new_outcome, provider_message_id=None):
+def transition_automation_execution(idempotency_key, new_outcome, provider_message_id=None, resolution_reason=None):
     """Move a live execution record through an explicit reconciliation state machine."""
     key = str(idempotency_key or "").strip()
     target = str(new_outcome or "").strip().lower()
     if not key or target not in {"sent", "failed", "cancelled", "unknown"}:
         raise ValueError("A valid live execution transition is required.")
+    provider_id = str(provider_message_id or "").strip() or None
+    reason = str(resolution_reason or "").strip() or None
+    if target == "sent" and not provider_id:
+        raise ValueError("A provider message ID is required to confirm a sent execution.")
+    if target != "sent" and provider_id:
+        raise ValueError("Provider message IDs may only be stored for confirmed sent executions.")
+    if target in {"failed", "cancelled", "unknown"} and not reason:
+        raise ValueError("A resolution reason is required for non-sent execution transitions.")
     with automation_ledger_connection() as connection:
         row = connection.execute(
             "SELECT * FROM automation_execution_ledger WHERE idempotency_key = ? AND execution_mode = 'live'",
@@ -1622,9 +1633,9 @@ def transition_automation_execution(idempotency_key, new_outcome, provider_messa
             raise ValueError("Invalid execution transition from %s to %s." % (current, target))
         connection.execute(
             """UPDATE automation_execution_ledger
-               SET outcome = ?, sent = ?, provider_message_id = ?
+               SET outcome = ?, sent = ?, provider_message_id = ?, resolution_reason = ?
                WHERE idempotency_key = ? AND execution_mode = 'live'""",
-            (target, 1 if target == "sent" else 0, str(provider_message_id or "").strip() or None, key),
+            (target, 1 if target == "sent" else 0, provider_id, reason, key),
         )
         updated = connection.execute(
             "SELECT * FROM automation_execution_ledger WHERE idempotency_key = ? AND execution_mode = 'live'",
