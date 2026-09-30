@@ -1024,6 +1024,17 @@ function updateOutreachDashboard() {
     document.getElementById("outreachDashboard").style.display = cards.length ? "grid" : "none";
 }
 
+function currentCampaignTrackingProfile() {
+    return {
+        need: document.getElementById("need").value,
+        location: document.getElementById("location").value.trim(),
+        goal: document.getElementById("goal").value || null,
+        scope: document.getElementById("scope").value,
+        campaign_url: params.get("campaignUrl") || params.get("campaign_url") || "",
+        campaign_summary: params.get("summary") || params.get("campaign_summary") || ""
+    };
+}
+
 function exportTracking() {
     const records = {};
     try {
@@ -1032,7 +1043,7 @@ function exportTracking() {
             if (key && key.startsWith(TRACKING_PREFIX)) records[key] = readTrackingRecord(key);
         }
     } catch (error) {}
-    const blob = new Blob([JSON.stringify({version: 1, exported_at: new Date().toISOString(), records: records}, null, 2)], {type: "application/json"});
+    const blob = new Blob([JSON.stringify({version: 2, exported_at: new Date().toISOString(), campaign: currentCampaignTrackingProfile(), records: records}, null, 2)], {type: "application/json"});
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
@@ -1048,15 +1059,20 @@ function importTracking(event) {
     reader.onload = function() {
         try {
             const payload = JSON.parse(reader.result);
-            const records = payload && payload.records ? payload.records : {};
+            if (!payload || typeof payload !== "object" || !payload.records || typeof payload.records !== "object") throw new Error("Invalid tracking backup");
+            const records = payload.records;
+            let imported = 0;
             Object.keys(records).forEach(function(key) {
                 if (!key.startsWith(TRACKING_PREFIX)) return;
                 const record = records[key];
                 if (record && ["saved", "reviewed", "contacted", "responded", "closed"].includes(record.status)) {
                     localStorage.setItem(key, JSON.stringify(record));
+                    imported += 1;
                 }
             });
-            alert("Tracking history imported. Run or reopen the matching discovery results to see restored statuses.");
+            const campaign = payload.campaign || {};
+            const campaignLabel = campaign.need || campaign.location ? " Backup campaign: " + [campaign.need, campaign.location].filter(Boolean).join(" · ") + "." : "";
+            alert(imported + " tracking records imported." + campaignLabel + " Run or reopen the matching discovery results to restore the workspace.");
         } catch (error) {
             alert("That tracking file could not be imported.");
         }
