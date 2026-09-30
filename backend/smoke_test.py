@@ -614,6 +614,7 @@ try:
     execute_sendgrid_transport = crowdfunding_server.execute_sendgrid_transport
     persist_automation_execution_record = crowdfunding_server.persist_automation_execution_record
     find_automation_execution_record = crowdfunding_server.find_automation_execution_record
+    prune_automation_execution_ledger = crowdfunding_server.prune_automation_execution_ledger
     finalize_audience_actions = crowdfunding_server.finalize_audience_actions
     campaign_tracking_id = crowdfunding_server.campaign_tracking_id
     opportunity_tracking_id = crowdfunding_server.opportunity_tracking_id
@@ -785,6 +786,14 @@ try:
         assert first_write["created"] is True
         assert second_write["created"] is False
         assert find_automation_execution_record("smoke-key-1")["outcome"] == "simulated"
+        old_record = dict(ledger_record)
+        old_record["idempotency_key"] = "smoke-old-key"
+        old_record["recorded_at"] = "2020-01-01T00:00:00+00:00"
+        assert persist_automation_execution_record(old_record)["created"] is True
+        prune_result = prune_automation_execution_ledger(7)
+        assert prune_result["retention_days"] == 7
+        assert prune_result["deleted"] >= 1
+        assert find_automation_execution_record("smoke-old-key") is None
     finally:
         crowdfunding_server.AUTOMATION_LEDGER_PATH = original_ledger_path
     simulated_transport = execute_sendgrid_transport(disabled_plan, simulate=True)
