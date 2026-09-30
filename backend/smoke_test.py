@@ -251,6 +251,10 @@ try:
     assert 'function runAudiencePlan()' in live_discovery_html
     assert 'No automatic posting' in live_discovery_html
     assert 'id="audienceDiscoverButton"' in live_discovery_html
+    assert 'id="automationConnectorStatus"' in live_discovery_html
+    assert 'AUTOMATION_CONNECTORS_URL' in live_discovery_html
+    assert 'function loadAutomationConnectorStatus()' in live_discovery_html
+    assert 'unregistered routes remain manual' in live_discovery_html
     assert 'AUDIENCE_DISCOVER_URL' in live_discovery_html
     assert 'function runAudienceDiscovery()' in live_discovery_html
     assert 'function renderAudienceLead(item)' in live_discovery_html
