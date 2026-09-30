@@ -1414,6 +1414,27 @@ def automation_distribution_decision(candidate):
     }
 
 
+def sendgrid_connector_preflight(settings):
+    """Validate non-secret SendGrid production prerequisites without sending."""
+    settings = settings if isinstance(settings, dict) else {}
+    blockers = []
+    from_email = str(settings.get("from_email") or "").strip()
+    if "@" not in from_email:
+        blockers.append("verified_sender_email_required")
+    if settings.get("sender_verified") is not True:
+        blockers.append("verified_sender_identity_required")
+    if settings.get("compliance_confirmed") is not True:
+        blockers.append("email_compliance_confirmation_required")
+    if settings.get("unsubscribe_ready") is not True:
+        blockers.append("unsubscribe_mechanism_required")
+    return {
+        "ready": not blockers,
+        "blockers": blockers,
+        "from_email": from_email or None,
+        "send_enabled": False,
+    }
+
+
 def build_sendgrid_mail_v3_payload(to_email, from_email, subject, body, reply_to=None):
     """Build but do not send a conservative SendGrid v3 single-recipient payload."""
     fields = {
@@ -1894,6 +1915,17 @@ def create_app():
         except Exception:
             app.logger.exception("Audience discovery request failed")
             return jsonify({"status": "error", "message": "Audience discovery request failed."}), 500
+
+    @app.route("/api/automation/connectors/sendgrid/preflight", methods=["POST", "OPTIONS"])
+    def sendgrid_preflight():
+        if request.method == "OPTIONS":
+            return ("", 204)
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            return jsonify({"status": "error", "message": "A JSON request body is required."}), 400
+        result = sendgrid_connector_preflight(data)
+        result["status"] = "ready" if result["ready"] else "blocked"
+        return jsonify(result)
 
     @app.route("/api/automation/execution-check", methods=["POST", "OPTIONS"])
     def automation_execution_check():
