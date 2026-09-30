@@ -1240,8 +1240,14 @@ def enrich_audience_with_rule_checks(candidates, max_candidates=None):
                 "requires_review": True,
             }
             return item
-        signals = extract_page_signals(page.get("html", ""), page.get("final_url", item.get("url", "")))
+        final_url = page.get("final_url", item.get("url", ""))
+        signals = extract_page_signals(page.get("html", ""), final_url)
         rules = detect_audience_channel_rules(signals)
+        rules["review_routes"] = {
+            "source_url": final_url,
+            "application_links": list(signals.get("application_links") or [])[:5],
+            "contact_links": list(signals.get("contact_links") or [])[:5],
+        }
         rules["source_reachable"] = True
         rules["last_checked"] = page.get("last_checked")
         item["channel_rules"] = rules
