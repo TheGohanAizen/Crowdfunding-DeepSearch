@@ -590,6 +590,7 @@ try:
     audience_next_action = crowdfunding_server.audience_next_action
     automation_distribution_decision = crowdfunding_server.automation_distribution_decision
     automation_connector_status = crowdfunding_server.automation_connector_status
+    automation_live_send_policy = crowdfunding_server.automation_live_send_policy
     validate_automation_connector_definition = crowdfunding_server.validate_automation_connector_definition
     build_automation_dry_run = crowdfunding_server.build_automation_dry_run
     validate_automation_execution_request = crowdfunding_server.validate_automation_execution_request
@@ -724,6 +725,11 @@ try:
         "sendgrid_mail_v3", crowdfunding_server.AUTOMATION_CONNECTOR_REGISTRY["sendgrid_mail_v3"]
     )
     assert sendgrid_contract == {"valid": True, "errors": []}
+    sendgrid_policy = automation_live_send_policy("sendgrid_mail_v3")
+    assert sendgrid_policy["registry_enabled"] is False
+    assert sendgrid_policy["deployment_enabled"] is False
+    assert sendgrid_policy["connector_opt_in"] is False
+    assert sendgrid_policy["live_send_enabled"] is False
     sendgrid_status = automation_connector_status("sendgrid_mail_v3")
     assert sendgrid_status["registered"] is True
     assert sendgrid_status["send_enabled"] is False
