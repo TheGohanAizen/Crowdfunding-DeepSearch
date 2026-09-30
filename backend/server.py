@@ -1342,7 +1342,18 @@ def automation_distribution_decision(candidate):
     send_enabled = eligibility.get("send_enabled") is True
     connector = automation_connector_status(mechanism)
     supported = bool(mechanism and mechanism in SUPPORTED_AUTOMATION_MECHANISMS)
-    allowed = eligible and send_enabled and supported and connector["configured"] and connector["send_enabled"]
+    blockers = []
+    if not eligible:
+        blockers.append("lead_not_automation_eligible")
+    if not send_enabled:
+        blockers.append("lead_send_not_enabled")
+    if not supported:
+        blockers.append("mechanism_not_registered")
+    elif not connector["configured"]:
+        blockers.append("connector_not_configured")
+    elif not connector["send_enabled"]:
+        blockers.append("connector_send_disabled")
+    allowed = not blockers
     return {
         "allowed": allowed,
         "mechanism": mechanism or None,
@@ -1350,7 +1361,8 @@ def automation_distribution_decision(candidate):
         "send_enabled": send_enabled,
         "supported": supported,
         "connector": connector,
-        "reason": "supported_automation_mechanism" if allowed else "automation_not_authorized",
+        "blockers": blockers,
+        "reason": "supported_automation_mechanism" if allowed else blockers[0],
     }
 
 
@@ -1373,7 +1385,7 @@ def build_automation_dry_run(candidate):
         "next_step": (
             "Connector is eligible for a future user-authorized execution flow."
             if decision["allowed"]
-            else "Keep this lead in assisted/manual review until an approved connector is available and authorized."
+            else "Blocked by: " + ", ".join(decision["blockers"]) + ". Keep this lead in assisted/manual review."
         ),
     }
 
