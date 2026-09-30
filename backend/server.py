@@ -1922,6 +1922,32 @@ def automation_rate_limit_status(mechanism, now=None):
     return {**contract, "allowed": remaining > 0, "used_last_hour": used, "remaining": remaining}
 
 
+def prune_automation_rate_events(retention_hours=48):
+    """Keep only a small operational window of quota metadata."""
+    hours = max(24, min(int(retention_hours or 48), 168))
+    cutoff = datetime.now(timezone.utc).timestamp() - (hours * 3600)
+    with automation_ledger_connection() as connection:
+        rows = connection.execute(
+            "SELECT event_id, consumed_at FROM automation_rate_events"
+        ).fetchall()
+        expired = []
+        for row in rows:
+            try:
+                consumed = datetime.fromisoformat(str(row["consumed_at"]).replace("Z", "+00:00"))
+                if consumed.tzinfo is None:
+                    consumed = consumed.replace(tzinfo=timezone.utc)
+                if consumed.timestamp() < cutoff:
+                    expired.append(row["event_id"])
+            except (TypeError, ValueError):
+                continue
+        if expired:
+            connection.executemany(
+                "DELETE FROM automation_rate_events WHERE event_id = ?",
+                [(event_id,) for event_id in expired],
+            )
+        return {"retention_hours": hours, "deleted": len(expired)}
+
+
 def consume_automation_rate_limit(mechanism, idempotency_key):
     """Atomically consume at most one quota event per execution key."""
     status = automation_rate_limit_status(mechanism)
