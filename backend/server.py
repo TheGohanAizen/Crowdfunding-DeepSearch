@@ -2120,6 +2120,17 @@ def create_app():
             app.logger.exception("Audience discovery request failed")
             return jsonify({"status": "error", "message": "Audience discovery request failed."}), 500
 
+    @app.route("/api/automation/executions/<idempotency_key>", methods=["GET", "OPTIONS"])
+    def automation_execution_lookup(idempotency_key):
+        if request.method == "OPTIONS":
+            return ("", 204)
+        record = find_automation_execution_record(idempotency_key)
+        if not record:
+            return jsonify({"status": "not_found"}), 404
+        record["blockers"] = json.loads(record.pop("blockers_json", "[]"))
+        record["sent"] = bool(record.get("sent"))
+        return jsonify({"status": "ok", "record": record})
+
     @app.route("/api/automation/connectors/sendgrid/simulate", methods=["POST", "OPTIONS"])
     def sendgrid_simulate():
         if request.method == "OPTIONS":
