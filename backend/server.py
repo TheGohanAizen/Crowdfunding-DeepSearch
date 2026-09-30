@@ -1301,6 +1301,31 @@ def enrich_audience_with_rule_checks(candidates, max_candidates=None):
 
 
 
+SUPPORTED_AUTOMATION_MECHANISMS = frozenset({
+    # Add a mechanism only after its official integration and permission model
+    # are implemented and tested. An empty allowlist keeps Stage 6 fail-closed.
+})
+
+
+def automation_distribution_decision(candidate):
+    """Fail closed unless a candidate names an explicitly supported send mechanism."""
+    rules = (candidate or {}).get("channel_rules") or {}
+    eligibility = rules.get("automation_eligibility") or {}
+    mechanism = str(eligibility.get("supported_mechanism") or "").strip()
+    eligible = eligibility.get("eligible") is True
+    send_enabled = eligibility.get("send_enabled") is True
+    supported = bool(mechanism and mechanism in SUPPORTED_AUTOMATION_MECHANISMS)
+    allowed = eligible and send_enabled and supported
+    return {
+        "allowed": allowed,
+        "mechanism": mechanism or None,
+        "eligible": eligible,
+        "send_enabled": send_enabled,
+        "supported": supported,
+        "reason": "supported_automation_mechanism" if allowed else "automation_not_authorized",
+    }
+
+
 def audience_next_action(candidate):
     """Recommend a review-first next action from discovered channel-rule evidence."""
     rules = candidate.get("channel_rules") or {}
