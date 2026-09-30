@@ -405,6 +405,7 @@ const AUDIENCE_DISCOVER_URL = apiRoot + "/api/audience/discover";
 const AUDIENCE_OUTREACH_DRAFT_URL = apiRoot + "/api/audience/outreach-draft";
 const AUTOMATION_CONNECTORS_URL = apiRoot + "/api/automation/connectors";
 const AUTOMATION_DRY_RUN_URL = apiRoot + "/api/automation/dry-run";
+const AUTOMATION_EXECUTION_CHECK_URL = apiRoot + "/api/automation/execution-check";
 
 async function automationBlockerLabel(code) {
     const labels = {
@@ -412,7 +413,10 @@ async function automationBlockerLabel(code) {
         lead_send_not_enabled: "automatic sending is not enabled for this lead",
         mechanism_not_registered: "no approved connector is registered for this mechanism",
         connector_not_configured: "the approved connector is not configured",
-        connector_send_disabled: "sending is disabled for the approved connector"
+        connector_send_disabled: "sending is disabled for the approved connector",
+        user_authorization_required: "explicit user authorization is required",
+        current_permission_review_required: "the route permission review must be current",
+        deduplication_clearance_required: "the lead must pass duplicate-contact protection"
     };
     return labels[code] || String(code || "automation authorization is incomplete").replaceAll("_", " ");
 }
