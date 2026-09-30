@@ -11,6 +11,7 @@ from backend.server import app as flask_app
 
 WINDOW_SECONDS = 60
 MAX_DISCOVERY_REQUESTS = 5
+MAX_TOTAL_DISCOVERY_REQUESTS = 7
 CACHE_TTL_SECONDS = 900
 MAX_CACHE_ENTRIES = 100
 
@@ -101,12 +102,17 @@ class DiscoveryGuard:
                 if entry:
                     _cache.pop(cache_key, None)
 
-        key = protected_paths[path] + ":" + _client_key(environ)
+        client = _client_key(environ)
+        key = protected_paths[path] + ":" + client
+        total_key = "all-discovery:" + client
         with _lock:
             recent = _requests[key]
+            total_recent = _requests[total_key]
             while recent and now - recent[0] >= WINDOW_SECONDS:
                 recent.popleft()
-            if len(recent) >= MAX_DISCOVERY_REQUESTS:
+            while total_recent and now - total_recent[0] >= WINDOW_SECONDS:
+                total_recent.popleft()
+            if len(recent) >= MAX_DISCOVERY_REQUESTS or len(total_recent) >= MAX_TOTAL_DISCOVERY_REQUESTS:
                 response = Response(
                     "Discovery request limit reached. Please wait before searching again.",
                     status=429,
@@ -115,6 +121,7 @@ class DiscoveryGuard:
                 )
                 return response(environ, start_response)
             recent.append(now)
+            total_recent.append(now)
 
         captured = {}
 
