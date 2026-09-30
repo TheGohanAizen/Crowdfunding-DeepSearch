@@ -587,6 +587,7 @@ try:
     validate_automation_connector_definition = crowdfunding_server.validate_automation_connector_definition
     build_automation_dry_run = crowdfunding_server.build_automation_dry_run
     validate_automation_execution_request = crowdfunding_server.validate_automation_execution_request
+    automation_idempotency_key = crowdfunding_server.automation_idempotency_key
     finalize_audience_actions = crowdfunding_server.finalize_audience_actions
     campaign_tracking_id = crowdfunding_server.campaign_tracking_id
     opportunity_tracking_id = crowdfunding_server.opportunity_tracking_id
@@ -709,6 +710,15 @@ try:
     assert dry_run["decision"]["allowed"] is False
     assert "mechanism_not_registered" in dry_run["next_step"]
     assert "assisted/manual review" in dry_run["next_step"]
+    key_one = automation_idempotency_key("workspace-1", "lead-1", "official-api", "https://example.com/submit/")
+    key_two = automation_idempotency_key("workspace-1", "lead-1", "OFFICIAL-API", "https://example.com/submit")
+    assert key_one == key_two
+    assert len(key_one) == 64
+    try:
+        automation_idempotency_key("", "lead-1", "official-api", "https://example.com/submit")
+        raise AssertionError("Missing workspace should fail idempotency key generation")
+    except ValueError:
+        pass
     execution_check = validate_automation_execution_request({"lead": automation_candidate})
     assert execution_check["allowed"] is False
     assert execution_check["sent"] is False
