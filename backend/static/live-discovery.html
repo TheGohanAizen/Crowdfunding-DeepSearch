@@ -1,26 +1,4 @@
-<
-
-function submissionPacketIsCurrent(record, routeFingerprint, verifiedApplicationRoutes) {
-    if (!(record && record.submission_packet && record.submission_packet.prepared_at
-        && record.submission_packet.route_fingerprint === routeFingerprint)) return false;
-    if (!Array.isArray(verifiedApplicationRoutes)) return true;
-    const packetRoute = String(record.submission_packet.route || "").trim().replace(/\/$/, "").toLowerCase();
-    return verifiedApplicationRoutes.some(function(route) {
-        return String(route || "").trim().replace(/\/$/, "").toLowerCase() === packetRoute;
-    });
-}
-
-function setAudienceHandoffRefreshQueue() {
-    const status = document.getElementById("audienceStatusFilter");
-    if (status) status.value = "handoff_refresh";
-    applyAudienceFilters();
-}
-
-function setAudienceHandoffPreparedQueue() {
-    const status = document.getElementById("audienceStatusFilter");
-    if (status) status.value = "handoff_prepared";
-    applyAudienceFilters();
-}!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -391,6 +369,29 @@ button:hover { background: #1d4ed8; }
 </div>
 
 <script>
+
+function submissionPacketIsCurrent(record, routeFingerprint, verifiedApplicationRoutes) {
+    if (!(record && record.submission_packet && record.submission_packet.prepared_at
+        && record.submission_packet.route_fingerprint === routeFingerprint)) return false;
+    if (!Array.isArray(verifiedApplicationRoutes)) return true;
+    const packetRoute = String(record.submission_packet.route || "").trim().replace(/\/$/, "").toLowerCase();
+    return verifiedApplicationRoutes.some(function(route) {
+        return String(route || "").trim().replace(/\/$/, "").toLowerCase() === packetRoute;
+    });
+}
+
+function setAudienceHandoffRefreshQueue() {
+    const status = document.getElementById("audienceStatusFilter");
+    if (status) status.value = "handoff_refresh";
+    applyAudienceFilters();
+}
+
+function setAudienceHandoffPreparedQueue() {
+    const status = document.getElementById("audienceStatusFilter");
+    if (status) status.value = "handoff_prepared";
+    applyAudienceFilters();
+}
+
 
 const params = new URLSearchParams(window.location.search);
 const configuredApiBase = params.get("api") || window.CROWDFUNDING_DEEPSEARCH_API || "";
