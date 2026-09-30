@@ -1514,14 +1514,8 @@ def persist_automation_execution_record(record):
     if not isinstance(record, dict) or not record.get("idempotency_key"):
         raise ValueError("An idempotency key is required for durable execution records.")
     with automation_ledger_connection() as connection:
-        existing = connection.execute(
-            "SELECT * FROM automation_execution_ledger WHERE idempotency_key = ?",
-            (record["idempotency_key"],),
-        ).fetchone()
-        if existing:
-            return {"created": False, "record": dict(existing)}
-        connection.execute(
-            """INSERT INTO automation_execution_ledger
+        cursor = connection.execute(
+            """INSERT OR IGNORE INTO automation_execution_ledger
                (idempotency_key, mechanism, endpoint, outcome, sent, provider_message_id, blockers_json, recorded_at)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
             (
@@ -1535,7 +1529,11 @@ def persist_automation_execution_record(record):
                 record.get("recorded_at") or datetime.now(timezone.utc).isoformat(),
             ),
         )
-        return {"created": True, "record": record}
+        stored = connection.execute(
+            "SELECT * FROM automation_execution_ledger WHERE idempotency_key = ?",
+            (record["idempotency_key"],),
+        ).fetchone()
+        return {"created": cursor.rowcount == 1, "record": dict(stored) if stored else record}
 
 
 def find_automation_execution_record(idempotency_key):
