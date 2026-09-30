@@ -593,7 +593,7 @@ function renderAudienceLead(item) {
         '<div class="match-reason"><strong>Recommended next action:</strong> ' + escapeHtml((item.recommended_next_action && item.recommended_next_action.label) || "Verify channel rules") + '</div>' +
         '<div class="match-reason audience-priority-state"><strong>Priority:</strong> ' + escapeHtml(score >= 80 ? "High" : score >= 60 ? "Medium" : "Standard") + '</div>' +
         '<div class="match-reason audience-permission-state"><strong>Permission:</strong> ' + escapeHtml((item.channel_rules && item.channel_rules.status === "restriction_detected") ? "Restriction detected — review before outreach" : (item.channel_rules && item.channel_rules.status === "rules_or_submission_route_found") ? "Route/rules found — human review required" : "Not verified — verify before outreach") + '</div>' +
-        '<div class="tracking-actions"><button type="button" data-audience-track="saved">Save lead</button><button type="button" data-audience-track="reviewed">Mark reviewed</button><button type="button" data-audience-permission="true">Confirm route permission reviewed</button><button type="button" data-audience-track="contacted">Mark contacted</button><button type="button" data-audience-track="responded">Mark responded</button><button type="button" data-audience-response="true">Record response details</button><button type="button" data-audience-track="closed">Close lead</button><button type="button" data-audience-followup="tomorrow">Follow up tomorrow</button><button type="button" data-audience-followup="week">Follow up +7 days</button><button type="button" data-audience-followup="clear">Clear follow-up</button><button type="button" data-audience-note="true">Add note</button><button type="button" data-audience-draft="true">Prepare outreach draft</button><button type="button" data-audience-packet="true">Prepare submission packet</button><button type="button" data-audience-automation-check="true">Check automation readiness</button></div>' +
+        '<div class="tracking-actions"><button type="button" data-audience-track="saved">Save lead</button><button type="button" data-audience-track="reviewed">Mark reviewed</button><button type="button" data-audience-permission="true">Confirm route permission reviewed</button><button type="button" data-audience-track="contacted">Mark contacted</button><button type="button" data-audience-track="responded">Mark responded</button><button type="button" data-audience-response="true">Record response details</button><button type="button" data-audience-track="closed">Close lead</button><button type="button" data-audience-followup="tomorrow">Follow up tomorrow</button><button type="button" data-audience-followup="week">Follow up +7 days</button><button type="button" data-audience-followup="clear">Clear follow-up</button><button type="button" data-audience-note="true">Add note</button><button type="button" data-audience-draft="true">Prepare outreach draft</button><button type="button" data-audience-packet="true">Prepare submission packet</button><button type="button" data-audience-automation-check="true">Check automation readiness</button><button type="button" data-audience-execution-check="true">Check execution prerequisites</button></div>' +
         '<div class="tracking-state audience-tracking-state">Audience tracking: not started</div>' +
         '<div class="tracking-state audience-permission-review-state">Permission review: not confirmed</div><div class="tracking-state audience-note-state">Private note: none</div><div class="tracking-state audience-response-state">Response details: none</div>' +
         '<div class="tracking-state audience-history-state">History: no activity yet</div>' +
@@ -693,6 +693,52 @@ function renderAudienceLead(item) {
             draftButton.textContent = originalText;
         }
     });
+    const executionCheckButton = card.querySelector("[data-audience-execution-check]");
+    if (executionCheckButton) executionCheckButton.addEventListener("click", async function() {
+        const record = readTrackingRecord(audienceTrackingKey) || {};
+        const permissionCurrent = permissionReviewIsCurrent(record, routeFingerprint);
+        const contactedAlready = record.status === "contacted" || record.status === "responded" || record.status === "closed";
+        const authorized = window.confirm("Run a non-sending execution prerequisite check for this lead? This does not submit or contact anyone.");
+        if (!authorized) return;
+        executionCheckButton.disabled = true;
+        const originalText = executionCheckButton.textContent;
+        executionCheckButton.textContent = "Checking...";
+        try {
+            const response = await fetch(AUTOMATION_EXECUTION_CHECK_URL, {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({
+                    lead: item,
+                    user_authorized: true,
+                    permission_review_current: permissionCurrent,
+                    deduplication_clear: !contactedAlready
+                })
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.message || "Execution prerequisite check failed.");
+            const blockers = Array.isArray(data.blockers) ? data.blockers.map(automationBlockerLabel) : [];
+            let state = card.querySelector(".audience-execution-check-state");
+            if (!state) {
+                state = document.createElement("div");
+                state.className = "tracking-state audience-execution-check-state";
+                card.appendChild(state);
+            }
+            state.textContent = data.allowed
+                ? "Execution prerequisites: satisfied in non-sending check — nothing was sent."
+                : "Execution prerequisites: blocked — " + blockers.join("; ") + ". Nothing was sent.";
+            if (data.receipt) {
+                const updated = readTrackingRecord(audienceTrackingKey) || {};
+                updated.last_automation_execution_check = data.receipt;
+                try { localStorage.setItem(audienceTrackingKey, JSON.stringify(updated)); } catch (error) {}
+            }
+        } catch (error) {
+            alert(error.message);
+        } finally {
+            executionCheckButton.disabled = false;
+            executionCheckButton.textContent = originalText;
+        }
+    });
+
     const automationCheckButton = card.querySelector("[data-audience-automation-check]");
     if (automationCheckButton) automationCheckButton.addEventListener("click", async function() {
         const originalText = automationCheckButton.textContent;
