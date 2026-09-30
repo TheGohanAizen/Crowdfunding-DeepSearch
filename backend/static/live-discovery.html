@@ -1,4 +1,10 @@
-<!DOCTYPE html>
+<
+
+function setAudienceHandoffPreparedQueue() {
+    const status = document.getElementById("audienceStatusFilter");
+    if (status) status.value = "handoff_prepared";
+    applyAudienceFilters();
+}!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -266,7 +272,7 @@ button:hover { background: #1d4ed8; }
       <div><strong id="audienceContactRate">0%</strong><span>Contact Rate</span></div>
       <div><strong id="audienceResponseRate">0%</strong><span>Response Rate</span></div>
       <div><strong id="audienceReadyBacklog">0</strong><span>Ready Backlog</span></div>
-      <div><strong id="audienceSubmissionReadyCount">0</strong><span>Submission Ready</span></div>
+      <div><strong id="audienceSubmissionReadyCount">0</strong><span>Submission Ready</span></div>\n      <div><strong id="audienceHandoffPreparedCount">0</strong><span>Handoffs Prepared</span></div>
     </div>
     <div class="filters" id="audienceFilters">
       <label>Audience view
@@ -285,7 +291,7 @@ button:hover { background: #1d4ed8; }
           <option value="high_priority">High priority (80+)</option>
           <option value="contact_ready">Reviewed + draft ready</option>
           <option value="draft_ready">Draft prepared</option>
-          <option value="submission_ready">Same-site submission route + permission confirmed</option>
+          <option value="submission_ready">Same-site submission route + permission confirmed</option>\n          <option value="handoff_prepared">Submission handoff prepared</option>
         </select>
       </label>
       <label>Channel
@@ -312,7 +318,7 @@ button:hover { background: #1d4ed8; }
       <button type="button" id="audienceContactReadyButton" onclick="setAudienceContactReadyQueue()">Contact-ready queue</button>
       <button type="button" id="audienceAwaitingButton" onclick="setAudienceAwaitingQueue()">Awaiting response</button>
       <button type="button" id="audienceRespondedButton" onclick="setAudienceRespondedQueue()">Responses queue</button>
-      <button type="button" id="audienceSubmissionReadyButton" onclick="setAudienceSubmissionReadyQueue()">Submission-ready queue</button>
+      <button type="button" id="audienceSubmissionReadyButton" onclick="setAudienceSubmissionReadyQueue()">Submission-ready queue</button>\n      <button type="button" id="audienceHandoffPreparedButton" onclick="setAudienceHandoffPreparedQueue()">Handoffs prepared</button>
     </div>
     <div id="audiencePlanList"></div>
     <div class="notice">This preview uses zero live-search credits. It plans relevant public-web discovery lanes first; posting or contacting remains disabled until channel rules and permissions are reviewed.</div>
@@ -781,7 +787,7 @@ function applyAudienceFilters() {
             || (status === "high_priority" && card.dataset.audiencePriority === "high")
             || (status === "draft_ready" && !!(record && record.outreach_draft))
             || (status === "contact_ready" && rule === "rules_or_submission_route_found" && tracked === "reviewed" && !!(record && record.outreach_draft) && !!(record && record.permission_review && record.permission_review.reviewed_at))
-            || (status === "submission_ready" && rule === "rules_or_submission_route_found" && tracked === "reviewed" && card.dataset.hasApplicationRoute === "true" && !!(record && record.outreach_draft) && !!(record && record.permission_review && record.permission_review.reviewed_at))
+            || (status === "submission_ready" && rule === "rules_or_submission_route_found" && tracked === "reviewed" && card.dataset.hasApplicationRoute === "true" && !!(record && record.outreach_draft) && permissionReviewIsCurrent(record, card.dataset.routeFingerprint || ""))\n            || (status === "handoff_prepared" && !!(record && record.submission_packet && record.submission_packet.prepared_at))
             || status === tracked;
         const channelMatch = channel === "all" || card.dataset.channelType === channel;
         const show = statusMatch && channelMatch;
@@ -912,7 +918,7 @@ function trackingHasStatus(record, status) {
 
 function updateAudienceTrackingDashboard() {
     const cards = Array.from(document.querySelectorAll("#audiencePlanList .result-card"));
-    const counts = {saved: 0, reviewed: 0, contacted: 0, responded: 0, closed: 0, everReviewed: 0, everContacted: 0, everResponded: 0, followups: 0, drafts: 0, ready: 0, submissionReady: 0, awaiting: 0, blocked: 0, notStarted: 0};
+    const counts = {saved: 0, reviewed: 0, contacted: 0, responded: 0, closed: 0, everReviewed: 0, everContacted: 0, everResponded: 0, followups: 0, drafts: 0, ready: 0, submissionReady: 0, handoffsPrepared: 0, awaiting: 0, blocked: 0, notStarted: 0};
     const now = new Date();
     cards.forEach(function(card) {
         const record = card.dataset.audienceTrackingKey ? readTrackingRecord(card.dataset.audienceTrackingKey) : null;
@@ -930,7 +936,7 @@ function updateAudienceTrackingDashboard() {
         if (record && record.outreach_draft) counts.drafts += 1;
         if (record && record.status === "reviewed" && record.outreach_draft && permissionReviewIsCurrent(record, card.dataset.routeFingerprint || "") && card.dataset.ruleStatus === "rules_or_submission_route_found") counts.ready += 1;
         if (record && record.status === "reviewed" && record.outreach_draft && permissionReviewIsCurrent(record, card.dataset.routeFingerprint || "") && card.dataset.ruleStatus === "rules_or_submission_route_found" && card.dataset.hasApplicationRoute === "true") counts.submissionReady += 1;
-        if (record && record.status === "contacted") counts.awaiting += 1;
+        if (record && record.submission_packet && record.submission_packet.prepared_at) counts.handoffsPrepared += 1;\n        if (record && record.status === "contacted") counts.awaiting += 1;
         if (card.dataset.ruleStatus === "restriction_detected") counts.blocked += 1;
     });
     const set = function(id, value) { const el = document.getElementById(id); if (el) el.textContent = value; };
@@ -951,7 +957,7 @@ function updateAudienceTrackingDashboard() {
     set("audienceContactRate", contactRate + "%");
     set("audienceResponseRate", responseRate + "%");
     set("audienceReadyBacklog", counts.ready);
-    set("audienceSubmissionReadyCount", counts.submissionReady);
+    set("audienceSubmissionReadyCount", counts.submissionReady);\n    set("audienceHandoffPreparedCount", counts.handoffsPrepared);
     const reviewedPercent = cards.length ? Math.round((counts.everReviewed / cards.length) * 100) : 0;
     set("audienceReviewProgress", reviewedPercent + "%");
 }
