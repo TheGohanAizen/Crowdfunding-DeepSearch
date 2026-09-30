@@ -611,6 +611,10 @@ try:
     assert check_only_auth["allowed"] is False
     assert "live_send_authorization_required" in check_only_auth["blockers"]
     assert "dry_run_authorization_not_valid_for_send" in check_only_auth["blockers"]
+    default_storage = automation_storage_status()
+    assert default_storage["backend"] == "sqlite"
+    assert default_storage["live_ready"] is False
+    assert default_storage["reason"] == "durable_automation_storage_required"
     original_env = dict(os.environ)
     try:
         for env_name in (
@@ -637,6 +641,7 @@ try:
     sendgrid_server_preflight = crowdfunding_server.sendgrid_server_preflight
     build_live_sendgrid_execution_candidate = crowdfunding_server.build_live_sendgrid_execution_candidate
     automation_rate_limit_status = crowdfunding_server.automation_rate_limit_status
+    automation_storage_status = crowdfunding_server.automation_storage_status
     consume_automation_rate_limit = crowdfunding_server.consume_automation_rate_limit
     automation_idempotency_key = crowdfunding_server.automation_idempotency_key
     automation_rate_limit_contract = crowdfunding_server.automation_rate_limit_contract
