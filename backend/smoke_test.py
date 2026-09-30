@@ -309,6 +309,11 @@ try:
     assert 'Restore the backup campaign profile too?' in live_discovery_html
     assert 'Campaign profile restored.' in live_discovery_html
     assert 'Current campaign profile left unchanged.' in live_discovery_html
+    assert 'function campaignTrackingNamespace()' in live_discovery_html
+    assert 'function currentCampaignTrackingPrefix()' in live_discovery_html
+    assert 'currentCampaignTrackingPrefix() + "audience:" + audienceTrackingId' in live_discovery_html
+    assert 'key.startsWith(currentCampaignTrackingPrefix())' in live_discovery_html
+    assert 'currentCampaignTrackingPrefix() + key.slice(TRACKING_PREFIX.length)' in live_discovery_html
     assert 'value="draft_ready"' in live_discovery_html
     assert 'tracked === "reviewed" && !!(record && record.outreach_draft)' in live_discovery_html
     assert 'audience-reviewed-routes' in live_discovery_html
