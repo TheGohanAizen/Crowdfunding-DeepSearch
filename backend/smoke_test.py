@@ -650,7 +650,8 @@ try:
     automation_decision = automation_distribution_decision(automation_candidate)
     assert automation_decision["allowed"] is False
     assert automation_decision["supported"] is False
-    assert automation_decision["reason"] == "automation_not_authorized"
+    assert automation_decision["reason"] == "mechanism_not_registered"
+    assert automation_decision["blockers"] == ["mechanism_not_registered"]
     assert crowdfunding_server.SUPPORTED_AUTOMATION_MECHANISMS == frozenset()
     connector_status = automation_connector_status("untrusted-generic-form")
     assert connector_status["registered"] is False
@@ -662,6 +663,7 @@ try:
     assert dry_run["dry_run"] is True
     assert dry_run["sent"] is False
     assert dry_run["decision"]["allowed"] is False
+    assert "mechanism_not_registered" in dry_run["next_step"]
     assert "assisted/manual review" in dry_run["next_step"]
 
     draft_builder = crowdfunding_server.build_assisted_outreach_draft
