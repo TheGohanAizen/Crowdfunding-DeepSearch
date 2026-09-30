@@ -230,6 +230,11 @@ try:
     live_discovery_path = os.path.join(ROOT, "backend", "static", "live-discovery.html")
     with open(live_discovery_path, "r", encoding="utf-8") as handle:
         live_discovery_html = handle.read()
+    assert live_discovery_html.startswith("<!DOCTYPE html>\n<html")
+    assert live_discovery_html.lower().count("<!doctype html>") == 1
+    assert live_discovery_html.index("function submissionPacketIsCurrent") > live_discovery_html.index("<script>")
+    assert live_discovery_html.index("function setAudienceHandoffRefreshQueue") > live_discovery_html.index("<script>")
+    assert live_discovery_html.index("function setAudienceHandoffPreparedQueue") > live_discovery_html.index("<script>")
     assert '</option>\\n          <option' not in live_discovery_html
     assert '</button>\\n      <button' not in live_discovery_html
     assert ');\\n    set("audienceHandoffRefreshCount"' not in live_discovery_html
