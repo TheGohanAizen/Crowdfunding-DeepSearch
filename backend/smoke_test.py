@@ -547,6 +547,7 @@ try:
     enrich_audience_with_rule_checks = crowdfunding_server.enrich_audience_with_rule_checks
     audience_next_action = crowdfunding_server.audience_next_action
     automation_distribution_decision = crowdfunding_server.automation_distribution_decision
+    automation_connector_status = crowdfunding_server.automation_connector_status
     finalize_audience_actions = crowdfunding_server.finalize_audience_actions
     campaign_tracking_id = crowdfunding_server.campaign_tracking_id
     opportunity_tracking_id = crowdfunding_server.opportunity_tracking_id
@@ -633,6 +634,11 @@ try:
     assert automation_decision["supported"] is False
     assert automation_decision["reason"] == "automation_not_authorized"
     assert crowdfunding_server.SUPPORTED_AUTOMATION_MECHANISMS == frozenset()
+    connector_status = automation_connector_status("untrusted-generic-form")
+    assert connector_status["registered"] is False
+    assert connector_status["configured"] is False
+    assert connector_status["send_enabled"] is False
+    assert automation_decision["connector"]["registered"] is False
 
     draft_builder = crowdfunding_server.build_assisted_outreach_draft
     prepared_draft = draft_builder({"need": "Transportation", "location": "Austin, Texas", "campaign_url": "https://example.org/campaign", "lead": {"name": "Example Media", "type": "Local Media", "channel_rules": {"status": "rules_or_submission_route_found"}}})
