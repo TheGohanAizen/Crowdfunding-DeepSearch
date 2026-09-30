@@ -267,6 +267,11 @@ try:
     assert 'id="audienceBlockedCount"' in live_discovery_html
     assert 'function setAudienceAwaitingQueue()' in live_discovery_html
     assert 'function setAudienceRespondedQueue()' in live_discovery_html
+    assert 'data-audience-response="true"' in live_discovery_html
+    assert 'response: previous.response || null' in live_discovery_html
+    assert 'function responseDetailsLabel(response)' in live_discovery_html
+    assert 'function responseNextAction(response)' in live_discovery_html
+    assert 'Record response details after the lead has been contacted.' in live_discovery_html
     assert 'value="draft_ready"' in live_discovery_html
     assert 'tracked === "reviewed" && !!(record && record.outreach_draft)' in live_discovery_html
     assert 'audience-reviewed-routes' in live_discovery_html
