@@ -333,6 +333,10 @@ try:
     assert 'sameSiteRoute(url, route)' in live_discovery_html
     assert 'const applicationRoute = verifiedApplicationRouteLinks[0] || ""' in live_discovery_html
     assert 'Same-site submission route + permission confirmed' in live_discovery_html
+    assert 'deepSearchButton.dataset.campaignUrl = campaignUrl' in analyzer_html
+    assert 'deepSearchButton.dataset.campaignSummary = rawDescription.slice(0, 1200)' in analyzer_html
+    assert 'campaign_url: button.dataset.campaignUrl || ""' in analyzer_html
+    assert 'campaign_summary: button.dataset.campaignSummary || ""' in analyzer_html
     assert 'key.startsWith(currentCampaignTrackingPrefix())' in live_discovery_html
     assert 'currentCampaignTrackingPrefix() + key.slice(TRACKING_PREFIX.length)' in live_discovery_html
     assert 'value="draft_ready"' in live_discovery_html
