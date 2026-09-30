@@ -256,6 +256,11 @@ try:
     assert 'AUDIENCE_OUTREACH_DRAFT_URL' in live_discovery_html
     assert 'data-audience-draft="true"' in live_discovery_html
     assert 'Prepared outreach draft — review before sending' in live_discovery_html
+    assert 'function renderSavedAudienceDraft(card, trackingKey, draft)' in live_discovery_html
+    assert 'outreach_draft: previous.outreach_draft || null' in live_discovery_html
+    assert 'data-save-draft="true"' in live_discovery_html
+    assert 'data-clear-draft="true"' in live_discovery_html
+    assert 'Saved locally with this lead.' in live_discovery_html
     assert 'audience-tracking-state' in live_discovery_html
     assert 'Recommended next action:</strong>' in live_discovery_html
     assert 'id="audienceDashboard"' in live_discovery_html
