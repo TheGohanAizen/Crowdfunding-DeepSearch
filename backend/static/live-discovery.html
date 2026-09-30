@@ -482,9 +482,9 @@ function renderAudienceLead(item) {
         '<div class="match-reason"><strong>Recommended next action:</strong> ' + escapeHtml((item.recommended_next_action && item.recommended_next_action.label) || "Verify channel rules") + '</div>' +
         '<div class="match-reason audience-priority-state"><strong>Priority:</strong> ' + escapeHtml(score >= 80 ? "High" : score >= 60 ? "Medium" : "Standard") + '</div>' +
         '<div class="match-reason audience-permission-state"><strong>Permission:</strong> ' + escapeHtml((item.channel_rules && item.channel_rules.status === "restriction_detected") ? "Restriction detected — review before outreach" : (item.channel_rules && item.channel_rules.status === "rules_or_submission_route_found") ? "Route/rules found — human review required" : "Not verified — verify before outreach") + '</div>' +
-        '<div class="tracking-actions"><button type="button" data-audience-track="saved">Save lead</button><button type="button" data-audience-track="reviewed">Mark reviewed</button><button type="button" data-audience-track="contacted">Mark contacted</button><button type="button" data-audience-track="responded">Mark responded</button><button type="button" data-audience-response="true">Record response details</button><button type="button" data-audience-track="closed">Close lead</button><button type="button" data-audience-followup="tomorrow">Follow up tomorrow</button><button type="button" data-audience-followup="week">Follow up +7 days</button><button type="button" data-audience-followup="clear">Clear follow-up</button><button type="button" data-audience-note="true">Add note</button><button type="button" data-audience-draft="true">Prepare outreach draft</button></div>' +
+        '<div class="tracking-actions"><button type="button" data-audience-track="saved">Save lead</button><button type="button" data-audience-track="reviewed">Mark reviewed</button><button type="button" data-audience-permission="true">Confirm route permission reviewed</button><button type="button" data-audience-track="contacted">Mark contacted</button><button type="button" data-audience-track="responded">Mark responded</button><button type="button" data-audience-response="true">Record response details</button><button type="button" data-audience-track="closed">Close lead</button><button type="button" data-audience-followup="tomorrow">Follow up tomorrow</button><button type="button" data-audience-followup="week">Follow up +7 days</button><button type="button" data-audience-followup="clear">Clear follow-up</button><button type="button" data-audience-note="true">Add note</button><button type="button" data-audience-draft="true">Prepare outreach draft</button></div>' +
         '<div class="tracking-state audience-tracking-state">Audience tracking: not started</div>' +
-        '<div class="tracking-state audience-note-state">Private note: none</div><div class="tracking-state audience-response-state">Response details: none</div>' +
+        '<div class="tracking-state audience-permission-review-state">Permission review: not confirmed</div><div class="tracking-state audience-note-state">Private note: none</div><div class="tracking-state audience-response-state">Response details: none</div>' +
         '<div class="tracking-state audience-history-state">History: no activity yet</div>' +
         '<div class="tracking-state audience-next-state">Next step: review channel rules</div>' +
         reviewedRouteHtml +
@@ -504,11 +504,13 @@ function renderAudienceLead(item) {
         }
     }
     const audienceState = card.querySelector(".audience-tracking-state");
+    const audiencePermissionReviewState = card.querySelector(".audience-permission-review-state");
     const audienceNoteState = card.querySelector(".audience-note-state");
     const audienceResponseState = card.querySelector(".audience-response-state");
     const audienceHistoryState = card.querySelector(".audience-history-state");
     const audienceNextState = card.querySelector(".audience-next-state");
     if (existingAudienceTracking && audienceState) audienceState.textContent = "Audience tracking: " + existingAudienceTracking.status;
+    if (existingAudienceTracking && existingAudienceTracking.permission_review && audiencePermissionReviewState) audiencePermissionReviewState.textContent = "Permission review: confirmed " + new Date(existingAudienceTracking.permission_review.reviewed_at).toLocaleString();
     if (existingAudienceTracking && existingAudienceTracking.notes && audienceNoteState) audienceNoteState.textContent = "Private note: " + existingAudienceTracking.notes;
     if (existingAudienceTracking && existingAudienceTracking.response && audienceResponseState) audienceResponseState.textContent = responseDetailsLabel(existingAudienceTracking.response);
     if (existingAudienceTracking && existingAudienceTracking.outreach_draft) {
@@ -579,6 +581,22 @@ function renderAudienceLead(item) {
             draftButton.textContent = originalText;
         }
     });
+    const permissionButton = card.querySelector("[data-audience-permission]");
+    if (permissionButton) permissionButton.addEventListener("click", function() {
+        const previous = readTrackingRecord(audienceTrackingKey) || {};
+        if (card.dataset.ruleStatus !== "rules_or_submission_route_found" || previous.status !== "reviewed") {
+            alert("First inspect the detected route/rules and mark this lead reviewed.");
+            return;
+        }
+        const confirmed = confirm("Confirm that you personally reviewed the detected route/rules and found outreach through that route appropriate. This does not authorize automatic posting or sending.");
+        if (!confirmed) return;
+        const record = writeTrackingRecord(audienceTrackingKey, "reviewed");
+        record.permission_review = {reviewed_at: new Date().toISOString(), automatic_distribution: false};
+        try { localStorage.setItem(audienceTrackingKey, JSON.stringify(record)); } catch (error) {}
+        if (audiencePermissionReviewState) audiencePermissionReviewState.textContent = "Permission review: confirmed " + new Date(record.permission_review.reviewed_at).toLocaleString();
+        updateAudienceTrackingDashboard();
+        applyAudienceFilters();
+    });
     const responseButton = card.querySelector("[data-audience-response]");
     if (responseButton) responseButton.addEventListener("click", function() {
         const previous = readTrackingRecord(audienceTrackingKey) || {};
@@ -624,8 +642,9 @@ function renderAudienceLead(item) {
                 const routeFound = card.dataset.ruleStatus === "rules_or_submission_route_found";
                 const reviewed = previous && previous.status === "reviewed";
                 const draftReady = previous && previous.outreach_draft;
-                if (!routeFound || !reviewed || !draftReady) {
-                    alert("Before marking contacted, this lead must have a detected rules/submission route, be marked reviewed, and have a saved outreach draft.");
+                const permissionReviewed = previous && previous.permission_review && previous.permission_review.reviewed_at;
+                if (!routeFound || !reviewed || !draftReady || !permissionReviewed) {
+                    alert("Before marking contacted, this lead must have a detected rules/submission route, be marked reviewed, have a saved outreach draft, and have explicit route permission review confirmed.");
                     return;
                 }
             }
@@ -679,7 +698,7 @@ function applyAudienceFilters() {
             || (status === "high_score" && Number(card.dataset.audienceScore || 0) >= 70)
             || (status === "high_priority" && card.dataset.audiencePriority === "high")
             || (status === "draft_ready" && !!(record && record.outreach_draft))
-            || (status === "contact_ready" && rule === "rules_or_submission_route_found" && tracked === "reviewed" && !!(record && record.outreach_draft))
+            || (status === "contact_ready" && rule === "rules_or_submission_route_found" && tracked === "reviewed" && !!(record && record.outreach_draft) && !!(record && record.permission_review && record.permission_review.reviewed_at))
             || status === tracked;
         const channelMatch = channel === "all" || card.dataset.channelType === channel;
         const show = statusMatch && channelMatch;
@@ -790,7 +809,7 @@ function updateAudienceTrackingDashboard() {
         else counts.notStarted += 1;
         if (record && record.status !== "closed" && record.follow_up_at && new Date(record.follow_up_at) <= now) counts.followups += 1;
         if (record && record.outreach_draft) counts.drafts += 1;
-        if (record && record.status === "reviewed" && record.outreach_draft && card.dataset.ruleStatus === "rules_or_submission_route_found") counts.ready += 1;
+        if (record && record.status === "reviewed" && record.outreach_draft && record.permission_review && record.permission_review.reviewed_at && card.dataset.ruleStatus === "rules_or_submission_route_found") counts.ready += 1;
         if (record && record.status === "contacted") counts.awaiting += 1;
         if (card.dataset.ruleStatus === "restriction_detected") counts.blocked += 1;
     });
@@ -971,6 +990,7 @@ function writeTrackingRecord(key, status) {
         first_saved_at: previous.first_saved_at || now,
         notes: previous.notes || "",
         outreach_draft: previous.outreach_draft || null,
+        permission_review: previous.permission_review || null,
         response: previous.response || null,
         follow_up_at: status === "contacted"
             ? (previous.follow_up_at || new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString())
