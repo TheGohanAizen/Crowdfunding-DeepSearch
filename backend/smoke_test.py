@@ -546,6 +546,7 @@ try:
     detect_audience_channel_rules = crowdfunding_server.detect_audience_channel_rules
     enrich_audience_with_rule_checks = crowdfunding_server.enrich_audience_with_rule_checks
     audience_next_action = crowdfunding_server.audience_next_action
+    automation_distribution_decision = crowdfunding_server.automation_distribution_decision
     finalize_audience_actions = crowdfunding_server.finalize_audience_actions
     campaign_tracking_id = crowdfunding_server.campaign_tracking_id
     opportunity_tracking_id = crowdfunding_server.opportunity_tracking_id
@@ -618,6 +619,20 @@ try:
     assert restricted_action["type"] == "do_not_contact_until_reviewed"
     assert restricted_action["blocked_by_rules"] is True
     assert restricted_action["automation_ready"] is False
+
+    automation_candidate = dict(ranked_audience)
+    automation_candidate["channel_rules"] = {
+        "automation_eligibility": {
+            "eligible": True,
+            "send_enabled": True,
+            "supported_mechanism": "untrusted-generic-form",
+        }
+    }
+    automation_decision = automation_distribution_decision(automation_candidate)
+    assert automation_decision["allowed"] is False
+    assert automation_decision["supported"] is False
+    assert automation_decision["reason"] == "automation_not_authorized"
+    assert crowdfunding_server.SUPPORTED_AUTOMATION_MECHANISMS == frozenset()
 
     draft_builder = crowdfunding_server.build_assisted_outreach_draft
     prepared_draft = draft_builder({"need": "Transportation", "location": "Austin, Texas", "campaign_url": "https://example.org/campaign", "lead": {"name": "Example Media", "type": "Local Media", "channel_rules": {"status": "rules_or_submission_route_found"}}})
