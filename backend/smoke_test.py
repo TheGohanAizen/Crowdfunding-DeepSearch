@@ -651,6 +651,7 @@ try:
     automation_admin_endpoints_enabled = crowdfunding_server.automation_admin_endpoints_enabled
     automation_attempt_idempotency_key = crowdfunding_server.automation_attempt_idempotency_key
     automation_retry_decision = crowdfunding_server.automation_retry_decision
+    validate_automation_retry_request = crowdfunding_server.validate_automation_retry_request
     automation_ledger_connection = crowdfunding_server.automation_ledger_connection
     consume_automation_rate_limit = crowdfunding_server.consume_automation_rate_limit
     automation_idempotency_key = crowdfunding_server.automation_idempotency_key
@@ -860,6 +861,8 @@ try:
         assert preserved["execution_mode"] == "live"
         assert preserved["updated_at"] == preserved["recorded_at"]
         assert preserved["resolved_at"] is None
+        assert preserved["parent_idempotency_key"] is None
+        assert preserved["attempt_number"] == 1
         migrated.close()
         os.remove(crowdfunding_server.AUTOMATION_LEDGER_PATH)
         ledger_record = automation_execution_record({
@@ -911,6 +914,19 @@ try:
         assert retry["next_idempotency_key"] != "smoke-key-1"
         assert automation_attempt_idempotency_key("smoke-key-1", 1) == "smoke-key-1"
         assert automation_attempt_idempotency_key("smoke-key-1", 2) == retry["next_idempotency_key"]
+        retry_without_consent = validate_automation_retry_request({
+            "base_idempotency_key": "smoke-key-1",
+            "permission_review_current": True,
+        })
+        assert retry_without_consent["allowed"] is False
+        assert "explicit_retry_authorization_required" in retry_without_consent["blockers"]
+        retry_with_consent = validate_automation_retry_request({
+            "base_idempotency_key": "smoke-key-1",
+            "user_authorized_retry": True,
+            "permission_review_current": True,
+        })
+        assert retry_with_consent["allowed"] is True
+
 
         old_record = dict(ledger_record)
         old_record["idempotency_key"] = "smoke-old-key"
