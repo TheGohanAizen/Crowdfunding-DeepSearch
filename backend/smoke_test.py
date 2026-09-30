@@ -945,6 +945,20 @@ try:
         quota_duplicate = consume_automation_rate_limit("sendgrid_mail_v3", "quota-smoke-1")
         assert quota_duplicate["consumed"] is False
         assert automation_rate_limit_status("sendgrid_mail_v3")["used_last_hour"] == 1
+        assert quota_consumed["reason"] == "quota_consumed"
+        assert quota_duplicate["reason"] == "quota_already_consumed_for_execution"
+        with automation_ledger_connection() as connection:
+            now_iso = datetime.now(timezone.utc).isoformat()
+            connection.executemany(
+                """INSERT INTO automation_rate_events
+                   (mechanism, idempotency_key, consumed_at) VALUES (?, ?, ?)""",
+                [("sendgrid_mail_v3", "quota-fill-" + str(i), now_iso) for i in range(2, 21)],
+            )
+        quota_exhausted = consume_automation_rate_limit("sendgrid_mail_v3", "quota-over-limit")
+        assert quota_exhausted["consumed"] is False
+        assert quota_exhausted["allowed"] is False
+        assert quota_exhausted["reason"] == "hourly_rate_limit_exhausted"
+        assert automation_rate_limit_status("sendgrid_mail_v3")["used_last_hour"] == 20
         duplicate_status = automation_execution_duplicate_status("smoke-key-1")
         assert duplicate_status["duplicate"] is True
         assert duplicate_status["previous_outcome"] == "blocked"
