@@ -2247,6 +2247,28 @@ def create_app():
             app.logger.exception("Audience discovery request failed")
             return jsonify({"status": "error", "message": "Audience discovery request failed."}), 500
 
+    @app.route("/api/automation/executions/reconcile", methods=["POST", "OPTIONS"])
+    def automation_execution_reconcile():
+        if request.method == "OPTIONS":
+            return ("", 204)
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            return jsonify({"status": "error", "message": "A JSON request body is required."}), 400
+        if data.get("confirm_reconciliation") is not True:
+            return jsonify({"status": "error", "message": "Explicit reconciliation confirmation is required."}), 400
+        try:
+            record = transition_automation_execution(
+                data.get("idempotency_key"),
+                data.get("outcome"),
+                data.get("provider_message_id"),
+                data.get("resolution_reason"),
+            )
+        except ValueError as error:
+            return jsonify({"status": "error", "message": str(error)}), 400
+        record["sent"] = bool(record.get("sent"))
+        record["blockers"] = json.loads(record.pop("blockers_json", "[]"))
+        return jsonify({"status": "ok", "record": record, "network_io": False})
+
     @app.route("/api/automation/executions/reconciliation", methods=["GET", "OPTIONS"])
     def automation_reconciliation_queue():
         if request.method == "OPTIONS":
