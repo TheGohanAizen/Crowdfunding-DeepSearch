@@ -253,6 +253,9 @@ try:
     assert 'data-audience-track="saved"' in live_discovery_html
     assert 'data-audience-track="reviewed"' in live_discovery_html
     assert 'data-audience-track="contacted"' in live_discovery_html
+    assert 'AUDIENCE_OUTREACH_DRAFT_URL' in live_discovery_html
+    assert 'data-audience-draft="true"' in live_discovery_html
+    assert 'Prepared outreach draft — review before sending' in live_discovery_html
     assert 'audience-tracking-state' in live_discovery_html
     assert 'Recommended next action:</strong>' in live_discovery_html
     assert 'id="audienceDashboard"' in live_discovery_html
@@ -464,6 +467,15 @@ try:
     assert restricted_action["type"] == "do_not_contact_until_reviewed"
     assert restricted_action["blocked_by_rules"] is True
     assert restricted_action["automation_ready"] is False
+
+    draft_builder = crowdfunding_server.build_assisted_outreach_draft
+    prepared_draft = draft_builder({"need": "Transportation", "location": "Austin, Texas", "campaign_url": "https://example.org/campaign", "lead": {"name": "Example Media", "type": "Local Media", "channel_rules": {"status": "rules_or_submission_route_found"}}})
+    assert prepared_draft["status"] == "success"
+    assert prepared_draft["send_enabled"] is False
+    assert "https://example.org/campaign" in prepared_draft["draft"]["body"]
+    blocked_draft = draft_builder({"need": "Transportation", "lead": {"name": "Restricted Forum", "type": "Community Forums", "channel_rules": {"status": "restriction_detected"}}})
+    assert blocked_draft["status"] == "blocked"
+    assert blocked_draft["automatic_distribution"] is False
 
     finalized_audience = finalize_audience_actions(uninspected)
     assert finalized_audience[0]["outreach_readiness"]["permission_verified"] is False
