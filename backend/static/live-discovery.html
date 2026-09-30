@@ -313,7 +313,8 @@ button:hover { background: #1d4ed8; }
           <option value="contact_ready">Reviewed + draft ready</option>
           <option value="draft_ready">Draft prepared</option>
           <option value="submission_ready">Same-site submission route + permission confirmed</option>
-          <option value="handoff_prepared">Submission handoff prepared</option>\n          <option value="handoff_refresh">Submission handoff needs refresh</option>
+          <option value="handoff_prepared">Submission handoff prepared</option>
+          <option value="handoff_refresh">Submission handoff needs refresh</option>
         </select>
       </label>
       <label>Channel
@@ -341,7 +342,8 @@ button:hover { background: #1d4ed8; }
       <button type="button" id="audienceAwaitingButton" onclick="setAudienceAwaitingQueue()">Awaiting response</button>
       <button type="button" id="audienceRespondedButton" onclick="setAudienceRespondedQueue()">Responses queue</button>
       <button type="button" id="audienceSubmissionReadyButton" onclick="setAudienceSubmissionReadyQueue()">Submission-ready queue</button>
-      <button type="button" id="audienceHandoffPreparedButton" onclick="setAudienceHandoffPreparedQueue()">Handoffs prepared</button>\n      <button type="button" id="audienceHandoffRefreshButton" onclick="setAudienceHandoffRefreshQueue()">Handoffs need refresh</button>
+      <button type="button" id="audienceHandoffPreparedButton" onclick="setAudienceHandoffPreparedQueue()">Handoffs prepared</button>
+      <button type="button" id="audienceHandoffRefreshButton" onclick="setAudienceHandoffRefreshQueue()">Handoffs need refresh</button>
     </div>
     <div id="audiencePlanList"></div>
     <div class="notice">This preview uses zero live-search credits. It plans relevant public-web discovery lanes first; posting or contacting remains disabled until channel rules and permissions are reviewed.</div>
@@ -1019,7 +1021,8 @@ function updateAudienceTrackingDashboard() {
     set("audienceResponseRate", responseRate + "%");
     set("audienceReadyBacklog", counts.ready);
     set("audienceSubmissionReadyCount", counts.submissionReady);
-    set("audienceHandoffPreparedCount", counts.handoffsPrepared);\n    set("audienceHandoffRefreshCount", counts.handoffsRefresh);
+    set("audienceHandoffPreparedCount", counts.handoffsPrepared);
+    set("audienceHandoffRefreshCount", counts.handoffsRefresh);
     const reviewedPercent = cards.length ? Math.round((counts.everReviewed / cards.length) * 100) : 0;
     set("audienceReviewProgress", reviewedPercent + "%");
 }
