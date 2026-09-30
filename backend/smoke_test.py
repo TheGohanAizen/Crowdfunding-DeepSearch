@@ -270,6 +270,8 @@ try:
     assert 'last_automation_execution_check' in live_discovery_html
     assert 'permission_review_current: permissionCurrent' in live_discovery_html
     assert 'deduplication_clear: !contactedAlready' in live_discovery_html
+    assert 'workspace_id: currentCampaignWorkspaceId()' in live_discovery_html
+    assert 'route: verifiedApplicationRouteLinks[0] || ""' in live_discovery_html
     assert 'function automationBlockerLabel(code)' in live_discovery_html
     assert 'no approved connector is registered for this mechanism' in live_discovery_html
     assert 'the approved connector is not configured' in live_discovery_html
@@ -725,6 +727,9 @@ try:
     assert "user_authorization_required" in execution_check["blockers"]
     assert "current_permission_review_required" in execution_check["blockers"]
     assert "deduplication_clearance_required" in execution_check["blockers"]
+    assert "verified_route_required" in execution_check["blockers"]
+    assert "workspace_id_required" in execution_check["blockers"]
+    assert execution_check["idempotency_key"] is None
 
     draft_builder = crowdfunding_server.build_assisted_outreach_draft
     prepared_draft = draft_builder({"need": "Transportation", "location": "Austin, Texas", "campaign_url": "https://example.org/campaign", "lead": {"name": "Example Media", "type": "Local Media", "channel_rules": {"status": "rules_or_submission_route_found"}}})
