@@ -1653,6 +1653,7 @@ def automation_execution_duplicate_status(idempotency_key):
         "previous_sent": bool(record.get("sent")) if record else False,
         "reconciliation_required": bool(record and record.get("outcome") in {"reserved", "unknown"}),
         "provider_message_id": record.get("provider_message_id") if record else None,
+        "resolution_reason": record.get("resolution_reason") if record else None,
     }
 
 
@@ -2276,7 +2277,7 @@ def create_app():
         with automation_ledger_connection() as connection:
             rows = connection.execute(
                 """SELECT idempotency_key, mechanism, endpoint, outcome, sent,
-                          provider_message_id, recorded_at
+                          provider_message_id, resolution_reason, recorded_at
                    FROM automation_execution_ledger
                    WHERE execution_mode = 'live' AND outcome IN ('reserved', 'unknown')
                    ORDER BY recorded_at ASC
