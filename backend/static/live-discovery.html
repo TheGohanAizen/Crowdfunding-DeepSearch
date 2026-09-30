@@ -746,7 +746,7 @@ function renderAudienceLead(item) {
                 headers: {"Content-Type": "application/json"},
                 body: JSON.stringify({
                     lead: item,
-                    user_authorized: true,
+                    user_authorized_check: true,
                     permission_review_current: permissionReviewIsCurrent(record, routeFingerprint),
                     deduplication_clear: !["contacted", "responded", "closed"].includes(record.status),
                     workspace_id: currentCampaignWorkspaceId(),
@@ -794,7 +794,7 @@ function renderAudienceLead(item) {
                 headers: {"Content-Type": "application/json"},
                 body: JSON.stringify({
                     lead: item,
-                    user_authorized: true,
+                    user_authorized_check: true,
                     permission_review_current: permissionCurrent,
                     deduplication_clear: !contactedAlready,
                     workspace_id: currentCampaignWorkspaceId(),
