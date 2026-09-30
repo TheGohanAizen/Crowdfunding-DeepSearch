@@ -312,6 +312,9 @@ try:
     assert 'function campaignTrackingNamespace()' in live_discovery_html
     assert 'function currentCampaignTrackingPrefix()' in live_discovery_html
     assert 'currentCampaignTrackingPrefix() + "audience:" + audienceTrackingId' in live_discovery_html
+    assert 'currentCampaignTrackingPrefix() + "opportunity:" + opportunityTrackingId' in live_discovery_html
+    assert 'const legacyTrackingKey = TRACKING_PREFIX + campaignTrackingId + ":" + opportunityTrackingId' in live_discovery_html
+    assert 'localStorage.removeItem(legacyTrackingKey)' in live_discovery_html
     assert 'key.startsWith(currentCampaignTrackingPrefix())' in live_discovery_html
     assert 'currentCampaignTrackingPrefix() + key.slice(TRACKING_PREFIX.length)' in live_discovery_html
     assert 'value="draft_ready"' in live_discovery_html
