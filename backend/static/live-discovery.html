@@ -505,6 +505,16 @@ function renderAudienceLead(item) {
     card.dataset.audiencePriority = score >= 80 ? "high" : score >= 60 ? "medium" : "standard";
     const url = item.url && /^https?:\/\//i.test(item.url) ? item.url : "";
     const rules = item.channel_rules || {status: "not_checked", evidence: {}};
+    const automationEligibility = rules.automation_eligibility || {
+        status: "manual_review_only",
+        eligible: false,
+        supported_mechanism: null,
+        send_enabled: false
+    };
+    card.dataset.automationEligible = automationEligibility.eligible === true && automationEligibility.send_enabled === true ? "true" : "false";
+    const automationLabel = card.dataset.automationEligible === "true"
+        ? "Eligible through verified supported mechanism"
+        : "Manual review only — automatic submission not enabled";
     const ruleEvidence = Object.entries(rules.evidence || {}).map(function(entry) {
         return entry[0] + ": " + entry[1].join(", ");
     }).join(" · ") || "No explicit rule evidence detected yet.";
@@ -541,7 +551,7 @@ function renderAudienceLead(item) {
         '<div class="score">' + escapeHtml(score) + '/100</div></div>' +
         '<div class="match-reason"><strong>Why it may fit:</strong> ' + escapeHtml((item.audience_relevance_signals || []).join(", ") || "Needs review") + '</div>' +
         '<div class="match-reason"><strong>Channel rules:</strong> ' + escapeHtml(ruleLabel) + '<br><small>' + escapeHtml(ruleEvidence) + '</small></div>' +
-        '<div class="verification"><strong>Permission:</strong> Not verified. Review channel rules before contacting or posting.<br><strong>Automatic distribution:</strong> Disabled.</div>' +
+        '<div class="verification"><strong>Permission:</strong> Not verified. Review channel rules before contacting or posting.<br><strong>Automation eligibility:</strong>  + escapeHtml(automationLabel) + </div>' +
         '<div class="match-reason"><strong>Recommended next action:</strong> ' + escapeHtml((item.recommended_next_action && item.recommended_next_action.label) || "Verify channel rules") + '</div>' +
         '<div class="match-reason audience-priority-state"><strong>Priority:</strong> ' + escapeHtml(score >= 80 ? "High" : score >= 60 ? "Medium" : "Standard") + '</div>' +
         '<div class="match-reason audience-permission-state"><strong>Permission:</strong> ' + escapeHtml((item.channel_rules && item.channel_rules.status === "restriction_detected") ? "Restriction detected — review before outreach" : (item.channel_rules && item.channel_rules.status === "rules_or_submission_route_found") ? "Route/rules found — human review required" : "Not verified — verify before outreach") + '</div>' +
