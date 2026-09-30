@@ -1330,8 +1330,17 @@ def validate_automation_connector_definition(name, connector):
 
 
 AUTOMATION_CONNECTOR_REGISTRY = {
-    # Provider connectors are registered only after an official API/submission
-    # mechanism, required authorization scope, and bounded rate policy exist.
+    "sendgrid_mail_v3": {
+        "action_type": "official_api",
+        "credential_env": "SENDGRID_API_KEY",
+        "rate_limit_per_hour": 20,
+        "send_enabled": False,
+        "requires_user_authorization": True,
+        "documentation_url": "https://www.twilio.com/docs/sendgrid/api-reference/mail-send",
+        "endpoint": "https://api.sendgrid.com/v3/mail/send",
+        "requires_verified_sender": True,
+        "requires_unsubscribe_compliance": True,
+    },
 }
 
 INVALID_AUTOMATION_CONNECTORS = {
@@ -1403,6 +1412,33 @@ def automation_distribution_decision(candidate):
         "blockers": blockers,
         "reason": "supported_automation_mechanism" if allowed else blockers[0],
     }
+
+
+def build_sendgrid_mail_v3_payload(to_email, from_email, subject, body, reply_to=None):
+    """Build but do not send a conservative SendGrid v3 single-recipient payload."""
+    fields = {
+        "to_email": str(to_email or "").strip(),
+        "from_email": str(from_email or "").strip(),
+        "subject": str(subject or "").strip(),
+        "body": str(body or "").strip(),
+    }
+    missing = [name for name, value in fields.items() if not value]
+    if missing:
+        raise ValueError("Missing required email fields: " + ", ".join(missing))
+    if "@" not in fields["to_email"] or "@" not in fields["from_email"]:
+        raise ValueError("Valid recipient and sender email addresses are required.")
+    payload = {
+        "personalizations": [{"to": [{"email": fields["to_email"]}]}],
+        "from": {"email": fields["from_email"]},
+        "subject": fields["subject"],
+        "content": [{"type": "text/plain", "value": fields["body"]}],
+    }
+    reply = str(reply_to or "").strip()
+    if reply:
+        if "@" not in reply:
+            raise ValueError("A valid reply-to email address is required.")
+        payload["reply_to"] = {"email": reply}
+    return payload
 
 
 def automation_rate_limit_contract(mechanism):
