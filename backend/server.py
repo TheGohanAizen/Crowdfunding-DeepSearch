@@ -1446,12 +1446,25 @@ def validate_automation_execution_request(data):
         blockers.append("current_permission_review_required")
     if data.get("deduplication_clear") is not True:
         blockers.append("deduplication_clearance_required")
+    route = str(data.get("route") or "").strip()
+    workspace_id = str(data.get("workspace_id") or "").strip()
+    tracking_id = str(lead.get("tracking_id") or "").strip()
+    idempotency_key = None
+    if not route:
+        blockers.append("verified_route_required")
+    if not workspace_id:
+        blockers.append("workspace_id_required")
+    if route and workspace_id and tracking_id and decision.get("mechanism"):
+        idempotency_key = automation_idempotency_key(
+            workspace_id, tracking_id, decision["mechanism"], route
+        )
     return {
         "allowed": not blockers,
         "dry_run": True,
         "sent": False,
         "decision": decision,
         "blockers": blockers,
+        "idempotency_key": idempotency_key,
         "reason": "execution_prerequisites_satisfied" if not blockers else blockers[0],
     }
 
