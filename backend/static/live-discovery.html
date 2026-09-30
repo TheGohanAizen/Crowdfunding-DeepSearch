@@ -1367,7 +1367,7 @@ function exportTracking() {\n    saveCampaignWorkspaceProfile();
             if (key && key.startsWith(currentCampaignTrackingPrefix())) records[key] = readTrackingRecord(key);
         }
     } catch (error) {}
-    const blob = new Blob([JSON.stringify({version: 3, exported_at: new Date().toISOString(), campaign: currentCampaignTrackingProfile(), records: records}, null, 2)], {type: "application/json"});
+    const blob = new Blob([JSON.stringify({version: 4, exported_at: new Date().toISOString(), campaign: currentCampaignTrackingProfile(), workspace_registry: campaignWorkspaceRegistry(), records: records}, null, 2)], {type: "application/json"});
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
@@ -1409,6 +1409,16 @@ function importTracking(event) {
             const payload = JSON.parse(reader.result);
             if (!payload || typeof payload !== "object" || !payload.records || typeof payload.records !== "object") throw new Error("Invalid tracking backup");
             const campaign = payload.campaign || {};
+            if (payload.version >= 4 && payload.workspace_registry && typeof payload.workspace_registry === "object") {
+                const existingRegistry = campaignWorkspaceRegistry();
+                Object.keys(payload.workspace_registry).forEach(function(id) {
+                    const cleanId = String(id || "").trim().replace(/[^a-zA-Z0-9._-]/g, "").slice(0, 120);
+                    const profile = payload.workspace_registry[id];
+                    if (!cleanId || !profile || typeof profile !== "object") return;
+                    existingRegistry[cleanId] = profile;
+                });
+                try { localStorage.setItem(CAMPAIGN_WORKSPACE_REGISTRY_KEY, JSON.stringify(existingRegistry)); } catch (error) {}
+            }
             let profileRestored = false;
             if (payload.version >= 2 && campaign && Object.keys(campaign).length) {
                 const current = currentCampaignTrackingProfile();
