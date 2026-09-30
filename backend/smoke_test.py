@@ -363,6 +363,9 @@ try:
     assert "MAX_TOTAL_DISCOVERY_REQUESTS = 7" in protected_source
     assert '"all-discovery:" + client' in protected_source
     assert "len(total_recent) >= MAX_TOTAL_DISCOVERY_REQUESTS" in protected_source
+    assert "selected_stages = stages" in server_source
+    assert "for geo_stage, geography in selected_stages:" in server_source
+    assert "for lane, terms in lanes:" in server_source
     assert 'outreach_intent:' in server_source
     assert 'low_signal_page' in server_source
     assert 'cross_search_corroboration' in server_source
