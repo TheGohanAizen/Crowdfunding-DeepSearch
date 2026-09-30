@@ -1569,6 +1569,24 @@ def create_app():
             app.logger.exception("Audience discovery request failed")
             return jsonify({"status": "error", "message": "Audience discovery request failed."}), 500
 
+    @app.route("/api/audience/outreach-draft", methods=["POST", "OPTIONS"])
+    def audience_outreach_draft():
+        if request.method == "OPTIONS":
+            return ("", 204)
+        if request.content_length is not None and request.content_length > 65536:
+            return jsonify({"status": "error", "message": "Request body is too large."}), 413
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            return jsonify({"status": "error", "message": "A JSON request body is required."}), 400
+        try:
+            result = build_assisted_outreach_draft(data)
+            return jsonify(result), (409 if result.get("status") == "blocked" else 200)
+        except ValueError as error:
+            return jsonify({"status": "error", "message": str(error)}), 400
+        except Exception:
+            app.logger.exception("Audience outreach draft request failed")
+            return jsonify({"status": "error", "message": "Audience outreach draft request failed."}), 500
+
     @app.route("/api/audience/preview", methods=["POST", "OPTIONS"])
     def audience_preview():
         if request.method == "OPTIONS":
