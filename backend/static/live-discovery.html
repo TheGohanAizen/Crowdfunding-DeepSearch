@@ -438,10 +438,15 @@ function loadAutomationConnectorStatus() {
         const data = await response.json();
         if (!response.ok || data.status !== "ok") throw new Error("Connector readiness unavailable.");
         const enabled = data.automatic_distribution_enabled === true;
-        const connectorCount = Array.isArray(data.connectors) ? data.connectors.length : 0;
+        const connectors = Array.isArray(data.connectors) ? data.connectors : [];
+        const connectorCount = connectors.length;
+        const sendgrid = connectors.find(function(connector) { return connector.mechanism === "sendgrid_mail_v3"; });
+        const sendgridSuffix = sendgrid
+            ? " SendGrid: registered" + (sendgrid.configured ? ", credentials configured" : ", credentials not configured") + (sendgrid.send_enabled ? ", live send enabled." : ", live send disabled.")
+            : "";
         status.textContent = enabled
-            ? "Automatic distribution status: approved connector available."
-            : "Automatic distribution status: disabled — " + connectorCount + " approved connector" + (connectorCount === 1 ? "" : "s") + " available; unregistered routes remain manual.";
+            ? "Automatic distribution status: approved connector available." + sendgridSuffix
+            : "Automatic distribution status: disabled — " + connectorCount + " approved connector" + (connectorCount === 1 ? "" : "s") + " available; unregistered routes remain manual." + sendgridSuffix;
     } catch (error) {
         status.textContent = "Automatic distribution status: unavailable — manual review remains required.";
     }
