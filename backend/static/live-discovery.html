@@ -404,6 +404,7 @@ const AUDIENCE_PLAN_URL = apiRoot + "/api/audience/plan";
 const AUDIENCE_DISCOVER_URL = apiRoot + "/api/audience/discover";
 const AUDIENCE_OUTREACH_DRAFT_URL = apiRoot + "/api/audience/outreach-draft";
 const AUTOMATION_CONNECTORS_URL = apiRoot + "/api/automation/connectors";
+const AUTOMATION_DRY_RUN_URL = apiRoot + "/api/automation/dry-run";
 
 async function loadAutomationConnectorStatus() {
     const status = document.getElementById("automationConnectorStatus");
@@ -578,7 +579,7 @@ function renderAudienceLead(item) {
         '<div class="match-reason"><strong>Recommended next action:</strong> ' + escapeHtml((item.recommended_next_action && item.recommended_next_action.label) || "Verify channel rules") + '</div>' +
         '<div class="match-reason audience-priority-state"><strong>Priority:</strong> ' + escapeHtml(score >= 80 ? "High" : score >= 60 ? "Medium" : "Standard") + '</div>' +
         '<div class="match-reason audience-permission-state"><strong>Permission:</strong> ' + escapeHtml((item.channel_rules && item.channel_rules.status === "restriction_detected") ? "Restriction detected — review before outreach" : (item.channel_rules && item.channel_rules.status === "rules_or_submission_route_found") ? "Route/rules found — human review required" : "Not verified — verify before outreach") + '</div>' +
-        '<div class="tracking-actions"><button type="button" data-audience-track="saved">Save lead</button><button type="button" data-audience-track="reviewed">Mark reviewed</button><button type="button" data-audience-permission="true">Confirm route permission reviewed</button><button type="button" data-audience-track="contacted">Mark contacted</button><button type="button" data-audience-track="responded">Mark responded</button><button type="button" data-audience-response="true">Record response details</button><button type="button" data-audience-track="closed">Close lead</button><button type="button" data-audience-followup="tomorrow">Follow up tomorrow</button><button type="button" data-audience-followup="week">Follow up +7 days</button><button type="button" data-audience-followup="clear">Clear follow-up</button><button type="button" data-audience-note="true">Add note</button><button type="button" data-audience-draft="true">Prepare outreach draft</button><button type="button" data-audience-packet="true">Prepare submission packet</button></div>' +
+        '<div class="tracking-actions"><button type="button" data-audience-track="saved">Save lead</button><button type="button" data-audience-track="reviewed">Mark reviewed</button><button type="button" data-audience-permission="true">Confirm route permission reviewed</button><button type="button" data-audience-track="contacted">Mark contacted</button><button type="button" data-audience-track="responded">Mark responded</button><button type="button" data-audience-response="true">Record response details</button><button type="button" data-audience-track="closed">Close lead</button><button type="button" data-audience-followup="tomorrow">Follow up tomorrow</button><button type="button" data-audience-followup="week">Follow up +7 days</button><button type="button" data-audience-followup="clear">Clear follow-up</button><button type="button" data-audience-note="true">Add note</button><button type="button" data-audience-draft="true">Prepare outreach draft</button><button type="button" data-audience-packet="true">Prepare submission packet</button><button type="button" data-audience-automation-check="true">Check automation readiness</button></div>' +
         '<div class="tracking-state audience-tracking-state">Audience tracking: not started</div>' +
         '<div class="tracking-state audience-permission-review-state">Permission review: not confirmed</div><div class="tracking-state audience-note-state">Private note: none</div><div class="tracking-state audience-response-state">Response details: none</div>' +
         '<div class="tracking-state audience-history-state">History: no activity yet</div>' +
@@ -678,6 +679,36 @@ function renderAudienceLead(item) {
             draftButton.textContent = originalText;
         }
     });
+    const automationCheckButton = card.querySelector("[data-audience-automation-check]");
+    if (automationCheckButton) automationCheckButton.addEventListener("click", async function() {
+        const originalText = automationCheckButton.textContent;
+        automationCheckButton.disabled = true;
+        automationCheckButton.textContent = "Checking...";
+        try {
+            const response = await fetch(AUTOMATION_DRY_RUN_URL, {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({lead: item})
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.message || "Automation readiness check failed.");
+            let state = card.querySelector(".audience-automation-check-state");
+            if (!state) {
+                state = document.createElement("div");
+                state.className = "tracking-state audience-automation-check-state";
+                card.appendChild(state);
+            }
+            state.textContent = data.status === "ready"
+                ? "Automation readiness: connector gate passed in dry-run only — nothing was sent."
+                : "Automation readiness: blocked — " + (data.next_step || "assisted/manual review remains required.");
+        } catch (error) {
+            alert(error.message);
+        } finally {
+            automationCheckButton.disabled = false;
+            automationCheckButton.textContent = originalText;
+        }
+    });
+
     const packetButton = card.querySelector("[data-audience-packet]");
     if (packetButton) packetButton.addEventListener("click", async function() {
         const record = readTrackingRecord(audienceTrackingKey) || {};
