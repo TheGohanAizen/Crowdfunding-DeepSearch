@@ -368,6 +368,11 @@ try:
     assert 'function submissionPacketIsCurrent(record, routeFingerprint, verifiedApplicationRoutes)' in live_discovery_html
     assert 'card.dataset.verifiedApplicationRoutes = verifiedApplicationRouteLinks.join' in live_discovery_html
     assert 'verifiedApplicationRoutes.some(function(route)' in live_discovery_html
+    assert 'id="audienceHandoffRefreshCount"' in live_discovery_html
+    assert 'value="handoff_refresh"' in live_discovery_html
+    assert 'function setAudienceHandoffRefreshQueue()' in live_discovery_html
+    assert 'id="audienceHandoffRefreshButton"' in live_discovery_html
+    assert 'counts.handoffsRefresh += 1' in live_discovery_html
     assert 'workspace_registry: campaignWorkspaceRegistry()' in live_discovery_html
     assert 'payload.version >= 4 && payload.workspace_registry' in live_discovery_html
     assert '{\\\\n    saveCampaignWorkspaceProfile();' not in live_discovery_html
