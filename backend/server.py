@@ -960,6 +960,10 @@ def build_discovery_response(data):
     location = str(data.get("location") or "Location not specified").strip()
     goal = data.get("goal")
     scope = str(data.get("scope") or "local").strip().lower()
+    campaign_url = str(data.get("campaign_url") or "").strip()
+    campaign_summary = " ".join(str(data.get("campaign_summary") or "").split()).strip()[:1200]
+    if campaign_url and not re.match(r"^https?://", campaign_url, re.I):
+        raise ValueError("Campaign URL must use http or https.")
     allowed_scopes = {"local", "state", "national", "worldwide", "automatic"}
     if scope not in allowed_scopes:
         raise ValueError("Unsupported search scope.")
@@ -997,7 +1001,7 @@ def build_discovery_response(data):
     return {
         "status": "success",
         "campaign_tracking_id": campaign_id,
-        "query": {"need": need, "location": location, "goal": goal, "scope": scope},
+        "query": {"need": need, "location": location, "goal": goal, "scope": scope, "campaign_url": campaign_url, "campaign_summary": campaign_summary},
         "discovery": {
             "stage": "source-verification-v1",
             "live_search": retrieval["configured"],
@@ -1485,6 +1489,18 @@ def build_audience_plan_response(data):
     need = str(data.get("need") or "General Financial Assistance").strip()
     location = str(data.get("location") or "").strip()
     scope = str(data.get("scope") or "automatic").strip().lower()
+    goal = data.get("goal")
+    campaign_url = str(data.get("campaign_url") or "").strip()
+    campaign_summary = " ".join(str(data.get("campaign_summary") or "").split()).strip()[:1200]
+    if campaign_url and not re.match(r"^https?://", campaign_url, re.I):
+        raise ValueError("Campaign URL must use http or https.")
+    if goal not in (None, ""):
+        try:
+            goal = float(goal)
+        except (TypeError, ValueError):
+            raise ValueError("Goal must be numeric.")
+        if goal < 0 or goal > 1000000000:
+            raise ValueError("Goal is outside the supported range.")
     if len(need) > MAX_QUERY_LENGTH or len(location) > MAX_QUERY_LENGTH:
         raise ValueError("Audience search fields are too long.")
     if scope not in {"local", "state", "national", "worldwide", "automatic"}:
@@ -1492,7 +1508,7 @@ def build_audience_plan_response(data):
     plan = build_audience_queries(need, location, scope)
     return {
         "status": "success",
-        "query": {"need": need, "location": location, "scope": scope},
+        "query": {"need": need, "location": location, "scope": scope, "goal": goal, "campaign_url": campaign_url, "campaign_summary": campaign_summary},
         "audience": {
             "stage": "audience-planning-v1",
             "live_search": False,
