@@ -2138,7 +2138,14 @@ def create_app():
         data = request.get_json(silent=True)
         try:
             plan = build_disabled_sendgrid_execution_plan(data)
-            return jsonify(execute_sendgrid_transport(plan, simulate=True))
+            result = execute_sendgrid_transport(plan, simulate=True)
+            record = result.get("record") or {}
+            result["ledger"] = (
+                persist_automation_execution_record(record)
+                if record.get("idempotency_key")
+                else {"created": False, "record": None}
+            )
+            return jsonify(result)
         except ValueError as error:
             return jsonify({"status": "error", "message": str(error)}), 400
 
