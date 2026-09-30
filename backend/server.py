@@ -1128,10 +1128,17 @@ def retrieve_audience_candidates(search_plan, per_lane=2):
     bounded_plan = list(search_plan)[:MAX_SEARCH_LANES]
     retrieval = retrieve_candidates(bounded_plan, per_lane=min(max(int(per_lane), 1), 2))
     normalized = []
-    plan_by_lane = {item["lane"]: item for item in bounded_plan}
+    plan_by_query = {
+        (item.get("lane"), item.get("query")): item
+        for item in bounded_plan
+    }
+    plan_by_lane = {}
+    for plan_item in bounded_plan:
+        plan_by_lane.setdefault(plan_item.get("lane"), plan_item)
     for item in retrieval.get("candidates", [])[:MAX_DISCOVERY_RESULTS]:
         lane = item.get("type") or "Community Forums"
-        plan = plan_by_lane.get(lane, {})
+        source_query = item.get("source_query", "")
+        plan = plan_by_query.get((lane, source_query)) or plan_by_lane.get(lane, {})
         raw = {
             "url": item.get("url", ""),
             "title": item.get("name", ""),
