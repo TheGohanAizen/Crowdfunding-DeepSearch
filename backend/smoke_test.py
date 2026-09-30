@@ -338,6 +338,10 @@ try:
     assert '"candidate_count_after_dedup": after_dedup_count' in server_source
     assert '"duplicates_merged": max(0, before_dedup_count - after_dedup_count)' in server_source
     assert 'Duplicate discoveries merged:' in live_discovery_html
+    assert '["saved", "reviewed", "contacted", "responded", "closed"]' in live_discovery_html
+    assert '(status === "responded" || status === "closed") ? null' in live_discovery_html
+    assert 'legacyAudienceTrackingKey' in live_discovery_html
+    assert 'localStorage.removeItem(legacyAudienceTrackingKey)' in live_discovery_html
     assert 'outreach_intent:' in server_source
     assert 'low_signal_page' in server_source
     assert 'cross_search_corroboration' in server_source
