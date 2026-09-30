@@ -977,7 +977,7 @@ function updateAudienceDashboard(results) {
     set("audienceReviewCount", items.filter(function(item) { return !item.channel_rules || !["restriction_detected", "rules_or_submission_route_found"].includes(item.channel_rules.status); }).length);
 }
 
-async function runAudienceDiscovery() {
+async function runAudienceDiscovery() {\n    saveCampaignWorkspaceProfile();
     const panel = document.getElementById("audienceResults");
     const summary = document.getElementById("audienceSummary");
     const list = document.getElementById("audiencePlanList");
@@ -1019,7 +1019,7 @@ async function runAudienceDiscovery() {
     }
 }
 
-async function runAudiencePlan() {
+async function runAudiencePlan() {\n    saveCampaignWorkspaceProfile();
     const panel = document.getElementById("audienceResults");
     const summary = document.getElementById("audienceSummary");
     const list = document.getElementById("audiencePlanList");
@@ -1359,7 +1359,7 @@ function currentCampaignTrackingProfile() {
     };
 }
 
-function exportTracking() {
+function exportTracking() {\n    saveCampaignWorkspaceProfile();
     const records = {};
     try {
         for (let i = 0; i < localStorage.length; i += 1) {
@@ -1441,7 +1441,7 @@ function importTracking(event) {
     reader.readAsText(file);
 }
 
-async function runDiscovery() {
+async function runDiscovery() {\n    saveCampaignWorkspaceProfile();
     const need = document.getElementById("need").value;
     const scope = document.getElementById("scope").value;
     const location = document.getElementById("location").value.trim()
