@@ -1,5 +1,10 @@
 <
 
+function submissionPacketIsCurrent(record, routeFingerprint) {
+    return !!(record && record.submission_packet && record.submission_packet.prepared_at
+        && record.submission_packet.route_fingerprint === routeFingerprint);
+}
+
 function setAudienceHandoffPreparedQueue() {
     const status = document.getElementById("audienceStatusFilter");
     if (status) status.value = "handoff_prepared";
@@ -657,7 +662,7 @@ function renderAudienceLead(item) {
             "Permission review confirmed: " + record.permission_review.reviewed_at,
             "Automatic submission: disabled — complete the official route manually."
         ].join("\n");
-        record.submission_packet = {prepared_at: new Date().toISOString(), route: applicationRoute};
+        record.submission_packet = {prepared_at: new Date().toISOString(), route: applicationRoute, route_fingerprint: routeFingerprint};
         try { localStorage.setItem(audienceTrackingKey, JSON.stringify(record)); } catch (error) {}
         try {
             await navigator.clipboard.writeText(packet);
@@ -787,7 +792,7 @@ function applyAudienceFilters() {
             || (status === "high_priority" && card.dataset.audiencePriority === "high")
             || (status === "draft_ready" && !!(record && record.outreach_draft))
             || (status === "contact_ready" && rule === "rules_or_submission_route_found" && tracked === "reviewed" && !!(record && record.outreach_draft) && !!(record && record.permission_review && record.permission_review.reviewed_at))
-            || (status === "submission_ready" && rule === "rules_or_submission_route_found" && tracked === "reviewed" && card.dataset.hasApplicationRoute === "true" && !!(record && record.outreach_draft) && permissionReviewIsCurrent(record, card.dataset.routeFingerprint || ""))\n            || (status === "handoff_prepared" && !!(record && record.submission_packet && record.submission_packet.prepared_at))
+            || (status === "submission_ready" && rule === "rules_or_submission_route_found" && tracked === "reviewed" && card.dataset.hasApplicationRoute === "true" && !!(record && record.outreach_draft) && permissionReviewIsCurrent(record, card.dataset.routeFingerprint || ""))\n            || (status === "handoff_prepared" && submissionPacketIsCurrent(record, card.dataset.routeFingerprint || ""))
             || status === tracked;
         const channelMatch = channel === "all" || card.dataset.channelType === channel;
         const show = statusMatch && channelMatch;
@@ -936,7 +941,7 @@ function updateAudienceTrackingDashboard() {
         if (record && record.outreach_draft) counts.drafts += 1;
         if (record && record.status === "reviewed" && record.outreach_draft && permissionReviewIsCurrent(record, card.dataset.routeFingerprint || "") && card.dataset.ruleStatus === "rules_or_submission_route_found") counts.ready += 1;
         if (record && record.status === "reviewed" && record.outreach_draft && permissionReviewIsCurrent(record, card.dataset.routeFingerprint || "") && card.dataset.ruleStatus === "rules_or_submission_route_found" && card.dataset.hasApplicationRoute === "true") counts.submissionReady += 1;
-        if (record && record.submission_packet && record.submission_packet.prepared_at) counts.handoffsPrepared += 1;\n        if (record && record.status === "contacted") counts.awaiting += 1;
+        if (submissionPacketIsCurrent(record, card.dataset.routeFingerprint || "")) counts.handoffsPrepared += 1;\n        if (record && record.status === "contacted") counts.awaiting += 1;
         if (card.dataset.ruleStatus === "restriction_detected") counts.blocked += 1;
     });
     const set = function(id, value) { const el = document.getElementById(id); if (el) el.textContent = value; };
