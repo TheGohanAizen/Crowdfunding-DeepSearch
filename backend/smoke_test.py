@@ -606,6 +606,9 @@ try:
     assert uninspected[0]["channel_rules"]["status"] == "not_checked"
     assert uninspected[0]["channel_rules"]["permission_verified"] is False
     assert uninspected[0]["channel_rules"]["automatic_distribution"] is False
+    assert uninspected[0]["channel_rules"]["automation_eligibility"]["status"] == "manual_review_only"
+    assert uninspected[0]["channel_rules"]["automation_eligibility"]["eligible"] is False
+    assert uninspected[0]["channel_rules"]["automation_eligibility"]["send_enabled"] is False
 
     restricted_candidate = dict(ranked_audience)
     restricted_candidate["channel_rules"] = {"status": "restriction_detected"}
