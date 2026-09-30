@@ -1609,8 +1609,8 @@ def persist_automation_execution_record(record):
     with automation_ledger_connection() as connection:
         cursor = connection.execute(
             """INSERT OR IGNORE INTO automation_execution_ledger
-               (ledger_key, idempotency_key, execution_mode, mechanism, endpoint, outcome, sent, provider_message_id, blockers_json, recorded_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               (ledger_key, idempotency_key, execution_mode, mechanism, endpoint, outcome, sent, provider_message_id, resolution_reason, blockers_json, recorded_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 record.get("ledger_key") or record["idempotency_key"],
                 record["idempotency_key"],
@@ -1620,6 +1620,7 @@ def persist_automation_execution_record(record):
                 record.get("outcome") or "blocked",
                 1 if record.get("sent") is True else 0,
                 record.get("provider_message_id"),
+                record.get("resolution_reason"),
                 json.dumps(record.get("blockers") or []),
                 record.get("recorded_at") or datetime.now(timezone.utc).isoformat(),
             ),
