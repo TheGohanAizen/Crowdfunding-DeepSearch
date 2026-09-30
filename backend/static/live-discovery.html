@@ -416,8 +416,20 @@ function renderAudienceLead(item) {
         '<div class="tracking-state audience-history-state">History: no activity yet</div>' +
         '<div class="tracking-state audience-next-state">Next step: review channel rules</div>' +
         (url ? '<div class="action-links"><a href="' + escapeHtml(url) + '" target="_blank" rel="noopener noreferrer">Review audience source</a></div>' : '');
-    const audienceTrackingKey = TRACKING_PREFIX + "audience:" + (item.tracking_id || (item.url || item.name || "lead"));
-    const existingAudienceTracking = readTrackingRecord(audienceTrackingKey);
+    const audienceTrackingId = item.tracking_id || (item.url || item.name || "lead");
+    const audienceTrackingKey = TRACKING_PREFIX + "audience:" + audienceTrackingId;
+    const legacyAudienceTrackingKey = TRACKING_PREFIX + audienceTrackingId;
+    let existingAudienceTracking = readTrackingRecord(audienceTrackingKey);
+    if (!existingAudienceTracking) {
+        const legacyAudienceTracking = readTrackingRecord(legacyAudienceTrackingKey);
+        if (legacyAudienceTracking) {
+            try {
+                localStorage.setItem(audienceTrackingKey, JSON.stringify(legacyAudienceTracking));
+                localStorage.removeItem(legacyAudienceTrackingKey);
+                existingAudienceTracking = legacyAudienceTracking;
+            } catch (error) {}
+        }
+    }
     const audienceState = card.querySelector(".audience-tracking-state");
     const audienceNoteState = card.querySelector(".audience-note-state");
     const audienceHistoryState = card.querySelector(".audience-history-state");
@@ -774,7 +786,7 @@ function writeTrackingRecord(key, status) {
         notes: previous.notes || "",
         follow_up_at: status === "contacted"
             ? (previous.follow_up_at || new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString())
-            : (status === "responded" ? null : (previous.follow_up_at || null)),
+            : ((status === "responded" || status === "closed") ? null : (previous.follow_up_at || null)),
         history: history
     };
     try { localStorage.setItem(key, JSON.stringify(record)); } catch (error) {}
@@ -850,7 +862,7 @@ function importTracking(event) {
             Object.keys(records).forEach(function(key) {
                 if (!key.startsWith(TRACKING_PREFIX)) return;
                 const record = records[key];
-                if (record && ["saved", "reviewed", "contacted", "responded"].includes(record.status)) {
+                if (record && ["saved", "reviewed", "contacted", "responded", "closed"].includes(record.status)) {
                     localStorage.setItem(key, JSON.stringify(record));
                 }
             });
