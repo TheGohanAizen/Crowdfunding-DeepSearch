@@ -362,6 +362,10 @@ try:
     assert 'function migrateLegacyCampaignRecord(suffix, destinationKey)' in live_discovery_html
     assert 'migrateLegacyCampaignRecord("audience:" + audienceTrackingId, audienceTrackingKey)' in live_discovery_html
     assert 'migrateLegacyCampaignRecord("opportunity:" + opportunityTrackingId, trackingKey)' in live_discovery_html
+    assert 'id="newCampaignWorkspaceButton"' in live_discovery_html
+    assert 'function startNewCampaignWorkspace()' in live_discovery_html
+    assert 'const newId = createCampaignWorkspaceId();' in live_discovery_html
+    assert 'Existing tracking will stay saved under the current workspace' in live_discovery_html
     assert 'permissionReviewIsCurrent(record, card.dataset.routeFingerprint || "")' in live_discovery_html
     assert 'key.startsWith(currentCampaignTrackingPrefix())' in live_discovery_html
     assert 'currentCampaignTrackingPrefix() + key.slice(TRACKING_PREFIX.length)' in live_discovery_html
