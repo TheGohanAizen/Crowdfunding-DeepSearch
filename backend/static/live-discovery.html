@@ -561,8 +561,7 @@ function renderAudienceLead(item) {
     const applicationRouteLinks = (reviewRoutes.application_links || []).filter(function(route) { return /^https?:\/\//i.test(route); });
     const verifiedApplicationRouteLinks = applicationRouteLinks.filter(function(route) { return sameSiteRoute(url, route); });
     card.dataset.hasApplicationRoute = verifiedApplicationRouteLinks.length ? "true" : "false";
-    card.dataset.verifiedApplicationRoutes = verifiedApplicationRouteLinks.join("\
-");
+    card.dataset.verifiedApplicationRoutes = JSON.stringify(verifiedApplicationRouteLinks);
     const routeLinks = []
         .concat(reviewRoutes.application_links || [])
         .concat(reviewRoutes.contact_links || [])
@@ -896,8 +895,7 @@ function applyAudienceFilters() {
             || (status === "draft_ready" && !!(record && record.outreach_draft))
             || (status === "contact_ready" && rule === "rules_or_submission_route_found" && tracked === "reviewed" && !!(record && record.outreach_draft) && permissionReviewIsCurrent(record, card.dataset.routeFingerprint || ""))
             || (status === "submission_ready" && rule === "rules_or_submission_route_found" && tracked === "reviewed" && card.dataset.hasApplicationRoute === "true" && !!(record && record.outreach_draft) && permissionReviewIsCurrent(record, card.dataset.routeFingerprint || ""))
-            || (status === "handoff_prepared" && submissionPacketIsCurrent(record, card.dataset.routeFingerprint || "", (card.dataset.verifiedApplicationRoutes || "").split("\
-").filter(Boolean)))
+            || (status === "handoff_prepared" && submissionPacketIsCurrent(record, card.dataset.routeFingerprint || "", JSON.parse(card.dataset.verifiedApplicationRoutes || "[]")))
             || status === tracked;
         const channelMatch = channel === "all" || card.dataset.channelType === channel;
         const show = statusMatch && channelMatch;
@@ -1046,8 +1044,7 @@ function updateAudienceTrackingDashboard() {
         if (record && record.outreach_draft) counts.drafts += 1;
         if (record && record.status === "reviewed" && record.outreach_draft && permissionReviewIsCurrent(record, card.dataset.routeFingerprint || "") && card.dataset.ruleStatus === "rules_or_submission_route_found") counts.ready += 1;
         if (record && record.status === "reviewed" && record.outreach_draft && permissionReviewIsCurrent(record, card.dataset.routeFingerprint || "") && card.dataset.ruleStatus === "rules_or_submission_route_found" && card.dataset.hasApplicationRoute === "true") counts.submissionReady += 1;
-        if (submissionPacketIsCurrent(record, card.dataset.routeFingerprint || "", (card.dataset.verifiedApplicationRoutes || "").split("\
-").filter(Boolean))) counts.handoffsPrepared += 1;
+        if (submissionPacketIsCurrent(record, card.dataset.routeFingerprint || "", JSON.parse(card.dataset.verifiedApplicationRoutes || "[]"))) counts.handoffsPrepared += 1;
         if (record && record.status === "contacted") counts.awaiting += 1;
         if (card.dataset.ruleStatus === "restriction_detected") counts.blocked += 1;
     });
