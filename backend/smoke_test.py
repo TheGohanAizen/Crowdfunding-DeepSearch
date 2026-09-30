@@ -615,6 +615,7 @@ try:
     persist_automation_execution_record = crowdfunding_server.persist_automation_execution_record
     find_automation_execution_record = crowdfunding_server.find_automation_execution_record
     prune_automation_execution_ledger = crowdfunding_server.prune_automation_execution_ledger
+    automation_execution_duplicate_status = crowdfunding_server.automation_execution_duplicate_status
     finalize_audience_actions = crowdfunding_server.finalize_audience_actions
     campaign_tracking_id = crowdfunding_server.campaign_tracking_id
     opportunity_tracking_id = crowdfunding_server.opportunity_tracking_id
@@ -794,6 +795,10 @@ try:
         assert prune_result["retention_days"] == 7
         assert prune_result["deleted"] >= 1
         assert find_automation_execution_record("smoke-old-key") is None
+        duplicate_status = automation_execution_duplicate_status("smoke-key-1")
+        assert duplicate_status["duplicate"] is True
+        assert duplicate_status["previous_outcome"] == "simulated"
+        assert automation_execution_duplicate_status("never-recorded")["duplicate"] is False
     finally:
         crowdfunding_server.AUTOMATION_LEDGER_PATH = original_ledger_path
     simulated_transport = execute_sendgrid_transport(disabled_plan, simulate=True)
