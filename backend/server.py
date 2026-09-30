@@ -2049,21 +2049,64 @@ def prune_automation_rate_events(retention_hours=48):
 
 
 def consume_automation_rate_limit(mechanism, idempotency_key):
-    """Atomically consume at most one quota event per execution key."""
-    status = automation_rate_limit_status(mechanism)
-    if not status.get("allowed"):
-        return {**status, "consumed": False}
+    """Atomically check and consume hourly quota under a SQLite write lock."""
+    contract = automation_rate_limit_contract(mechanism)
+    limit = contract.get("limit_per_hour")
+    if not contract.get("enforcement_required") or not isinstance(limit, int):
+        return {"allowed": False, "reason": "rate_limit_contract_unavailable", **contract, "consumed": False}
+    mechanism_key = str(mechanism or "").strip()
     key = str(idempotency_key or "").strip()
     if not key:
         raise ValueError("Idempotency key is required to consume automation quota.")
+    now = datetime.now(timezone.utc)
+    cutoff_iso = datetime.fromtimestamp(now.timestamp() - 3600, tz=timezone.utc).isoformat()
     with automation_ledger_connection() as connection:
-        cursor = connection.execute(
-            """INSERT OR IGNORE INTO automation_rate_events
+        connection.execute("BEGIN IMMEDIATE")
+        existing = connection.execute(
+            """SELECT 1 FROM automation_rate_events
+               WHERE mechanism = ? AND idempotency_key = ? LIMIT 1""",
+            (mechanism_key, key),
+        ).fetchone()
+        used = connection.execute(
+            """SELECT COUNT(*) AS count FROM automation_rate_events
+               WHERE mechanism = ? AND consumed_at > ?""",
+            (mechanism_key, cutoff_iso),
+        ).fetchone()["count"]
+        if existing:
+            connection.commit()
+            return {
+                **contract,
+                "allowed": used < limit,
+                "used_last_hour": used,
+                "remaining": max(0, limit - used),
+                "consumed": False,
+                "reason": "quota_already_consumed_for_execution",
+            }
+        if used >= limit:
+            connection.rollback()
+            return {
+                **contract,
+                "allowed": False,
+                "used_last_hour": used,
+                "remaining": 0,
+                "consumed": False,
+                "reason": "hourly_rate_limit_exhausted",
+            }
+        connection.execute(
+            """INSERT INTO automation_rate_events
                (mechanism, idempotency_key, consumed_at) VALUES (?, ?, ?)""",
-            (str(mechanism or "").strip(), key, datetime.now(timezone.utc).isoformat()),
+            (mechanism_key, key, now.isoformat()),
         )
-    return {**automation_rate_limit_status(mechanism), "consumed": cursor.rowcount == 1}
-
+        connection.commit()
+        used += 1
+    return {
+        **contract,
+        "allowed": used < limit,
+        "used_last_hour": used,
+        "remaining": max(0, limit - used),
+        "consumed": True,
+        "reason": "quota_consumed",
+    }
 
 def automation_idempotency_key(workspace_id, tracking_id, mechanism, route):
     """Return a stable non-secret key for duplicate execution protection."""
