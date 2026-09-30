@@ -487,7 +487,7 @@ function renderAudienceLead(item) {
         '<div class="match-reason"><strong>Recommended next action:</strong> ' + escapeHtml((item.recommended_next_action && item.recommended_next_action.label) || "Verify channel rules") + '</div>' +
         '<div class="match-reason audience-priority-state"><strong>Priority:</strong> ' + escapeHtml(score >= 80 ? "High" : score >= 60 ? "Medium" : "Standard") + '</div>' +
         '<div class="match-reason audience-permission-state"><strong>Permission:</strong> ' + escapeHtml((item.channel_rules && item.channel_rules.status === "restriction_detected") ? "Restriction detected — review before outreach" : (item.channel_rules && item.channel_rules.status === "rules_or_submission_route_found") ? "Route/rules found — human review required" : "Not verified — verify before outreach") + '</div>' +
-        '<div class="tracking-actions"><button type="button" data-audience-track="saved">Save lead</button><button type="button" data-audience-track="reviewed">Mark reviewed</button><button type="button" data-audience-permission="true">Confirm route permission reviewed</button><button type="button" data-audience-track="contacted">Mark contacted</button><button type="button" data-audience-track="responded">Mark responded</button><button type="button" data-audience-response="true">Record response details</button><button type="button" data-audience-track="closed">Close lead</button><button type="button" data-audience-followup="tomorrow">Follow up tomorrow</button><button type="button" data-audience-followup="week">Follow up +7 days</button><button type="button" data-audience-followup="clear">Clear follow-up</button><button type="button" data-audience-note="true">Add note</button><button type="button" data-audience-draft="true">Prepare outreach draft</button></div>' +
+        '<div class="tracking-actions"><button type="button" data-audience-track="saved">Save lead</button><button type="button" data-audience-track="reviewed">Mark reviewed</button><button type="button" data-audience-permission="true">Confirm route permission reviewed</button><button type="button" data-audience-track="contacted">Mark contacted</button><button type="button" data-audience-track="responded">Mark responded</button><button type="button" data-audience-response="true">Record response details</button><button type="button" data-audience-track="closed">Close lead</button><button type="button" data-audience-followup="tomorrow">Follow up tomorrow</button><button type="button" data-audience-followup="week">Follow up +7 days</button><button type="button" data-audience-followup="clear">Clear follow-up</button><button type="button" data-audience-note="true">Add note</button><button type="button" data-audience-draft="true">Prepare outreach draft</button><button type="button" data-audience-packet="true">Prepare submission packet</button></div>' +
         '<div class="tracking-state audience-tracking-state">Audience tracking: not started</div>' +
         '<div class="tracking-state audience-permission-review-state">Permission review: not confirmed</div><div class="tracking-state audience-note-state">Private note: none</div><div class="tracking-state audience-response-state">Response details: none</div>' +
         '<div class="tracking-state audience-history-state">History: no activity yet</div>' +
@@ -586,6 +586,55 @@ function renderAudienceLead(item) {
             draftButton.textContent = originalText;
         }
     });
+    const packetButton = card.querySelector("[data-audience-packet]");
+    if (packetButton) packetButton.addEventListener("click", async function() {
+        const record = readTrackingRecord(audienceTrackingKey) || {};
+        const applicationRoute = applicationRouteLinks[0] || "";
+        const ready = card.dataset.ruleStatus === "rules_or_submission_route_found"
+            && record.status === "reviewed"
+            && record.outreach_draft
+            && record.permission_review && record.permission_review.reviewed_at
+            && applicationRoute;
+        if (!ready) {
+            alert("A submission packet requires an official application/submission route, reviewed status, confirmed route permission review, and a saved outreach draft.");
+            return;
+        }
+        const campaign = currentCampaignTrackingProfile();
+        const packet = [
+            "Crowdfunding DeepSearch — Assisted Submission Packet",
+            "",
+            "Campaign need: " + (campaign.need || ""),
+            "Campaign location: " + (campaign.location || ""),
+            "Fundraising goal: " + (campaign.goal ? "$" + Number(campaign.goal).toLocaleString() : ""),
+            "Campaign URL: " + (campaign.campaign_url || ""),
+            "",
+            "Campaign summary:",
+            campaign.campaign_summary || "",
+            "",
+            "Prepared subject:",
+            record.outreach_draft.subject || "",
+            "",
+            "Prepared message:",
+            record.outreach_draft.body || "",
+            "",
+            "Reviewed submission route:",
+            applicationRoute,
+            "",
+            "Permission review confirmed: " + record.permission_review.reviewed_at,
+            "Automatic submission: disabled — complete the official route manually."
+        ].join("\n");
+        record.submission_packet = {prepared_at: new Date().toISOString(), route: applicationRoute};
+        try { localStorage.setItem(audienceTrackingKey, JSON.stringify(record)); } catch (error) {}
+        try {
+            await navigator.clipboard.writeText(packet);
+            packetButton.textContent = "Submission packet copied";
+        } catch (error) {
+            prompt("Copy this assisted submission packet:", packet);
+        }
+        window.open(applicationRoute, "_blank", "noopener,noreferrer");
+        updateAudienceTrackingDashboard();
+    });
+
     const permissionButton = card.querySelector("[data-audience-permission]");
     if (permissionButton) permissionButton.addEventListener("click", function() {
         const previous = readTrackingRecord(audienceTrackingKey) || {};
@@ -1007,6 +1056,7 @@ function writeTrackingRecord(key, status) {
         notes: previous.notes || "",
         outreach_draft: previous.outreach_draft || null,
         permission_review: previous.permission_review || null,
+        submission_packet: previous.submission_packet || null,
         response: previous.response || null,
         follow_up_at: status === "contacted"
             ? (previous.follow_up_at || new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString())
