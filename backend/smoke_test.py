@@ -293,6 +293,10 @@ try:
     assert 'automatic_distribution: false' in live_discovery_html
     assert 'explicit route permission review confirmed' in live_discovery_html
     assert 'record.permission_review && record.permission_review.reviewed_at' in live_discovery_html
+    assert 'id="audienceSubmissionReadyCount"' in live_discovery_html
+    assert 'value="submission_ready"' in live_discovery_html
+    assert 'function setAudienceSubmissionReadyQueue()' in live_discovery_html
+    assert 'card.dataset.hasApplicationRoute === "true"' in live_discovery_html
     assert 'value="draft_ready"' in live_discovery_html
     assert 'tracked === "reviewed" && !!(record && record.outreach_draft)' in live_discovery_html
     assert 'audience-reviewed-routes' in live_discovery_html
