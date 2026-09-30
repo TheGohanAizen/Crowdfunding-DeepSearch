@@ -261,6 +261,10 @@ try:
     assert 'data-save-draft="true"' in live_discovery_html
     assert 'data-clear-draft="true"' in live_discovery_html
     assert 'Saved locally with this lead.' in live_discovery_html
+    assert 'id="audienceDraftCount"' in live_discovery_html
+    assert 'id="audienceReadyCount"' in live_discovery_html
+    assert 'value="draft_ready"' in live_discovery_html
+    assert 'tracked === "reviewed" && !!(record && record.outreach_draft)' in live_discovery_html
     assert 'audience-tracking-state' in live_discovery_html
     assert 'Recommended next action:</strong>' in live_discovery_html
     assert 'id="audienceDashboard"' in live_discovery_html
