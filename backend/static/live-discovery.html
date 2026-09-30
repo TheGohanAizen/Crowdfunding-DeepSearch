@@ -383,9 +383,9 @@ function renderAudienceLead(item) {
     card.dataset.stage = item.geographic_stage || "unspecified";
     card.dataset.channelType = item.channel_type || item.type || "Audience";
     card.dataset.ruleStatus = (item.channel_rules && item.channel_rules.status) || "not_checked";
+    const score = item.audience_relevance_score ?? 0;
     card.dataset.audienceScore = String(score);
     card.dataset.audiencePriority = score >= 80 ? "high" : score >= 60 ? "medium" : "standard";
-    const score = item.audience_relevance_score ?? 0;
     const url = item.url && /^https?:\/\//i.test(item.url) ? item.url : "";
     const rules = item.channel_rules || {status: "not_checked", evidence: {}};
     const ruleEvidence = Object.entries(rules.evidence || {}).map(function(entry) {
