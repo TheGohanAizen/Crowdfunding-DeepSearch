@@ -781,12 +781,21 @@ try:
             "mechanism": "sendgrid_mail_v3",
             "endpoint": "https://api.sendgrid.com/v3/mail/send",
             "blockers": ["connector_live_send_disabled"],
-        }, "simulated")
+        }, "simulated", execution_mode="simulation")
         first_write = persist_automation_execution_record(ledger_record)
         second_write = persist_automation_execution_record(ledger_record)
         assert first_write["created"] is True
         assert second_write["created"] is False
-        assert find_automation_execution_record("smoke-key-1")["outcome"] == "simulated"
+        assert find_automation_execution_record("smoke-key-1") is None
+        assert automation_execution_duplicate_status("smoke-key-1")["duplicate"] is False
+        live_record = automation_execution_record({
+            "idempotency_key": "smoke-key-1",
+            "mechanism": "sendgrid_mail_v3",
+            "endpoint": "https://api.sendgrid.com/v3/mail/send",
+            "blockers": [],
+        }, "blocked", execution_mode="live")
+        assert persist_automation_execution_record(live_record)["created"] is True
+        assert find_automation_execution_record("smoke-key-1")["outcome"] == "blocked"
         old_record = dict(ledger_record)
         old_record["idempotency_key"] = "smoke-old-key"
         old_record["recorded_at"] = "2020-01-01T00:00:00+00:00"
@@ -797,7 +806,7 @@ try:
         assert find_automation_execution_record("smoke-old-key") is None
         duplicate_status = automation_execution_duplicate_status("smoke-key-1")
         assert duplicate_status["duplicate"] is True
-        assert duplicate_status["previous_outcome"] == "simulated"
+        assert duplicate_status["previous_outcome"] == "blocked"
         assert automation_execution_duplicate_status("never-recorded")["duplicate"] is False
     finally:
         crowdfunding_server.AUTOMATION_LEDGER_PATH = original_ledger_path
@@ -806,6 +815,7 @@ try:
     assert simulated_transport["sent"] is False
     assert simulated_transport["network_io"] is False
     assert simulated_transport["record"]["outcome"] == "simulated"
+    assert simulated_transport["record"]["execution_mode"] == "simulation"
     blocked_transport = execute_sendgrid_transport(disabled_plan, simulate=False)
     assert blocked_transport["status"] == "blocked"
     assert blocked_transport["sent"] is False
