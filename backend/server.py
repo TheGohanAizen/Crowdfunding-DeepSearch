@@ -1777,6 +1777,49 @@ def redact_automation_plan(plan):
     }
 
 
+def build_live_sendgrid_execution_candidate(data):
+    """Build a production candidate using trusted server state; never performs network I/O."""
+    if not isinstance(data, dict):
+        raise ValueError("A JSON request body is required.")
+    execution = validate_automation_execution_request(data)
+    send_authorization = validate_live_send_authorization(data)
+    server_preflight = sendgrid_server_preflight()
+    blockers = list(execution["blockers"])
+    blockers.extend(code for code in send_authorization["blockers"] if code not in blockers)
+    blockers.extend(code for code in server_preflight["blockers"] if code not in blockers)
+    draft = data.get("draft") if isinstance(data.get("draft"), dict) else {}
+    to_email = str(data.get("to_email") or "").strip()
+    if not to_email:
+        blockers.append("recipient_email_required")
+    if not str(draft.get("subject") or "").strip():
+        blockers.append("outreach_subject_required")
+    if not str(draft.get("body") or "").strip():
+        blockers.append("outreach_body_required")
+    duplicate_status = automation_execution_duplicate_status(execution.get("idempotency_key"))
+    if duplicate_status["duplicate"]:
+        blockers.append("idempotency_key_already_recorded")
+    payload = None
+    if not blockers:
+        payload = build_sendgrid_mail_v3_payload(
+            to_email,
+            server_preflight["from_email"],
+            draft["subject"],
+            draft["body"],
+            data.get("reply_to"),
+        )
+    return {
+        "ready": not blockers,
+        "sent": False,
+        "network_io": False,
+        "mechanism": "sendgrid_mail_v3",
+        "blockers": blockers,
+        "idempotency_key": execution.get("idempotency_key"),
+        "duplicate_status": duplicate_status,
+        "payload": payload,
+        "endpoint": AUTOMATION_CONNECTOR_REGISTRY["sendgrid_mail_v3"]["endpoint"],
+    }
+
+
 def build_disabled_sendgrid_execution_plan(data):
     """Build the final SendGrid execution envelope without performing network I/O."""
     if not isinstance(data, dict):
