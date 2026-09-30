@@ -1161,6 +1161,29 @@ function exportTracking() {
     URL.revokeObjectURL(url);
 }
 
+function applyImportedCampaignProfile(campaign) {
+    if (!campaign || typeof campaign !== "object") return false;
+    const need = String(campaign.need || "");
+    const scope = String(campaign.scope || "");
+    const needSelect = document.getElementById("need");
+    const scopeSelect = document.getElementById("scope");
+    if (need && Array.from(needSelect.options).some(function(option) { return option.value === need; })) needSelect.value = need;
+    if (scope && Array.from(scopeSelect.options).some(function(option) { return option.value === scope; })) scopeSelect.value = scope;
+    document.getElementById("location").value = String(campaign.location || "").slice(0, 300);
+    document.getElementById("goal").value = campaign.goal == null ? "" : String(campaign.goal);
+    const campaignUrl = String(campaign.campaign_url || "").trim();
+    document.getElementById("campaignUrl").value = /^https?:\/\//i.test(campaignUrl) ? campaignUrl : "";
+    document.getElementById("campaignSummary").value = String(campaign.campaign_summary || "").slice(0, 1200);
+    return true;
+}
+
+function campaignProfilesDiffer(a, b) {
+    const fields = ["need", "location", "goal", "scope", "campaign_url", "campaign_summary"];
+    return fields.some(function(field) {
+        return String((a && a[field]) == null ? "" : a[field]).trim() !== String((b && b[field]) == null ? "" : b[field]).trim();
+    });
+}
+
 function importTracking(event) {
     const file = event.target.files && event.target.files[0];
     if (!file) return;
@@ -1180,8 +1203,16 @@ function importTracking(event) {
                 }
             });
             const campaign = payload.campaign || {};
+            let profileRestored = false;
+            if (payload.version >= 2 && campaign && Object.keys(campaign).length) {
+                const current = currentCampaignTrackingProfile();
+                const hasCurrentDetails = !!(current.location || current.goal || current.campaign_url || current.campaign_summary);
+                const differs = campaignProfilesDiffer(current, campaign);
+                const restore = !differs || !hasCurrentDetails || confirm("This backup belongs to a different campaign profile than the one currently shown. Restore the backup campaign profile too?");
+                if (restore) profileRestored = applyImportedCampaignProfile(campaign);
+            }
             const campaignLabel = campaign.need || campaign.location ? " Backup campaign: " + [campaign.need, campaign.location].filter(Boolean).join(" · ") + "." : "";
-            alert(imported + " tracking records imported." + campaignLabel + " Run or reopen the matching discovery results to restore the workspace.");
+            alert(imported + " tracking records imported." + campaignLabel + (profileRestored ? " Campaign profile restored." : " Current campaign profile left unchanged.") + " Run discovery to reload matching results and tracking.");
         } catch (error) {
             alert("That tracking file could not be imported.");
         }
