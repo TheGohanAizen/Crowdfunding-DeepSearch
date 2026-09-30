@@ -599,6 +599,7 @@ try:
     build_sendgrid_mail_v3_payload = crowdfunding_server.build_sendgrid_mail_v3_payload
     sendgrid_connector_preflight = crowdfunding_server.sendgrid_connector_preflight
     build_disabled_sendgrid_execution_plan = crowdfunding_server.build_disabled_sendgrid_execution_plan
+    redact_automation_plan = crowdfunding_server.redact_automation_plan
     finalize_audience_actions = crowdfunding_server.finalize_audience_actions
     campaign_tracking_id = crowdfunding_server.campaign_tracking_id
     opportunity_tracking_id = crowdfunding_server.opportunity_tracking_id
@@ -754,6 +755,11 @@ try:
     assert disabled_plan["payload"] is None
     assert "connector_live_send_disabled" in disabled_plan["blockers"]
     assert "recipient_email_required" in disabled_plan["blockers"]
+    diagnostics = redact_automation_plan(disabled_plan)
+    assert diagnostics["sent"] is False
+    assert diagnostics["payload_present"] is False
+    assert "payload" not in diagnostics
+    assert "content" not in diagnostics
     payload = build_sendgrid_mail_v3_payload(
         "recipient@example.com", "sender@example.com", "Campaign introduction", "Hello", "reply@example.com"
     )
