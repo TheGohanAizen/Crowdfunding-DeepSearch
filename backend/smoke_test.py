@@ -346,7 +346,7 @@ try:
     assert 'version: 5' in live_discovery_html
     assert 'campaign: currentCampaignTrackingProfile()' in live_discovery_html
     assert 'Invalid tracking backup' in live_discovery_html
-    assert 'tracking records imported.' in live_discovery_html
+    assert 'tracking records imported across available campaign workspaces.' in live_discovery_html
     assert 'id="campaignUrl"' in live_discovery_html
     assert 'id="campaignSummary"' in live_discovery_html
     assert 'document.getElementById("campaignUrl").value.trim()' in live_discovery_html
