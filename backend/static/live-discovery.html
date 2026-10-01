@@ -242,6 +242,7 @@ button:hover { background: #1d4ed8; }
     <div id="automationConnectorStatus" class="notice">Automatic distribution status: checking connector readiness…</div>
     <div id="sendgridPreflightStatus" class="notice">SendGrid production preflight: not configured — sending remains disabled.</div>
     <div id="automationReadinessChecklist" class="notice">Automation readiness checklist: loading non-secret deployment gates…</div>
+    <div id="automationOperationalReadiness" class="notice">Automation storage / quota readiness: loading non-secret operational signals…</div>
 
     <div class="notice">
         Live Discovery mode: choose how far DeepSearch should expand from the campaign location. Automatic expansion is designed to begin with the strongest geographic match and later broaden to state, national, and worldwide opportunities that can actually serve the campaign location. Results remain screening leads until eligibility and current availability are confirmed.
@@ -447,6 +448,7 @@ const AUTOMATION_DRY_RUN_URL = apiRoot + "/api/automation/dry-run";
 const AUTOMATION_EXECUTION_CHECK_URL = apiRoot + "/api/automation/execution-check";
 const SENDGRID_PREFLIGHT_URL = apiRoot + "/api/automation/connectors/sendgrid/preflight";
 const SENDGRID_SERVER_READINESS_URL = apiRoot + "/api/automation/connectors/sendgrid/server-readiness";
+const AUTOMATION_OPERATIONAL_READINESS_URL = apiRoot + "/api/automation/operational-readiness";
 const SENDGRID_SIMULATE_URL = apiRoot + "/api/automation/connectors/sendgrid/simulate";
 
 async function automationBlockerLabel(code) {
@@ -511,6 +513,25 @@ function renderAutomationReadinessChecklist(connector) {
     }).join("<br>") + "<br><small>Checklist status never authorizes a send. Current permission review, deduplication clearance, compliance preflight, durable storage, and explicit user send authorization remain required.</small>";
 }
 
+async function loadAutomationOperationalReadiness() {
+    const status = document.getElementById("automationOperationalReadiness");
+    if (!status) return;
+    try {
+        const response = await fetch(AUTOMATION_OPERATIONAL_READINESS_URL);
+        const data = await response.json();
+        if (!response.ok || data.status !== "ok") throw new Error("Operational readiness unavailable.");
+        const storage = data.storage || {};
+        const quota = data.rate_limit || {};
+        const storageLabel = storage.live_ready ? "durable storage ready" : "durable storage blocked";
+        const quotaLabel = quota.allowed
+            ? "hourly quota available (" + Number(quota.remaining || 0) + " remaining of " + Number(quota.limit_per_hour || 0) + ")"
+            : "hourly quota blocked or unavailable";
+        status.textContent = "Automation storage / quota readiness: " + storageLabel + "; " + quotaLabel + ". Diagnostic only — sent: no; network I/O: no; authorization granted: no.";
+    } catch (error) {
+        status.textContent = "Automation storage / quota readiness: unavailable. No send was attempted.";
+    }
+}
+
 async function loadSendGridPreflightStatus() {
     const status = document.getElementById("sendgridPreflightStatus");
     if (!status) return;
@@ -556,6 +577,7 @@ function loadCampaignProfile() {
 
 loadCampaignProfile();
 loadAutomationConnectorStatus();
+loadAutomationOperationalReadiness();
 loadSendGridPreflightStatus();
 
 function renderSavedAudienceDraft(card, trackingKey, draft) {
