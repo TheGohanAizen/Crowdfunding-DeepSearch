@@ -717,8 +717,11 @@ try:
     assert all("Austin" not in item["query"] and "Texas" not in item["query"] for item in national_queries)
 
     audience_queries = build_audience_queries("Transportation", "Austin, Texas, United States", "automatic")
-    assert [item["lane"] for item in audience_queries] == ["Community Forums", "Local Media", "Creators & Podcasts", "Directories & Newsletters"]
-    assert [item["geographic_stage"] for item in audience_queries] == ["local", "state", "national", "worldwide"]
+    assert len(audience_queries) == 16
+    expected_audience_lanes = ["Community Forums", "Local Media", "Creators & Podcasts", "Directories & Newsletters"]
+    assert [item["lane"] for item in audience_queries[:4]] == expected_audience_lanes
+    assert [item["geographic_stage"] for item in audience_queries[::4]] == ["local", "state", "national", "worldwide"]
+    assert all([item["lane"] for item in audience_queries[offset:offset + 4]] == expected_audience_lanes for offset in range(0, 16, 4))
     assert all(item["discovery_kind"] == "audience" for item in audience_queries)
     assert all(item["action_mode"] == "review_required" for item in audience_queries)
     audience_candidate = {"url": "https://example.org/community", "name": "Example Community", "type": "Community Forums"}
