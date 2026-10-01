@@ -436,7 +436,7 @@ try:
     assert 'const permissionReviewed = permissionReviewIsCurrent(previous, card.dataset.routeFingerprint || "");' in live_discovery_html
     assert 'const submissionReady = !!(record && record.status === "reviewed" && draft && permissionReviewIsCurrent(record, card.dataset.routeFingerprint || "")' in live_discovery_html
     assert 'function submissionPacketIsCurrent(record, routeFingerprint, verifiedApplicationRoutes)' in live_discovery_html
-    assert 'card.dataset.verifiedApplicationRoutes = verifiedApplicationRouteLinks.join' in live_discovery_html
+    assert 'card.dataset.verifiedApplicationRoutes = JSON.stringify(verifiedApplicationRouteLinks)' in live_discovery_html
     assert 'verifiedApplicationRoutes.some(function(route)' in live_discovery_html
     assert 'id="audienceHandoffRefreshCount"' in live_discovery_html
     assert 'value="handoff_refresh"' in live_discovery_html
