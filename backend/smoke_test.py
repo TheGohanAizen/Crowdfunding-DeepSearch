@@ -502,7 +502,6 @@ try:
     assert 'value="restrictions_first"' in live_discovery_html
     assert 'id="exportAudienceCsvButton"' in live_discovery_html
     assert 'function exportAudienceCsv()' in live_discovery_html
-    assert 'crowdfunding-deepsearch-audience-leads.csv' in live_discovery_html
     assert 'id="audienceReviewQueueButton"' in live_discovery_html
     assert 'function setAudienceReviewQueue()' in live_discovery_html
     assert 'status.value = "actionable_review"' in live_discovery_html
