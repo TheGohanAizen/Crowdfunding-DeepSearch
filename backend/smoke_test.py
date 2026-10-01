@@ -40,7 +40,9 @@ try:
             assert connector_status_code == 200
             assert connector_readiness["status"] == "ok"
             assert connector_readiness["automatic_distribution_enabled"] is False
-            assert connector_readiness["connectors"] == []
+            assert len(connector_readiness["connectors"]) == 1
+            assert connector_readiness["connectors"][0]["mechanism"] == "sendgrid_mail_v3"
+            assert connector_readiness["connectors"][0]["send_enabled"] is False
             assert connector_readiness["unregistered_routes_remain_manual"] is True
             break
         except Exception as error:
