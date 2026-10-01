@@ -624,6 +624,8 @@ try:
     assert default_storage["backend"] == "sqlite"
     assert default_storage["live_ready"] is False
     assert default_storage["path_prepared"] is True
+    assert default_storage["backend"] == "sqlite"
+    assert default_storage["supported_backend"] is True
     assert default_storage["reason"] == "durable_automation_storage_required"
     original_env = dict(os.environ)
     try:
