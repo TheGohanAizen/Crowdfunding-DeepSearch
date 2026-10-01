@@ -247,6 +247,18 @@ try:
     analyzer_path = os.path.join(ROOT, "analyzer.html")
     with open(analyzer_path, "r", encoding="utf-8") as handle:
         analyzer_html = handle.read()
+    workspace_operations_path = os.path.join(ROOT, "backend", "static", "workspace-operations.html")
+    with open(workspace_operations_path, "r", encoding="utf-8") as handle:
+        workspace_operations_html = handle.read()
+    assert 'id="actionQueue"' in workspace_operations_html
+    assert "function actionQueue(limit=50)" in workspace_operations_html
+    assert "function renderActionQueue()" in workspace_operations_html
+    assert "action_queue:actionQueue(50)" in workspace_operations_html
+    assert "version:2" in workspace_operations_html
+    assert "private_notes_included:false" in workspace_operations_html
+    assert "response_details_included:false" in workspace_operations_html
+    assert "outreach_draft_bodies_included:false" in workspace_operations_html
+    assert "recipient_addresses_included:false" in workspace_operations_html
     assert live_discovery_html.startswith("<!DOCTYPE html>\n<html")
     assert live_discovery_html.lower().count("<!doctype html>") == 1
     assert live_discovery_html.index("function submissionPacketIsCurrent") > live_discovery_html.index("<script>")
