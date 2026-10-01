@@ -343,7 +343,7 @@ try:
     assert 'counts.everContacted / reviewedBase' in live_discovery_html
     assert 'counts.everResponded / counts.everContacted' in live_discovery_html
     assert 'function currentCampaignTrackingProfile()' in live_discovery_html
-    assert 'version: 2' in live_discovery_html
+    assert 'version: 5' in live_discovery_html
     assert 'campaign: currentCampaignTrackingProfile()' in live_discovery_html
     assert 'Invalid tracking backup' in live_discovery_html
     assert 'tracking records imported.' in live_discovery_html
