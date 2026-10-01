@@ -458,6 +458,15 @@ try:
     assert 'value="handoff_refresh"' in live_discovery_html
     assert 'function setAudienceHandoffRefreshQueue()' in live_discovery_html
     assert 'id="audienceHandoffRefreshButton"' in live_discovery_html
+    assert 'id="audiencePermissionCurrentCount"' in live_discovery_html
+    assert 'id="audiencePermissionRefreshCount"' in live_discovery_html
+    assert 'value="permission_refresh"' in live_discovery_html
+    assert 'function setAudiencePermissionRefreshQueue()' in live_discovery_html
+    assert 'id="audiencePermissionRefreshButton"' in live_discovery_html
+    assert 'status === "handoff_refresh"' in live_discovery_html
+    assert 'status === "permission_refresh"' in live_discovery_html
+    assert 'snapshot.permission_reviews_current += 1' in live_discovery_html
+    assert 'snapshot.permission_reviews_need_refresh += 1' in live_discovery_html
     assert 'id="exportAudienceProgressButton"' in live_discovery_html
     assert 'function audienceProgressSnapshot()' in live_discovery_html
     assert 'function exportAudienceProgressSummary()' in live_discovery_html
