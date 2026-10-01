@@ -371,6 +371,7 @@ button:hover { background: #1d4ed8; }
         </select>
         <span id="visibleCount" class="type"></span>
         <button type="button" onclick="exportTracking()">Export tracking</button>
+        <button type="button" id="exportCampaignProgressButton" onclick="exportCampaignProgressSummary()">Export campaign progress</button>
         <button type="button" onclick="document.getElementById('trackingImport').click()">Import tracking</button>
         <input id="trackingImport" type="file" accept="application/json" style="display:none" onchange="importTracking(event)">
     </div>
@@ -1744,6 +1745,43 @@ function updateOutreachDashboard() {
     document.getElementById("dashFollowups").textContent = counts.followups;
     document.getElementById("dashNotStarted").textContent = counts.notStarted;
     document.getElementById("outreachDashboard").style.display = cards.length ? "grid" : "none";
+}
+
+function institutionalProgressSnapshot() {
+    const cards = Array.from(document.querySelectorAll("#resultList .result-card"));
+    const now = new Date();
+    const metrics = {total_opportunities: cards.length, not_started: 0, saved: 0, reviewed: 0, contacted: 0, responded: 0, closed: 0, followups_due: 0, ever_contacted: 0, ever_responded: 0};
+    cards.forEach(function(card) {
+        const record = card.dataset.trackingKey ? readTrackingRecord(card.dataset.trackingKey) : null;
+        const status = record && record.status ? record.status : "not_started";
+        if (Object.prototype.hasOwnProperty.call(metrics, status)) metrics[status] += 1;
+        else metrics.not_started += 1;
+        if (record && Array.isArray(record.history) && record.history.some(x => x && x.status === "contacted") || status === "contacted") metrics.ever_contacted += 1;
+        if (record && Array.isArray(record.history) && record.history.some(x => x && x.status === "responded") || status === "responded") metrics.ever_responded += 1;
+        if (record && record.follow_up_at && status !== "closed" && new Date(record.follow_up_at) <= now) metrics.followups_due += 1;
+    });
+    metrics.response_rate_percent = metrics.ever_contacted ? Math.round(metrics.ever_responded / metrics.ever_contacted * 100) : 0;
+    return metrics;
+}
+
+function exportCampaignProgressSummary() {
+    const profile = currentCampaignTrackingProfile();
+    const payload = {
+        version: 1,
+        kind: "crowdfunding-deepsearch-campaign-progress-summary",
+        exported_at: new Date().toISOString(),
+        campaign: {workspace_id: currentCampaignWorkspaceId(), need: profile.need || "", location: profile.location || "", goal: profile.goal || "", campaign_url: profile.campaign_url || ""},
+        institutional_opportunities: institutionalProgressSnapshot(),
+        audience: audienceProgressSnapshot(),
+        privacy: {private_notes_included:false,response_details_included:false,outreach_draft_bodies_included:false,recipient_addresses_included:false}
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {type:"application/json;charset=utf-8"});
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "crowdfunding-deepsearch-campaign-progress-summary.json";
+    link.click();
+    URL.revokeObjectURL(url);
 }
 
 function currentCampaignTrackingProfile() {
