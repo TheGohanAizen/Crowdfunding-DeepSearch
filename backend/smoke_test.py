@@ -1000,7 +1000,8 @@ try:
         assert automation_rate_limit_status("sendgrid_mail_v3")["used_last_hour"] == 20
         duplicate_status = automation_execution_duplicate_status("smoke-key-1")
         assert duplicate_status["duplicate"] is True
-        assert duplicate_status["previous_outcome"] == "blocked"
+        assert duplicate_status["previous_outcome"] == "failed"
+        assert duplicate_status["resolution_reason"] == "provider request was not attempted"
         assert automation_execution_duplicate_status("never-recorded")["duplicate"] is False
     finally:
         crowdfunding_server.AUTOMATION_LEDGER_PATH = original_ledger_path
