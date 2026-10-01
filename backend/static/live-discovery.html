@@ -276,6 +276,7 @@ button:hover { background: #1d4ed8; }
       <div><strong id="audienceHandoffRefreshCount">0</strong><span>Handoffs Need Refresh</span></div>
       <div><strong id="audiencePermissionCurrentCount">0</strong><span>Permission Reviews Current</span></div>
       <div><strong id="audiencePermissionRefreshCount">0</strong><span>Permission Reviews Need Refresh</span></div>
+      <div><strong id="audienceDuplicatesMergedCount">0</strong><span>Duplicate Discoveries Merged</span></div>
     </div>
     <div class="filters" id="audienceFilters">
       <label>Audience view
@@ -1258,7 +1259,8 @@ function persistAudienceAnalyticsSnapshot(snapshot) {
                 permission_reviews_current: snapshot.permission_reviews_current,
                 permission_reviews_need_refresh: snapshot.permission_reviews_need_refresh,
                 contact_rate_percent: snapshot.contact_rate_percent,
-                response_rate_percent: snapshot.response_rate_percent
+                response_rate_percent: snapshot.response_rate_percent,
+                duplicates_merged: Number(document.getElementById("audienceDuplicatesMergedCount")?.textContent || 0)
             },
             analytics_updated_at: snapshot.exported_at
         });
@@ -1286,7 +1288,8 @@ function exportAudienceProgressSummary() {
         privacy: {
             private_notes_included: false,
             response_details_included: false,
-            outreach_draft_bodies_included: false
+            outreach_draft_bodies_included: false,
+            duplicate_metrics_only: true
         }
     };
     const blob = new Blob([JSON.stringify(exportData, null, 2)], {type: "application/json;charset=utf-8"});
@@ -1356,10 +1359,11 @@ function updateAudienceTrackingDashboard() {
     persistAudienceAnalyticsSnapshot(audienceProgressSnapshot());
 }
 
-function updateAudienceDashboard(results) {
+function updateAudienceDashboard(results, audienceMeta) {
     const items = Array.isArray(results) ? results : [];
     const set = function(id, value) { const el = document.getElementById(id); if (el) el.textContent = value; };
     set("audienceLeadCount", items.length);
+    set("audienceDuplicatesMergedCount", Number(audienceMeta && audienceMeta.duplicates_merged || 0));
     set("audienceRestrictionCount", items.filter(function(item) { return item.channel_rules && item.channel_rules.status === "restriction_detected"; }).length);
     set("audienceRulesCount", items.filter(function(item) { return item.channel_rules && item.channel_rules.status === "rules_or_submission_route_found"; }).length);
     set("audienceReviewCount", items.filter(function(item) { return !item.channel_rules || !["restriction_detected", "rules_or_submission_route_found"].includes(item.channel_rules.status); }).length);
@@ -1392,7 +1396,7 @@ async function runAudienceDiscovery() {
         if (!response.ok) throw new Error(data.message || "Audience discovery failed.");
         const provider = data.provider_status && data.provider_status.provider ? data.provider_status.provider : data.audience.provider;
         summary.textContent = data.results.length + " audience leads found · provider: " + (provider || "none") + ". Every lead requires review before outreach.";
-        updateAudienceDashboard(data.results);
+        updateAudienceDashboard(data.results, data.audience);
         if (!data.results.length) {
             list.innerHTML = '<div class="verification">No live audience leads were returned. The planner remains available without search-provider credits.</div>';
         } else {
