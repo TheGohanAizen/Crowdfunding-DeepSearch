@@ -515,6 +515,13 @@ try:
     assert 'status.value = "actionable_review"' in live_discovery_html
     assert 'sort.value = "rules_first"' in live_discovery_html
     assert 'id="audienceFollowupQueueButton"' in live_discovery_html
+    assert 'id="audienceOverdueQueueButton"' in live_discovery_html
+    assert 'id="audienceUpcomingQueueButton"' in live_discovery_html
+    assert 'value="followup_overdue"' in live_discovery_html
+    assert 'value="followup_upcoming"' in live_discovery_html
+    assert 'value="followup_soonest"' in live_discovery_html
+    assert 'function setAudienceOverdueQueue()' in live_discovery_html
+    assert 'function setAudienceUpcomingQueue()' in live_discovery_html
     assert 'function setAudienceFollowupQueue()' in live_discovery_html
     assert 'id="audienceRestrictedQueueButton"' in live_discovery_html
     assert 'function setAudienceRestrictedQueue()' in live_discovery_html
