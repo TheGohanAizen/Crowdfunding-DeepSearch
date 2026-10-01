@@ -1518,8 +1518,29 @@ def build_sendgrid_mail_v3_payload(to_email, from_email, subject, body, reply_to
     return payload
 
 
+def prepare_automation_storage_path():
+    """Validate and prepare the configured SQLite parent directory."""
+    path = str(AUTOMATION_LEDGER_PATH or "").strip()
+    if not path:
+        raise RuntimeError("Automation ledger path is not configured.")
+    if path == ":memory:":
+        return {"path": path, "parent": None, "prepared": True}
+    absolute = os.path.abspath(path)
+    parent = os.path.dirname(absolute)
+    try:
+        os.makedirs(parent, exist_ok=True)
+    except OSError as error:
+        raise RuntimeError("Automation ledger directory could not be prepared.") from error
+    if not os.path.isdir(parent):
+        raise RuntimeError("Automation ledger parent path is not a directory.")
+    if not os.access(parent, os.W_OK):
+        raise RuntimeError("Automation ledger directory is not writable.")
+    return {"path": absolute, "parent": parent, "prepared": True}
+
+
 def automation_ledger_connection():
-    connection = sqlite3.connect(AUTOMATION_LEDGER_PATH, timeout=5)
+    storage = prepare_automation_storage_path()
+    connection = sqlite3.connect(storage["path"], timeout=5)
     connection.row_factory = sqlite3.Row
     connection.execute(
         """CREATE TABLE IF NOT EXISTS automation_execution_ledger (
