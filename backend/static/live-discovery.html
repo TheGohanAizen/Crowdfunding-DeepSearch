@@ -446,6 +446,7 @@ const AUTOMATION_CONNECTORS_URL = apiRoot + "/api/automation/connectors";
 const AUTOMATION_DRY_RUN_URL = apiRoot + "/api/automation/dry-run";
 const AUTOMATION_EXECUTION_CHECK_URL = apiRoot + "/api/automation/execution-check";
 const SENDGRID_PREFLIGHT_URL = apiRoot + "/api/automation/connectors/sendgrid/preflight";
+const SENDGRID_SERVER_READINESS_URL = apiRoot + "/api/automation/connectors/sendgrid/server-readiness";
 const SENDGRID_SIMULATE_URL = apiRoot + "/api/automation/connectors/sendgrid/simulate";
 
 async function automationBlockerLabel(code) {
@@ -514,19 +515,15 @@ async function loadSendGridPreflightStatus() {
     const status = document.getElementById("sendgridPreflightStatus");
     if (!status) return;
     try {
-        const response = await fetch(SENDGRID_PREFLIGHT_URL, {
-            method: "POST",
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify({})
-        });
+        const response = await fetch(SENDGRID_SERVER_READINESS_URL);
         const data = await response.json();
-        if (!response.ok) throw new Error(data.message || "SendGrid preflight unavailable.");
+        if (!response.ok) throw new Error(data.message || "SendGrid server readiness unavailable.");
         const blockers = Array.isArray(data.blockers) ? data.blockers.map(automationBlockerLabel) : [];
         status.textContent = data.ready
-            ? "SendGrid production preflight: prerequisites recorded; live sending is still disabled."
-            : "SendGrid production preflight: blocked — " + blockers.join("; ") + ".";
+            ? "SendGrid server readiness: all deployment prerequisites report ready. No send is authorized by this check."
+            : "SendGrid server readiness: blocked — " + blockers.join("; ") + ". No send was attempted.";
     } catch (error) {
-        status.textContent = "SendGrid production preflight: unavailable — live sending remains disabled.";
+        status.textContent = "SendGrid server readiness: unavailable — live sending remains disabled.";
     }
 }
 
