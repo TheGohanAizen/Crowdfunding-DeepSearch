@@ -243,6 +243,9 @@ try:
     server_path = os.path.join(ROOT, "backend", "server.py")
     with open(server_path, "r", encoding="utf-8") as handle:
         server_source = handle.read()
+    analyzer_path = os.path.join(ROOT, "analyzer.html")
+    with open(analyzer_path, "r", encoding="utf-8") as handle:
+        analyzer_html = handle.read()
     assert live_discovery_html.startswith("<!DOCTYPE html>\n<html")
     assert live_discovery_html.lower().count("<!doctype html>") == 1
     assert live_discovery_html.index("function submissionPacketIsCurrent") > live_discovery_html.index("<script>")
