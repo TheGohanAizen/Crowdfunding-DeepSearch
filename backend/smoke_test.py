@@ -284,6 +284,10 @@ try:
     assert 'value="followups_upcoming"' in live_discovery_html
     assert 'followups_overdue_24h' in live_discovery_html
     assert 'followups_upcoming_7d' in live_discovery_html
+    assert 'function followupState(record, nowValue)' in live_discovery_html
+    assert 'const followup = followupState(record, now);' in live_discovery_html
+    assert 'followups_overdue_24h: snapshot.followups_overdue_24h' in live_discovery_html
+    assert 'followups_upcoming_7d: snapshot.followups_upcoming_7d' in live_discovery_html
     assert 'function persistInstitutionalAnalyticsSnapshot(snapshot)' in live_discovery_html
     assert 'institutional_analytics_summary:' in live_discovery_html
     assert 'persistInstitutionalAnalyticsSnapshot(institutionalProgressSnapshot())' in live_discovery_html
