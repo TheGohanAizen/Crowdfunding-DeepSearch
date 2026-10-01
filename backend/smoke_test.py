@@ -383,6 +383,9 @@ try:
     assert 'function loadAutomationOperationalReadiness()' in live_discovery_html
     assert 'function automationBlockerCategory(code)' in live_discovery_html
     assert 'function groupedAutomationBlockers(codes)' in live_discovery_html
+    assert 'updated.last_automation_dry_run = {' in live_discovery_html
+    assert 'blockers.map(function(code) { return String(code).slice(0, 80); }).slice(0, 30)' in live_discovery_html
+    assert 'const blockerSummary = await automationBlockerSummary(blockers);' in live_discovery_html
     assert 'async function automationBlockerSummary(codes)' in live_discovery_html
     assert '"Permission / authorization"' in live_discovery_html
     assert '"Compliance / sender"' in live_discovery_html
