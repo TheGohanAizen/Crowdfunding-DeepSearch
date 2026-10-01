@@ -952,11 +952,21 @@ function renderAudienceLead(item) {
                 card.appendChild(state);
             }
             const blockers = data.decision && Array.isArray(data.decision.blockers)
-                ? data.decision.blockers.map(automationBlockerLabel)
-                : [];
+                ? data.decision.blockers : [];
+            const blockerSummary = await automationBlockerSummary(blockers);
             state.textContent = data.status === "ready"
                 ? "Automation readiness: connector gate passed in dry-run only — nothing was sent."
-                : "Automation readiness: blocked — " + (blockers.length ? blockers.join("; ") : "assisted/manual review remains required.") + ".";
+                : "Automation readiness: blocked — " + (blockerSummary || "assisted/manual review remains required") + ". Nothing was sent.";
+            const updated = readTrackingRecord(audienceTrackingKey) || {};
+            updated.last_automation_dry_run = {
+                status: data.status === "ready" ? "ready" : "blocked",
+                blockers: blockers.map(function(code) { return String(code).slice(0, 80); }).slice(0, 30),
+                checked_at: new Date().toISOString(),
+                sent: false,
+                network_io: false,
+                authorization_granted: false
+            };
+            try { localStorage.setItem(audienceTrackingKey, JSON.stringify(updated)); } catch (error) {}
         } catch (error) {
             alert(error.message);
         } finally {
