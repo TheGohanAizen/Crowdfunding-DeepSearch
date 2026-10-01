@@ -618,9 +618,12 @@ try:
     finally:
         if original_admin_flag is not None:
             os.environ["AUTOMATION_ADMIN_ENDPOINTS_ENABLED"] = original_admin_flag
+    prepared_storage = prepare_automation_storage_path()
+    assert prepared_storage["prepared"] is True
     default_storage = automation_storage_status()
     assert default_storage["backend"] == "sqlite"
     assert default_storage["live_ready"] is False
+    assert default_storage["path_prepared"] is True
     assert default_storage["reason"] == "durable_automation_storage_required"
     original_env = dict(os.environ)
     try:
@@ -649,6 +652,7 @@ try:
     build_live_sendgrid_execution_candidate = crowdfunding_server.build_live_sendgrid_execution_candidate
     automation_rate_limit_status = crowdfunding_server.automation_rate_limit_status
     automation_storage_status = crowdfunding_server.automation_storage_status
+    prepare_automation_storage_path = crowdfunding_server.prepare_automation_storage_path
     automation_admin_endpoints_enabled = crowdfunding_server.automation_admin_endpoints_enabled
     automation_operational_tools_enabled = crowdfunding_server.automation_operational_tools_enabled
     automation_attempt_idempotency_key = crowdfunding_server.automation_attempt_idempotency_key
