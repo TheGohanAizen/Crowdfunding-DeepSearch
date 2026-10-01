@@ -114,18 +114,30 @@ The operations/analytics layer is now implemented across both institutional oppo
 3. Institutional reporting now has a complete saved → reviewed → contacted → responded → closed funnel plus due, 24h+ overdue, and next-7-day follow-up metrics.
 4. Institutional and public-audience funnels remain separately reported in the campaign progress export and cross-workspace operations dashboard.
 5. Workspace Operations provides a bounded 50-item action queue, prioritizes overdue before due before upcoming work, distinguishes institutional opportunities from audience leads, and reports queue composition without exposing private record content.
-6. The privacy-safe Workspace Operations export has advanced to schema v6 and includes aggregate stale-action, duplicate-suppression, institutional-funnel, and action-queue metrics.
+6. The privacy-safe Workspace Operations export has advanced to schema v8 and includes aggregate stale-action, duplicate-suppression, institutional-funnel, and action-queue metrics.
 7. Automatic distribution remains disabled unless a registered connector passes all permission, compliance, deduplication, storage, explicit-authorization, and deployment gates.
+
+### Operational quality implementation status
+
+The operational-quality frontier is now substantially implemented:
+
+1. Cross-workspace action-queue items deep-link back to the correct campaign workspace using only a sanitized workspace identifier in the URL.
+2. Audience and institutional follow-up calculations share common due, 24h+ overdue, next-7-day upcoming, invalid-date, and closed-record semantics.
+3. Regression guards protect the 50-item queue cap, seven-day horizon, closed-record exclusion, urgency ordering, privacy flags, and workspace navigation.
+4. Workspace Operations surfaces Audience and institutional analytics snapshot freshness as current (<24h), stale (24h+), stale (7d+), pending, or invalid.
+5. Institutional discovery reports confirmed/possible service-area evidence, detected application/contact routes, program evidence, and explicitly unverified eligibility-language signals; these are filterable without becoming eligibility claims.
+6. The institutional tracking dashboard now correctly counts reviewed and closed states and exposes route/readiness counters.
+7. Workspace Operations export schema has advanced to v8 while preserving separation between institutional and public-audience funnels.
+8. Automation diagnostics expose non-secret connector/deployment readiness and trusted server-side SendGrid readiness. These checks never authorize or attempt a send.
 
 ### Current development frontier
 
-The next additive phase is operational quality and navigation:
+The next additive phase is automation auditability and compliance hardening:
 
-1. Add direct, privacy-safe navigation from cross-workspace queue items back to the correct campaign workspace and workflow view without embedding private content in URLs.
-2. Consolidate follow-up classification into reusable helpers so audience, institutional, campaign-export, and cross-workspace calculations cannot drift.
-3. Add stronger regression coverage for queue bounds, closed-record exclusion, urgency ordering, and privacy-safe exports.
-4. Surface analytics snapshot freshness so operators can distinguish current metrics from workspaces that have not been opened/refreshed recently.
-5. Improve institutional route/readiness reporting while keeping eligibility claims explicitly unverified until confirmed from official source evidence.
-6. Continue dry-run and compliance-preflight development for registered automation connectors; do not enable live sending merely to advance the roadmap.
+1. Make non-sending dry-run and execution-prerequisite outcomes easier to inspect and retain without storing recipient addresses or message bodies in analytics exports.
+2. Surface durable-storage and rate-limit readiness as non-secret operational signals.
+3. Strengthen regression coverage proving readiness/simulation checks cannot be mistaken for live-send authorization.
+4. Improve blocker grouping so permission, compliance, deduplication, storage, rate-limit, and deployment failures are distinguishable.
+5. Keep live automatic distribution disabled unless every existing connector, permission, compliance, deduplication, storage, rate-limit, deployment, and explicit user-authorization gate passes.
 
 The production baseline is protected by GitHub backend checks and exact-commit Render deployment verification.
