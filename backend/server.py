@@ -1559,7 +1559,11 @@ def automation_ledger_connection():
                 provider_message_id TEXT,
                 resolution_reason TEXT,
                 blockers_json TEXT NOT NULL DEFAULT '[]',
-                recorded_at TEXT NOT NULL
+                recorded_at TEXT NOT NULL,
+                updated_at TEXT,
+                resolved_at TEXT,
+                parent_idempotency_key TEXT,
+                attempt_number INTEGER NOT NULL DEFAULT 1
             )"""
         )
         resolution_expr = "resolution_reason" if "resolution_reason" in columns else "NULL"
