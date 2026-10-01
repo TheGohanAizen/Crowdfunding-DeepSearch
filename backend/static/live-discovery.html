@@ -1776,6 +1776,7 @@ function updateOutreachDashboard() {
     document.getElementById("dashFollowupsUpcoming").textContent = counts.followupsUpcoming;
     document.getElementById("dashNotStarted").textContent = counts.notStarted;
     document.getElementById("outreachDashboard").style.display = cards.length ? "grid" : "none";
+    persistInstitutionalAnalyticsSnapshot(institutionalProgressSnapshot());
 }
 
 function institutionalProgressSnapshot() {
@@ -1801,6 +1802,34 @@ function institutionalProgressSnapshot() {
     });
     metrics.response_rate_percent = metrics.ever_contacted ? Math.round(metrics.ever_responded / metrics.ever_contacted * 100) : 0;
     return metrics;
+}
+
+function persistInstitutionalAnalyticsSnapshot(snapshot) {
+    if (!snapshot) return false;
+    try {
+        const id = currentCampaignWorkspaceId();
+        const registry = campaignWorkspaceRegistry();
+        const existing = registry[id] || {};
+        registry[id] = Object.assign({}, existing, {
+            institutional_analytics_summary: {
+                total_opportunities: snapshot.total_opportunities,
+                saved: snapshot.saved,
+                reviewed: snapshot.reviewed,
+                contacted: snapshot.contacted,
+                responded: snapshot.responded,
+                closed: snapshot.closed,
+                followups_due: snapshot.followups_due,
+                followups_overdue_24h: snapshot.followups_overdue_24h,
+                followups_upcoming_7d: snapshot.followups_upcoming_7d,
+                response_rate_percent: snapshot.response_rate_percent
+            },
+            institutional_analytics_updated_at: new Date().toISOString()
+        });
+        localStorage.setItem(CAMPAIGN_WORKSPACE_REGISTRY_KEY, JSON.stringify(registry));
+        return true;
+    } catch (error) {
+        return false;
+    }
 }
 
 function exportCampaignProgressSummary() {
