@@ -481,7 +481,7 @@ try:
     assert 'id="audienceSavedCount"' in live_discovery_html
     assert 'id="audienceReviewedCount"' in live_discovery_html
     assert 'id="audienceContactedCount"' in live_discovery_html
-    assert 'TRACKING_PREFIX + "audience:"' in live_discovery_html
+    assert 'currentCampaignTrackingPrefix() + "audience:"' in live_discovery_html
     assert '["saved", "reviewed", "contacted", "responded", "closed"]' in live_discovery_html
     assert 'id="audienceStatusFilter"' in live_discovery_html
     assert 'id="audienceChannelFilter"' in live_discovery_html
