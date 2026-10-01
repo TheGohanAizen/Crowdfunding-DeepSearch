@@ -254,7 +254,7 @@ try:
     assert "function actionQueue(limit=50)" in workspace_operations_html
     assert "function renderActionQueue()" in workspace_operations_html
     assert "action_queue:actionQueue(50)" in workspace_operations_html
-    assert "version:2" in workspace_operations_html
+    assert "version:3" in workspace_operations_html
     assert "private_notes_included:false" in workspace_operations_html
     assert "response_details_included:false" in workspace_operations_html
     assert "outreach_draft_bodies_included:false" in workspace_operations_html
