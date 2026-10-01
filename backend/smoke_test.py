@@ -274,6 +274,15 @@ try:
     assert "current <24h" in workspace_operations_html
     assert "Institutional analytics updated" in workspace_operations_html
     assert 'applicationRouteDetected' in live_discovery_html
+    assert 'value="application_route"' in live_discovery_html
+    assert 'value="contact_route"' in live_discovery_html
+    assert 'value="program_evidence"' in live_discovery_html
+    assert 'value="eligibility_language"' in live_discovery_html
+    assert 'filter === "application_route"' in live_discovery_html
+    assert 'filter === "contact_route"' in live_discovery_html
+    assert 'filter === "program_evidence"' in live_discovery_html
+    assert 'filter === "eligibility_language"' in live_discovery_html
+    assert 'Eligibility language detected (unverified)' in live_discovery_html
     assert 'contactRouteDetected' in live_discovery_html
     assert 'eligibilityLanguageDetected' in live_discovery_html
     assert 'eligibility_language_detected_unverified' in live_discovery_html
