@@ -302,6 +302,14 @@ try:
     assert 'function institutionalProgressSnapshot()' in live_discovery_html
     assert 'id="dashReviewed"' in live_discovery_html
     assert 'id="dashClosed"' in live_discovery_html
+    assert 'id="dashApplicationRoutes"' in live_discovery_html
+    assert 'id="dashContactRoutes"' in live_discovery_html
+    assert 'id="dashEligibilityLanguage"' in live_discovery_html
+    assert 'record.status === "reviewed") counts.reviewed += 1' in live_discovery_html
+    assert 'record.status === "closed") counts.closed += 1' in live_discovery_html
+    assert 'counts.applicationRoutes += 1' in live_discovery_html
+    assert 'counts.contactRoutes += 1' in live_discovery_html
+    assert 'counts.eligibilityLanguage += 1' in live_discovery_html
     assert 'value="tracked_reviewed"' in live_discovery_html
     assert 'value="tracked_closed"' in live_discovery_html
     assert 'data-track="reviewed"' in live_discovery_html
