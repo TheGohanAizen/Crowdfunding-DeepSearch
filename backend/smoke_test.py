@@ -410,7 +410,8 @@ try:
     assert 'unsubscribe_ready: false' in live_discovery_html
     assert 'sendgridPreflightStatus' in live_discovery_html
     assert 'function loadSendGridPreflightStatus()' in live_discovery_html
-    assert 'live sending is still disabled' in live_discovery_html
+    assert 'No send is authorized by this check.' in live_discovery_html
+    assert 'live sending remains disabled' in live_discovery_html
     assert 'explicit user authorization is required' in live_discovery_html
     assert 'the route permission review must be current' in live_discovery_html
     assert 'the lead must pass duplicate-contact protection' in live_discovery_html
