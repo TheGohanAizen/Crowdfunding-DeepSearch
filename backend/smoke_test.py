@@ -319,7 +319,7 @@ try:
     assert 'data-audience-track="contacted"' in live_discovery_html
     assert 'AUDIENCE_OUTREACH_DRAFT_URL' in live_discovery_html
     assert 'data-audience-draft="true"' in live_discovery_html
-    assert 'Prepared outreach draft — review before sending' in live_discovery_html
+    assert 'Saved outreach draft — review before sending' in live_discovery_html
     assert 'function renderSavedAudienceDraft(card, trackingKey, draft)' in live_discovery_html
     assert 'outreach_draft: previous.outreach_draft || null' in live_discovery_html
     assert 'data-save-draft="true"' in live_discovery_html
