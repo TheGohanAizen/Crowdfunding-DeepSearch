@@ -262,6 +262,13 @@ try:
     assert 'id="workspaceOperationsButton"' in live_discovery_html
     assert 'id="exportCampaignProgressButton"' in live_discovery_html
     assert 'function institutionalProgressSnapshot()' in live_discovery_html
+    assert 'id="dashReviewed"' in live_discovery_html
+    assert 'id="dashClosed"' in live_discovery_html
+    assert 'value="tracked_reviewed"' in live_discovery_html
+    assert 'value="tracked_closed"' in live_discovery_html
+    assert 'data-track="reviewed"' in live_discovery_html
+    assert 'data-track="closed"' in live_discovery_html
+    assert 'filter.startsWith("tracked_")' in live_discovery_html
     assert 'function exportCampaignProgressSummary()' in live_discovery_html
     assert 'crowdfunding-deepsearch-campaign-progress-summary' in live_discovery_html
     assert 'institutional_opportunities: institutionalProgressSnapshot()' in live_discovery_html
