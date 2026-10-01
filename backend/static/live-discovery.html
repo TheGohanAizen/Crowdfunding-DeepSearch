@@ -323,6 +323,7 @@ button:hover { background: #1d4ed8; }
       <button type="button" id="audienceSubmissionReadyButton" onclick="setAudienceSubmissionReadyQueue()">Submission-ready queue</button>
       <button type="button" id="audienceHandoffPreparedButton" onclick="setAudienceHandoffPreparedQueue()">Handoffs prepared</button>
       <button type="button" id="audienceHandoffRefreshButton" onclick="setAudienceHandoffRefreshQueue()">Handoffs need refresh</button>
+      <button type="button" id="exportAudienceProgressButton" onclick="exportAudienceProgressSummary()">Export progress summary</button>
     </div>
     <div id="audiencePlanList"></div>
     <div class="notice">This preview uses zero live-search credits. It plans relevant public-web discovery lanes first; posting or contacting remains disabled until channel rules and permissions are reviewed.</div>
@@ -1155,6 +1156,72 @@ function trackingHasStatus(record, status) {
     return Array.isArray(record.history) && record.history.some(function(entry) {
         return entry && entry.status === status;
     });
+}
+
+function audienceProgressSnapshot() {
+    const cards = Array.from(document.querySelectorAll("#audiencePlanList .result-card"));
+    const snapshot = {
+        workspace_id: currentCampaignWorkspaceId(),
+        exported_at: new Date().toISOString(),
+        total_leads: cards.length,
+        not_started: 0, saved: 0, reviewed: 0, contacted: 0, responded: 0, closed: 0,
+        ever_reviewed: 0, ever_contacted: 0, ever_responded: 0,
+        followups_due: 0, drafts_prepared: 0, contact_ready: 0, submission_ready: 0,
+        handoffs_prepared: 0, handoffs_need_refresh: 0, restricted: 0
+    };
+    const now = new Date();
+    cards.forEach(function(card) {
+        const record = card.dataset.audienceTrackingKey ? readTrackingRecord(card.dataset.audienceTrackingKey) : null;
+        const status = record && record.status ? record.status : "not_started";
+        if (Object.prototype.hasOwnProperty.call(snapshot, status)) snapshot[status] += 1;
+        else snapshot.not_started += 1;
+        if (trackingHasStatus(record, "reviewed")) snapshot.ever_reviewed += 1;
+        if (trackingHasStatus(record, "contacted")) snapshot.ever_contacted += 1;
+        if (trackingHasStatus(record, "responded")) snapshot.ever_responded += 1;
+        if (record && record.status !== "closed" && record.follow_up_at && new Date(record.follow_up_at) <= now) snapshot.followups_due += 1;
+        if (record && record.outreach_draft) snapshot.drafts_prepared += 1;
+        const permissionCurrent = permissionReviewIsCurrent(record, card.dataset.routeFingerprint || "");
+        if (record && record.status === "reviewed" && record.outreach_draft && permissionCurrent && card.dataset.ruleStatus === "rules_or_submission_route_found") snapshot.contact_ready += 1;
+        if (record && record.status === "reviewed" && record.outreach_draft && permissionCurrent && card.dataset.ruleStatus === "rules_or_submission_route_found" && card.dataset.hasApplicationRoute === "true") snapshot.submission_ready += 1;
+        const verifiedRoutes = JSON.parse(card.dataset.verifiedApplicationRoutes || "[]");
+        const packetCurrent = submissionPacketIsCurrent(record, card.dataset.routeFingerprint || "", verifiedRoutes);
+        if (packetCurrent) snapshot.handoffs_prepared += 1;
+        if (record && record.submission_packet && record.submission_packet.prepared_at && !packetCurrent) snapshot.handoffs_need_refresh += 1;
+        if (card.dataset.ruleStatus === "restriction_detected") snapshot.restricted += 1;
+    });
+    snapshot.review_rate_percent = snapshot.total_leads ? Math.round((snapshot.ever_reviewed / snapshot.total_leads) * 100) : 0;
+    snapshot.contact_rate_percent = snapshot.ever_reviewed ? Math.round((snapshot.ever_contacted / snapshot.ever_reviewed) * 100) : 0;
+    snapshot.response_rate_percent = snapshot.ever_contacted ? Math.round((snapshot.ever_responded / snapshot.ever_contacted) * 100) : 0;
+    return snapshot;
+}
+
+function exportAudienceProgressSummary() {
+    const snapshot = audienceProgressSnapshot();
+    const profile = currentCampaignTrackingProfile();
+    const exportData = {
+        version: 1,
+        kind: "crowdfunding-deepsearch-audience-progress-summary",
+        campaign: {
+            workspace_id: snapshot.workspace_id,
+            need: profile.need || "",
+            location: profile.location || "",
+            goal: profile.goal || "",
+            campaign_url: profile.campaign_url || ""
+        },
+        metrics: snapshot,
+        privacy: {
+            private_notes_included: false,
+            response_details_included: false,
+            outreach_draft_bodies_included: false
+        }
+    };
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], {type: "application/json;charset=utf-8"});
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "crowdfunding-deepsearch-audience-progress-summary.json";
+    link.click();
+    URL.revokeObjectURL(url);
 }
 
 function updateAudienceTrackingDashboard() {
