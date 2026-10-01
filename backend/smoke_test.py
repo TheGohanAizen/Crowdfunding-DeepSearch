@@ -19,8 +19,9 @@ env["SEARCH_PROVIDER"] = "auto"
 process = subprocess.Popen(
     [sys.executable, os.path.join(ROOT, "backend", "server.py")],
     env=env,
-    stdout=subprocess.DEVNULL,
-    stderr=subprocess.DEVNULL,
+    stdout=subprocess.PIPE,
+    stderr=subprocess.STDOUT,
+    text=True,
 )
 
 def read_json(request):
@@ -46,7 +47,14 @@ try:
             last_error = error
             time.sleep(0.25)
     else:
-        raise RuntimeError("Backend did not become healthy: " + str(last_error))
+        server_output = ""
+        if process.poll() is not None and process.stdout is not None:
+            server_output = process.stdout.read()
+        raise RuntimeError(
+            "Backend did not become healthy: "
+            + repr(last_error)
+            + ("\\nServer output:\\n" + server_output if server_output else "")
+        )
 
     payload = json.dumps({
         "need": "Transportation",
