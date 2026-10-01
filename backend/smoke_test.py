@@ -957,6 +957,7 @@ try:
 
         old_record = dict(ledger_record)
         old_record["idempotency_key"] = "smoke-old-key"
+        old_record["ledger_key"] = "smoke-old-key"
         old_record["recorded_at"] = "2020-01-01T00:00:00+00:00"
         assert persist_automation_execution_record(old_record)["created"] is True
         prune_result = prune_automation_execution_ledger(7)
