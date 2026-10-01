@@ -524,7 +524,7 @@ try:
     assert 'Recommended next action:</strong>' in live_discovery_html
     assert 'id="audienceDashboard"' in live_discovery_html
     assert 'id="audienceRestrictionCount"' in live_discovery_html
-    assert 'function updateAudienceDashboard(results)' in live_discovery_html
+    assert 'function updateAudienceDashboard(results, audienceMeta)' in live_discovery_html
     assert 'function updateAudienceTrackingDashboard()' in live_discovery_html
     assert 'id="audienceSavedCount"' in live_discovery_html
     assert 'id="audienceReviewedCount"' in live_discovery_html
