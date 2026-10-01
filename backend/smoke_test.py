@@ -617,6 +617,12 @@ try:
     automation_live_send_policy = crowdfunding_server.automation_live_send_policy
     validate_automation_connector_definition = crowdfunding_server.validate_automation_connector_definition
     build_automation_dry_run = crowdfunding_server.build_automation_dry_run
+    validate_live_send_authorization = crowdfunding_server.validate_live_send_authorization
+    automation_admin_endpoints_enabled = crowdfunding_server.automation_admin_endpoints_enabled
+    automation_operational_tools_enabled = crowdfunding_server.automation_operational_tools_enabled
+    prepare_automation_storage_path = crowdfunding_server.prepare_automation_storage_path
+    automation_storage_status = crowdfunding_server.automation_storage_status
+    sendgrid_server_preflight = crowdfunding_server.sendgrid_server_preflight
     check_only_auth = validate_live_send_authorization({
         "user_authorized_check": True,
         "permission_review_current": True,
@@ -665,14 +671,8 @@ try:
     })
     assert explicit_send_auth["allowed"] is True
     validate_automation_execution_request = crowdfunding_server.validate_automation_execution_request
-    validate_live_send_authorization = crowdfunding_server.validate_live_send_authorization
-    sendgrid_server_preflight = crowdfunding_server.sendgrid_server_preflight
     build_live_sendgrid_execution_candidate = crowdfunding_server.build_live_sendgrid_execution_candidate
     automation_rate_limit_status = crowdfunding_server.automation_rate_limit_status
-    automation_storage_status = crowdfunding_server.automation_storage_status
-    prepare_automation_storage_path = crowdfunding_server.prepare_automation_storage_path
-    automation_admin_endpoints_enabled = crowdfunding_server.automation_admin_endpoints_enabled
-    automation_operational_tools_enabled = crowdfunding_server.automation_operational_tools_enabled
     automation_attempt_idempotency_key = crowdfunding_server.automation_attempt_idempotency_key
     automation_retry_decision = crowdfunding_server.automation_retry_decision
     validate_automation_retry_request = crowdfunding_server.validate_automation_retry_request
