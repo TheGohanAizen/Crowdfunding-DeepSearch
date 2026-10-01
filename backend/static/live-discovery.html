@@ -364,6 +364,10 @@ button:hover { background: #1d4ed8; }
             <option value="all">All opportunities</option>
             <option value="confirmed_area">Confirmed service area</option>
             <option value="possible_area">Possible service area</option>
+            <option value="application_route">Application route detected</option>
+            <option value="contact_route">Contact route detected</option>
+            <option value="program_evidence">Program / assistance evidence detected</option>
+            <option value="eligibility_language">Eligibility language detected (unverified)</option>
             <option value="local">Local</option>
             <option value="state">State / province</option>
             <option value="national">National</option>
@@ -1504,6 +1508,10 @@ function applyResultFilter() {
         const show = filter === "all" || filter === stage || filter === status ||
             (filter === "confirmed_area" && serviceArea === "confirmed") ||
             (filter === "possible_area" && serviceArea === "possible") ||
+            (filter === "application_route" && card.dataset.applicationRouteDetected === "true") ||
+            (filter === "contact_route" && card.dataset.contactRouteDetected === "true") ||
+            (filter === "program_evidence" && card.dataset.programEvidenceDetected === "true") ||
+            (filter === "eligibility_language" && card.dataset.eligibilityLanguageDetected === "true") ||
             (filter === "followups_due" && followupDue) ||
             (filter === "followups_overdue" && followupOverdue) ||
             (filter === "followups_upcoming" && followupUpcoming) ||
