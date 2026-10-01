@@ -370,6 +370,11 @@ try:
     assert 'No automatic posting' in live_discovery_html
     assert 'id="audienceDiscoverButton"' in live_discovery_html
     assert 'id="automationReadinessChecklist"' in live_discovery_html
+    assert 'SENDGRID_SERVER_READINESS_URL' in live_discovery_html
+    assert '/api/automation/connectors/sendgrid/server-readiness' in live_discovery_html
+    assert 'fetch(SENDGRID_SERVER_READINESS_URL)' in live_discovery_html
+    assert 'No send is authorized by this check.' in live_discovery_html
+    assert 'No send was attempted.' in live_discovery_html
     assert 'function renderAutomationReadinessChecklist(connector)' in live_discovery_html
     assert 'policy.registry_enabled === true' in live_discovery_html
     assert 'policy.deployment_enabled === true' in live_discovery_html
