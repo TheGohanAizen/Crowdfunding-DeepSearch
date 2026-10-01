@@ -1016,6 +1016,16 @@ function renderAudienceLead(item) {
     return card;
 }
 
+function followupState(record, nowValue) {
+    const now = nowValue instanceof Date ? nowValue : new Date();
+    const followupAt = record && record.follow_up_at ? new Date(record.follow_up_at) : null;
+    const open = !!(record && record.status !== "closed" && followupAt && Number.isFinite(followupAt.getTime()));
+    const due = !!(open && followupAt <= now);
+    const overdue = !!(due && now.getTime() - followupAt.getTime() >= 24 * 60 * 60 * 1000);
+    const upcoming = !!(open && followupAt > now && followupAt.getTime() <= now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    return {followupAt: followupAt, open: open, due: due, overdue: overdue, upcoming: upcoming};
+}
+
 function applyAudienceFilters() {
     const statusFilter = document.getElementById("audienceStatusFilter");
     const channelFilter = document.getElementById("audienceChannelFilter");
@@ -1053,11 +1063,10 @@ function applyAudienceFilters() {
         const record = card.dataset.audienceTrackingKey ? readTrackingRecord(card.dataset.audienceTrackingKey) : null;
         const tracked = record && record.status ? record.status : "not_started";
         const rule = card.dataset.ruleStatus || "not_checked";
-        const now = new Date();
-        const followupAt = record && record.follow_up_at ? new Date(record.follow_up_at) : null;
-        const followupDue = !!(record && record.status !== "closed" && followupAt && followupAt <= now);
-        const followupOverdue = !!(followupDue && (now.getTime() - followupAt.getTime()) >= 24 * 60 * 60 * 1000);
-        const followupUpcoming = !!(record && record.status !== "closed" && followupAt && followupAt > now && followupAt.getTime() <= now.getTime() + 7 * 24 * 60 * 60 * 1000);
+        const followup = followupState(record);
+        const followupDue = followup.due;
+        const followupOverdue = followup.overdue;
+        const followupUpcoming = followup.upcoming;
         const statusMatch = status === "all"
             || (status === "actionable_review" && rule === "rules_or_submission_route_found")
             || (status === "needs_review" && !["restriction_detected", "rules_or_submission_route_found"].includes(rule))
@@ -1225,7 +1234,7 @@ function audienceProgressSnapshot() {
         total_leads: cards.length,
         not_started: 0, saved: 0, reviewed: 0, contacted: 0, responded: 0, closed: 0,
         ever_reviewed: 0, ever_contacted: 0, ever_responded: 0,
-        followups_due: 0, drafts_prepared: 0, contact_ready: 0, submission_ready: 0,
+        followups_due: 0, followups_overdue_24h: 0, followups_upcoming_7d: 0, drafts_prepared: 0, contact_ready: 0, submission_ready: 0,
         handoffs_prepared: 0, handoffs_need_refresh: 0, permission_reviews_current: 0, permission_reviews_need_refresh: 0, restricted: 0
     };
     const now = new Date();
@@ -1237,7 +1246,10 @@ function audienceProgressSnapshot() {
         if (trackingHasStatus(record, "reviewed")) snapshot.ever_reviewed += 1;
         if (trackingHasStatus(record, "contacted")) snapshot.ever_contacted += 1;
         if (trackingHasStatus(record, "responded")) snapshot.ever_responded += 1;
-        if (record && record.status !== "closed" && record.follow_up_at && new Date(record.follow_up_at) <= now) snapshot.followups_due += 1;
+        const followup = followupState(record, now);
+        if (followup.due) snapshot.followups_due += 1;
+        if (followup.overdue) snapshot.followups_overdue_24h += 1;
+        if (followup.upcoming) snapshot.followups_upcoming_7d += 1;
         if (record && record.outreach_draft) snapshot.drafts_prepared += 1;
         const permissionCurrent = permissionReviewIsCurrent(record, card.dataset.routeFingerprint || "");
         if (permissionCurrent) snapshot.permission_reviews_current += 1;
@@ -1265,6 +1277,8 @@ function persistAudienceAnalyticsSnapshot(snapshot) {
             analytics_summary: {
                 total_leads: snapshot.total_leads,
                 followups_due: snapshot.followups_due,
+                followups_overdue_24h: snapshot.followups_overdue_24h,
+                followups_upcoming_7d: snapshot.followups_upcoming_7d,
                 handoffs_prepared: snapshot.handoffs_prepared,
                 handoffs_need_refresh: snapshot.handoffs_need_refresh,
                 permission_reviews_current: snapshot.permission_reviews_current,
@@ -1477,12 +1491,10 @@ function applyResultFilter() {
         const serviceArea = card.dataset.serviceArea || "not_confirmed";
         const trackingKey = card.dataset.trackingKey;
         const tracked = trackingKey ? readTrackingRecord(trackingKey) : null;
-        const now = new Date();
-        const followupAt = tracked && tracked.follow_up_at ? new Date(tracked.follow_up_at) : null;
-        const followupOpen = !!(tracked && tracked.status !== "closed" && followupAt && Number.isFinite(followupAt.getTime()));
-        const followupDue = !!(followupOpen && followupAt <= now);
-        const followupOverdue = !!(followupDue && now.getTime() - followupAt.getTime() >= 24 * 60 * 60 * 1000);
-        const followupUpcoming = !!(followupOpen && followupAt > now && followupAt.getTime() <= now.getTime() + 7 * 24 * 60 * 60 * 1000);
+        const followup = followupState(tracked);
+        const followupDue = followup.due;
+        const followupOverdue = followup.overdue;
+        const followupUpcoming = followup.upcoming;
         const show = filter === "all" || filter === stage || filter === status ||
             (filter === "confirmed_area" && serviceArea === "confirmed") ||
             (filter === "possible_area" && serviceArea === "possible") ||
