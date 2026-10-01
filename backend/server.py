@@ -31,6 +31,7 @@ MAX_QUERY_LENGTH = env_int("MAX_QUERY_LENGTH", 500, 100, 2000)
 MAX_SEARCH_LANES = env_int("MAX_SEARCH_LANES", 4, 1, 4)
 MAX_AUDIENCE_SEARCH_QUERIES = env_int("MAX_AUDIENCE_SEARCH_QUERIES", 4, 1, 8)
 MAX_RESULTS_PER_LANE = env_int("MAX_RESULTS_PER_LANE", 4, 1, 10)
+AUTOMATION_STORAGE_BACKEND = os.environ.get("AUTOMATION_STORAGE_BACKEND", "sqlite").strip().lower()
 AUTOMATION_LEDGER_PATH = os.environ.get("AUTOMATION_LEDGER_PATH", "/tmp/crowdfunding-deepsearch-automation.sqlite3")
 AUTOMATION_LEDGER_RETENTION_DAYS = env_int("AUTOMATION_LEDGER_RETENTION_DAYS", 90, 7, 365)
 ALLOWED_ORIGIN = os.environ.get("ALLOWED_ORIGIN", "*")
@@ -1539,6 +1540,8 @@ def prepare_automation_storage_path():
 
 
 def automation_ledger_connection():
+    if str(AUTOMATION_STORAGE_BACKEND or "").strip().lower() != "sqlite":
+        raise RuntimeError("Configured automation storage backend is not supported.")
     storage = prepare_automation_storage_path()
     connection = sqlite3.connect(storage["path"], timeout=5)
     connection.row_factory = sqlite3.Row
@@ -1990,6 +1993,7 @@ def automation_admin_endpoints_enabled():
 
 def automation_storage_status():
     """Describe whether the configured execution store is suitable for live automation."""
+    backend = str(AUTOMATION_STORAGE_BACKEND or "").strip().lower()
     path = str(AUTOMATION_LEDGER_PATH or "").strip()
     persistent_declared = env_flag("AUTOMATION_STORAGE_PERSISTENT")
     memory_path = path == ":memory:"
@@ -2002,15 +2006,21 @@ def automation_storage_status():
             path_prepared = True
         except RuntimeError as error:
             storage_error = str(error)
-    live_ready = bool(path and path_prepared and persistent_declared and not ephemeral_path)
+    supported_backend = backend == "sqlite"
+    live_ready = bool(supported_backend and path and path_prepared and persistent_declared and not ephemeral_path)
     return {
-        "backend": "sqlite",
+        "backend": backend,
+        "supported_backend": supported_backend,
         "path_configured": bool(path),
         "path_prepared": path_prepared,
         "persistent_declared": persistent_declared,
         "ephemeral_path": ephemeral_path,
         "live_ready": live_ready,
-        "reason": "persistent_storage_ready" if live_ready else "durable_automation_storage_required",
+        "reason": (
+            "persistent_storage_ready"
+            if live_ready
+            else ("unsupported_automation_storage_backend" if not supported_backend else "durable_automation_storage_required")
+        ),
         "storage_error": storage_error,
     }
 
