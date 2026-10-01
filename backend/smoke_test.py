@@ -938,10 +938,22 @@ try:
         assert prune_result["retention_days"] == 7
         assert prune_result["deleted"] >= 1
         assert find_automation_execution_record("smoke-old-key") is None
+        with automation_ledger_connection() as connection:
+            connection.execute(
+                """INSERT INTO automation_rate_events
+                   (mechanism, idempotency_key, consumed_at) VALUES (?, ?, ?)""",
+                ("sendgrid_mail_v3", "quota-stale", "2020-01-01T00:00:00+00:00"),
+            )
         quota_before = automation_rate_limit_status("sendgrid_mail_v3")
         assert quota_before["limit_per_hour"] == 20
         quota_consumed = consume_automation_rate_limit("sendgrid_mail_v3", "quota-smoke-1")
         assert quota_consumed["consumed"] is True
+        assert quota_consumed["pruned_events"] >= 1
+        with automation_ledger_connection() as connection:
+            assert connection.execute(
+                "SELECT 1 FROM automation_rate_events WHERE idempotency_key = ?",
+                ("quota-stale",),
+            ).fetchone() is None
         quota_duplicate = consume_automation_rate_limit("sendgrid_mail_v3", "quota-smoke-1")
         assert quota_duplicate["consumed"] is False
         assert automation_rate_limit_status("sendgrid_mail_v3")["used_last_hour"] == 1
