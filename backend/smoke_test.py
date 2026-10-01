@@ -253,6 +253,12 @@ try:
     assert 'id="actionQueue"' in workspace_operations_html
     assert "function actionQueue(limit=50)" in workspace_operations_html
     assert "function actionQueueCounts(items)" in workspace_operations_html
+    assert "Math.min(50,Number(limit)||50)" in workspace_operations_html
+    assert "record.status===\"closed\"" in workspace_operations_html
+    assert "t>now+7*86400000" in workspace_operations_html
+    assert 'const rank={overdue:0,due:1,upcoming:2}' in workspace_operations_html
+    assert '.slice(0,max)' in workspace_operations_html
+    assert 'renderActionQueue();' in workspace_operations_html
     assert "Institutional opportunity" in workspace_operations_html
     assert "Audience lead" in workspace_operations_html
     assert "action_queue_counts:actionQueueCounts(actionQueue(50))" in workspace_operations_html
