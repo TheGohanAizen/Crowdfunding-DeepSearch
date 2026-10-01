@@ -376,6 +376,14 @@ try:
     assert '"sent": False' in server_source
     assert 'id="automationOperationalReadiness"' in live_discovery_html
     assert 'function loadAutomationOperationalReadiness()' in live_discovery_html
+    assert 'function automationBlockerCategory(code)' in live_discovery_html
+    assert 'function groupedAutomationBlockers(codes)' in live_discovery_html
+    assert 'async function automationBlockerSummary(codes)' in live_discovery_html
+    assert '"Permission / authorization"' in live_discovery_html
+    assert '"Compliance / sender"' in live_discovery_html
+    assert '"Duplicate protection"' in live_discovery_html
+    assert '"Storage / quota"' in live_discovery_html
+    assert '"Connector / deployment"' in live_discovery_html
     assert 'fetch(AUTOMATION_OPERATIONAL_READINESS_URL)' in live_discovery_html
     assert 'Diagnostic only — sent: no; network I/O: no; authorization granted: no.' in live_discovery_html
     assert 'SENDGRID_SERVER_READINESS_URL' in live_discovery_html
