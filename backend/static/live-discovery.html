@@ -353,6 +353,8 @@ button:hover { background: #1d4ed8; }
         <div class="info"><div class="info-title">RESPONSES</div><strong id="dashResponded">0</strong></div>
         <div class="info"><div class="info-title">CLOSED</div><strong id="dashClosed">0</strong></div>
         <div class="info"><div class="info-title">FOLLOW-UPS DUE</div><strong id="dashFollowups">0</strong></div>
+        <div class="info"><div class="info-title">OVERDUE 24H+</div><strong id="dashFollowupsOverdue">0</strong></div>
+        <div class="info"><div class="info-title">UPCOMING 7 DAYS</div><strong id="dashFollowupsUpcoming">0</strong></div>
         <div class="info"><div class="info-title">NOT STARTED</div><strong id="dashNotStarted">0</strong></div>
     </div>
 
@@ -370,6 +372,8 @@ button:hover { background: #1d4ed8; }
             <option value="unverified">Unverified</option>
             <option value="low_relevance">Low relevance</option>
             <option value="followups_due">Follow-ups due</option>
+            <option value="followups_overdue">Follow-ups overdue (24h+)</option>
+            <option value="followups_upcoming">Follow-ups upcoming (next 7 days)</option>
             <option value="tracked_reviewed">Tracked: reviewed</option>
             <option value="tracked_contacted">Tracked: contacted</option>
             <option value="tracked_responded">Tracked: responded</option>
@@ -1473,12 +1477,18 @@ function applyResultFilter() {
         const serviceArea = card.dataset.serviceArea || "not_confirmed";
         const trackingKey = card.dataset.trackingKey;
         const tracked = trackingKey ? readTrackingRecord(trackingKey) : null;
-        const followupDue = tracked && tracked.status === "contacted" && tracked.follow_up_at &&
-            new Date(tracked.follow_up_at) <= new Date();
+        const now = new Date();
+        const followupAt = tracked && tracked.follow_up_at ? new Date(tracked.follow_up_at) : null;
+        const followupOpen = !!(tracked && tracked.status !== "closed" && followupAt && Number.isFinite(followupAt.getTime()));
+        const followupDue = !!(followupOpen && followupAt <= now);
+        const followupOverdue = !!(followupDue && now.getTime() - followupAt.getTime() >= 24 * 60 * 60 * 1000);
+        const followupUpcoming = !!(followupOpen && followupAt > now && followupAt.getTime() <= now.getTime() + 7 * 24 * 60 * 60 * 1000);
         const show = filter === "all" || filter === stage || filter === status ||
             (filter === "confirmed_area" && serviceArea === "confirmed") ||
             (filter === "possible_area" && serviceArea === "possible") ||
             (filter === "followups_due" && followupDue) ||
+            (filter === "followups_overdue" && followupOverdue) ||
+            (filter === "followups_upcoming" && followupUpcoming) ||
             (filter.startsWith("tracked_") && tracked && tracked.status === filter.replace("tracked_", ""));
         card.style.display = show ? "" : "none";
         if (show) visible += 1;
@@ -1734,7 +1744,7 @@ function trackingLabel(record) {
 
 function updateOutreachDashboard() {
     const cards = Array.from(document.querySelectorAll("#resultList .result-card"));
-    const counts = {saved: 0, reviewed: 0, contacted: 0, responded: 0, closed: 0, followups: 0, notStarted: 0};
+    const counts = {saved: 0, reviewed: 0, contacted: 0, responded: 0, closed: 0, followups: 0, followupsOverdue: 0, followupsUpcoming: 0, notStarted: 0};
     const now = new Date();
     cards.forEach(function(card) {
         const key = card.dataset.trackingKey;
@@ -1743,7 +1753,15 @@ function updateOutreachDashboard() {
         else if (record.status === "responded") counts.responded += 1;
         else if (record.status === "contacted") {
             counts.contacted += 1;
-            if (record.follow_up_at && new Date(record.follow_up_at) <= now) counts.followups += 1;
+            if (record.follow_up_at) {
+                const followupAt = new Date(record.follow_up_at);
+                if (Number.isFinite(followupAt.getTime()) && followupAt <= now) {
+                    counts.followups += 1;
+                    if (now.getTime() - followupAt.getTime() >= 24 * 60 * 60 * 1000) counts.followupsOverdue += 1;
+                } else if (Number.isFinite(followupAt.getTime()) && followupAt > now && followupAt.getTime() <= now.getTime() + 7 * 24 * 60 * 60 * 1000) {
+                    counts.followupsUpcoming += 1;
+                }
+            }
         }
         else if (record.status === "saved") counts.saved += 1;
         else counts.notStarted += 1;
@@ -1754,6 +1772,8 @@ function updateOutreachDashboard() {
     document.getElementById("dashResponded").textContent = counts.responded;
     document.getElementById("dashClosed").textContent = counts.closed;
     document.getElementById("dashFollowups").textContent = counts.followups;
+    document.getElementById("dashFollowupsOverdue").textContent = counts.followupsOverdue;
+    document.getElementById("dashFollowupsUpcoming").textContent = counts.followupsUpcoming;
     document.getElementById("dashNotStarted").textContent = counts.notStarted;
     document.getElementById("outreachDashboard").style.display = cards.length ? "grid" : "none";
 }
@@ -1761,7 +1781,7 @@ function updateOutreachDashboard() {
 function institutionalProgressSnapshot() {
     const cards = Array.from(document.querySelectorAll("#resultList .result-card"));
     const now = new Date();
-    const metrics = {total_opportunities: cards.length, not_started: 0, saved: 0, reviewed: 0, contacted: 0, responded: 0, closed: 0, followups_due: 0, ever_contacted: 0, ever_responded: 0};
+    const metrics = {total_opportunities: cards.length, not_started: 0, saved: 0, reviewed: 0, contacted: 0, responded: 0, closed: 0, followups_due: 0, followups_overdue_24h: 0, followups_upcoming_7d: 0, ever_contacted: 0, ever_responded: 0};
     cards.forEach(function(card) {
         const record = card.dataset.trackingKey ? readTrackingRecord(card.dataset.trackingKey) : null;
         const status = record && record.status ? record.status : "not_started";
@@ -1769,7 +1789,15 @@ function institutionalProgressSnapshot() {
         else metrics.not_started += 1;
         if (record && Array.isArray(record.history) && record.history.some(x => x && x.status === "contacted") || status === "contacted") metrics.ever_contacted += 1;
         if (record && Array.isArray(record.history) && record.history.some(x => x && x.status === "responded") || status === "responded") metrics.ever_responded += 1;
-        if (record && record.follow_up_at && status !== "closed" && new Date(record.follow_up_at) <= now) metrics.followups_due += 1;
+        if (record && record.follow_up_at && status !== "closed") {
+            const followupAt = new Date(record.follow_up_at);
+            if (Number.isFinite(followupAt.getTime()) && followupAt <= now) {
+                metrics.followups_due += 1;
+                if (now.getTime() - followupAt.getTime() >= 24 * 60 * 60 * 1000) metrics.followups_overdue_24h += 1;
+            } else if (Number.isFinite(followupAt.getTime()) && followupAt > now && followupAt.getTime() <= now.getTime() + 7 * 24 * 60 * 60 * 1000) {
+                metrics.followups_upcoming_7d += 1;
+            }
+        }
     });
     metrics.response_rate_percent = metrics.ever_contacted ? Math.round(metrics.ever_responded / metrics.ever_contacted * 100) : 0;
     return metrics;
