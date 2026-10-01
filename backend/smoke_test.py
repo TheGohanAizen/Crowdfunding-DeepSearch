@@ -443,6 +443,13 @@ try:
     assert 'value="handoff_refresh"' in live_discovery_html
     assert 'function setAudienceHandoffRefreshQueue()' in live_discovery_html
     assert 'id="audienceHandoffRefreshButton"' in live_discovery_html
+    assert 'id="exportAudienceProgressButton"' in live_discovery_html
+    assert 'function audienceProgressSnapshot()' in live_discovery_html
+    assert 'function exportAudienceProgressSummary()' in live_discovery_html
+    assert 'crowdfunding-deepsearch-audience-progress-summary.json' in live_discovery_html
+    assert 'private_notes_included: false' in live_discovery_html
+    assert 'response_details_included: false' in live_discovery_html
+    assert 'outreach_draft_bodies_included: false' in live_discovery_html
     assert 'counts.handoffsRefresh += 1' in live_discovery_html
     assert 'workspace_registry: campaignWorkspaceRegistry()' in live_discovery_html
     assert 'payload.version >= 4 && payload.workspace_registry' in live_discovery_html
