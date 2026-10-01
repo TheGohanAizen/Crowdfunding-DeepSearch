@@ -2847,6 +2847,38 @@ def create_app():
             "live_send_policy": result["live_send_policy"],
         })
 
+    @app.route("/api/automation/operational-readiness", methods=["GET", "OPTIONS"])
+    def automation_operational_readiness():
+        if request.method == "OPTIONS":
+            return ("", 204)
+        storage = automation_storage_status()
+        rate_limit = automation_rate_limit_status("sendgrid_mail_v3")
+        return jsonify({
+            "status": "ok",
+            "storage": {
+                "backend": storage.get("backend"),
+                "supported_backend": storage.get("supported_backend") is True,
+                "explicit_path_configured": storage.get("explicit_path_configured") is True,
+                "persistent_declared": storage.get("persistent_declared") is True,
+                "ephemeral_path": storage.get("ephemeral_path") is True,
+                "persistence_evidence": storage.get("persistence_evidence") is True,
+                "live_ready": storage.get("live_ready") is True,
+                "reason": storage.get("reason"),
+            },
+            "rate_limit": {
+                "mechanism": rate_limit.get("mechanism"),
+                "enforcement_required": rate_limit.get("enforcement_required") is True,
+                "limit_per_hour": rate_limit.get("limit_per_hour"),
+                "used_last_hour": rate_limit.get("used_last_hour"),
+                "remaining": rate_limit.get("remaining"),
+                "allowed": rate_limit.get("allowed") is True,
+                "reason": rate_limit.get("reason"),
+            },
+            "sent": False,
+            "network_io": False,
+            "authorization_granted": False,
+        })
+
     @app.route("/api/automation/connectors/sendgrid/preflight", methods=["POST", "OPTIONS"])
     def sendgrid_preflight():
         if request.method == "OPTIONS":
