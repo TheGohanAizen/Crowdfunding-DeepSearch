@@ -372,6 +372,11 @@ try:
     assert 'id="automationReadinessChecklist"' in live_discovery_html
     assert '/api/automation/operational-readiness' in server_source
     assert '"authorization_granted": False' in server_source
+    assert '"tracking_id_included": False' in server_source
+    assert '"lead_name_included": False' in server_source
+    assert '"recipient_address_included": False' in server_source
+    assert '"message_body_included": False' in server_source
+    assert '"blocker_count": len(blockers)' in server_source
     assert '"network_io": False' in server_source
     assert '"sent": False' in server_source
     assert 'id="automationOperationalReadiness"' in live_discovery_html
