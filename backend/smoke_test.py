@@ -411,7 +411,7 @@ try:
     assert 'value="handoff_prepared"' in live_discovery_html
     assert 'function setAudienceHandoffPreparedQueue()' in live_discovery_html
     assert 'counts.handoffsPrepared += 1' in live_discovery_html
-    assert 'function submissionPacketIsCurrent(record, routeFingerprint)' in live_discovery_html
+    assert 'function submissionPacketIsCurrent(record, routeFingerprint, verifiedApplicationRoutes)' in live_discovery_html
     assert 'route_fingerprint: routeFingerprint' in live_discovery_html
     assert 'submissionPacketIsCurrent(record, card.dataset.routeFingerprint || "")' in live_discovery_html
     import_pos = live_discovery_html.index('function importTracking(event)')
