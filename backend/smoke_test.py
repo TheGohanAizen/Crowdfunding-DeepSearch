@@ -370,6 +370,14 @@ try:
     assert 'No automatic posting' in live_discovery_html
     assert 'id="audienceDiscoverButton"' in live_discovery_html
     assert 'id="automationReadinessChecklist"' in live_discovery_html
+    assert '/api/automation/operational-readiness' in server_source
+    assert '"authorization_granted": False' in server_source
+    assert '"network_io": False' in server_source
+    assert '"sent": False' in server_source
+    assert 'id="automationOperationalReadiness"' in live_discovery_html
+    assert 'function loadAutomationOperationalReadiness()' in live_discovery_html
+    assert 'fetch(AUTOMATION_OPERATIONAL_READINESS_URL)' in live_discovery_html
+    assert 'Diagnostic only — sent: no; network I/O: no; authorization granted: no.' in live_discovery_html
     assert 'SENDGRID_SERVER_READINESS_URL' in live_discovery_html
     assert '/api/automation/connectors/sendgrid/server-readiness' in live_discovery_html
     assert 'fetch(SENDGRID_SERVER_READINESS_URL)' in live_discovery_html
