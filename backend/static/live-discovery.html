@@ -1244,6 +1244,31 @@ function audienceProgressSnapshot() {
     return snapshot;
 }
 
+function persistAudienceAnalyticsSnapshot(snapshot) {
+    if (!snapshot || !snapshot.workspace_id) return false;
+    try {
+        const registry = campaignWorkspaceRegistry();
+        const existing = registry[snapshot.workspace_id] || {};
+        registry[snapshot.workspace_id] = Object.assign({}, existing, {
+            analytics_summary: {
+                total_leads: snapshot.total_leads,
+                followups_due: snapshot.followups_due,
+                handoffs_prepared: snapshot.handoffs_prepared,
+                handoffs_need_refresh: snapshot.handoffs_need_refresh,
+                permission_reviews_current: snapshot.permission_reviews_current,
+                permission_reviews_need_refresh: snapshot.permission_reviews_need_refresh,
+                contact_rate_percent: snapshot.contact_rate_percent,
+                response_rate_percent: snapshot.response_rate_percent
+            },
+            analytics_updated_at: snapshot.exported_at
+        });
+        localStorage.setItem(CAMPAIGN_WORKSPACE_REGISTRY_KEY, JSON.stringify(registry));
+        return true;
+    } catch (error) {
+        return false;
+    }
+}
+
 function exportAudienceProgressSummary() {
     const snapshot = audienceProgressSnapshot();
     const profile = currentCampaignTrackingProfile();
@@ -1328,6 +1353,7 @@ function updateAudienceTrackingDashboard() {
     set("audiencePermissionRefreshCount", counts.permissionRefresh);
     const reviewedPercent = cards.length ? Math.round((counts.everReviewed / cards.length) * 100) : 0;
     set("audienceReviewProgress", reviewedPercent + "%");
+    persistAudienceAnalyticsSnapshot(audienceProgressSnapshot());
 }
 
 function updateAudienceDashboard(results) {
