@@ -2286,15 +2286,23 @@ def validate_automation_retry_request(data):
 
 
 def automation_execution_receipt(candidate, prerequisite_result):
-    """Create a non-secret, non-sending audit receipt for an execution check."""
+    """Create a privacy-minimized, non-sending audit receipt for an execution check."""
+    blockers = list(prerequisite_result.get("blockers") or [])
     return {
-        "tracking_id": (candidate or {}).get("tracking_id"),
-        "lead_name": (candidate or {}).get("name"),
         "mechanism": prerequisite_result.get("decision", {}).get("mechanism"),
         "allowed": prerequisite_result.get("allowed") is True,
         "sent": False,
-        "blockers": list(prerequisite_result.get("blockers") or []),
+        "network_io": False,
+        "authorization_granted": False,
+        "blockers": blockers,
+        "blocker_count": len(blockers),
         "checked_at": datetime.now(timezone.utc).isoformat(),
+        "privacy": {
+            "tracking_id_included": False,
+            "lead_name_included": False,
+            "recipient_address_included": False,
+            "message_body_included": False,
+        },
     }
 
 
