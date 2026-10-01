@@ -269,6 +269,12 @@ try:
     assert 'data-track="reviewed"' in live_discovery_html
     assert 'data-track="closed"' in live_discovery_html
     assert 'filter.startsWith("tracked_")' in live_discovery_html
+    assert 'id="dashFollowupsOverdue"' in live_discovery_html
+    assert 'id="dashFollowupsUpcoming"' in live_discovery_html
+    assert 'value="followups_overdue"' in live_discovery_html
+    assert 'value="followups_upcoming"' in live_discovery_html
+    assert 'followups_overdue_24h' in live_discovery_html
+    assert 'followups_upcoming_7d' in live_discovery_html
     assert 'function exportCampaignProgressSummary()' in live_discovery_html
     assert 'crowdfunding-deepsearch-campaign-progress-summary' in live_discovery_html
     assert 'institutional_opportunities: institutionalProgressSnapshot()' in live_discovery_html
