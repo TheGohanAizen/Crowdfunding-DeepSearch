@@ -471,7 +471,7 @@ try:
     assert 'summary.audience_analytics=profile.analytics_summary||null' in workspace_operations_html
     assert 'Permission reviews need refresh' in workspace_operations_html
     assert 'Handoffs need refresh' in workspace_operations_html
-    assert 'version:3' in workspace_operations_html
+    assert 'version:4' in workspace_operations_html
     assert 'status === "handoff_refresh"' in live_discovery_html
     assert 'status === "permission_refresh"' in live_discovery_html
     assert 'snapshot.permission_reviews_current += 1' in live_discovery_html
