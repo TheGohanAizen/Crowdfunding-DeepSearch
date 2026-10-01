@@ -241,6 +241,7 @@ button:hover { background: #1d4ed8; }
     <button id="audienceDiscoverButton" type="button" onclick="runAudienceDiscovery()">Run Audience DeepSearch</button>
     <div id="automationConnectorStatus" class="notice">Automatic distribution status: checking connector readiness…</div>
     <div id="sendgridPreflightStatus" class="notice">SendGrid production preflight: not configured — sending remains disabled.</div>
+    <div id="automationReadinessChecklist" class="notice">Automation readiness checklist: loading non-secret deployment gates…</div>
 
     <div class="notice">
         Live Discovery mode: choose how far DeepSearch should expand from the campaign location. Automatic expansion is designed to begin with the strongest geographic match and later broaden to state, national, and worldwide opportunities that can actually serve the campaign location. Results remain screening leads until eligibility and current availability are confirmed.
@@ -478,6 +479,7 @@ function loadAutomationConnectorStatus() {
         const connectors = Array.isArray(data.connectors) ? data.connectors : [];
         const connectorCount = connectors.length;
         const sendgrid = connectors.find(function(connector) { return connector.mechanism === "sendgrid_mail_v3"; });
+        renderAutomationReadinessChecklist(sendgrid);
         const sendgridSuffix = sendgrid
             ? " SendGrid: registered" + (sendgrid.configured ? ", credentials configured" : ", credentials not configured") + (sendgrid.send_enabled ? ", live send enabled." : ", live send disabled.")
             : "";
@@ -486,7 +488,26 @@ function loadAutomationConnectorStatus() {
             : "Automatic distribution status: disabled — " + connectorCount + " approved connector" + (connectorCount === 1 ? "" : "s") + " available; unregistered routes remain manual." + sendgridSuffix;
     } catch (error) {
         status.textContent = "Automatic distribution status: unavailable — manual review remains required.";
+        renderAutomationReadinessChecklist(null);
     }
+}
+
+function renderAutomationReadinessChecklist(connector) {
+    const box = document.getElementById("automationReadinessChecklist");
+    if (!box) return;
+    if (!connector) { box.textContent = "Automation readiness checklist: SendGrid connector is not registered."; return; }
+    const policy = connector.live_send_policy || {};
+    const checks = [
+        ["Connector registration valid", connector.registration_valid === true],
+        ["Credentials configured", connector.configured === true],
+        ["Registry send opt-in", policy.registry_enabled === true],
+        ["Deployment live-send opt-in", policy.deployment_enabled === true],
+        ["Connector deployment opt-in", policy.connector_opt_in === true],
+        ["Live sending enabled", connector.send_enabled === true]
+    ];
+    box.innerHTML = "<strong>Automation readiness checklist (non-secret)</strong><br>" + checks.map(function(item) {
+        return (item[1] ? "✓ " : "○ ") + escapeHtml(item[0]);
+    }).join("<br>") + "<br><small>Checklist status never authorizes a send. Current permission review, deduplication clearance, compliance preflight, durable storage, and explicit user send authorization remain required.</small>";
 }
 
 async function loadSendGridPreflightStatus() {
