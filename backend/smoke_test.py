@@ -240,6 +240,9 @@ try:
     live_discovery_path = os.path.join(ROOT, "backend", "static", "live-discovery.html")
     with open(live_discovery_path, "r", encoding="utf-8") as handle:
         live_discovery_html = handle.read()
+    server_path = os.path.join(ROOT, "backend", "server.py")
+    with open(server_path, "r", encoding="utf-8") as handle:
+        server_source = handle.read()
     assert live_discovery_html.startswith("<!DOCTYPE html>\n<html")
     assert live_discovery_html.lower().count("<!doctype html>") == 1
     assert live_discovery_html.index("function submissionPacketIsCurrent") > live_discovery_html.index("<script>")
@@ -594,7 +597,6 @@ try:
 
     # Static, no-credit source-page checks for service-area language.
     import importlib.util
-    server_path = os.path.join(ROOT, "backend", "server.py")
     spec = importlib.util.spec_from_file_location("crowdfunding_server", server_path)
     crowdfunding_server = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(crowdfunding_server)
