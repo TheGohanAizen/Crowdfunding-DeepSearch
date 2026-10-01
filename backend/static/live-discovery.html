@@ -1177,7 +1177,10 @@ function updateAudienceTrackingDashboard() {
         if (record && record.outreach_draft) counts.drafts += 1;
         if (record && record.status === "reviewed" && record.outreach_draft && permissionReviewIsCurrent(record, card.dataset.routeFingerprint || "") && card.dataset.ruleStatus === "rules_or_submission_route_found") counts.ready += 1;
         if (record && record.status === "reviewed" && record.outreach_draft && permissionReviewIsCurrent(record, card.dataset.routeFingerprint || "") && card.dataset.ruleStatus === "rules_or_submission_route_found" && card.dataset.hasApplicationRoute === "true") counts.submissionReady += 1;
-        if (submissionPacketIsCurrent(record, card.dataset.routeFingerprint || "", JSON.parse(card.dataset.verifiedApplicationRoutes || "[]"))) counts.handoffsPrepared += 1;
+        const verifiedApplicationRoutes = JSON.parse(card.dataset.verifiedApplicationRoutes || "[]");
+        const handoffIsCurrent = submissionPacketIsCurrent(record, card.dataset.routeFingerprint || "", verifiedApplicationRoutes);
+        if (handoffIsCurrent) counts.handoffsPrepared += 1;
+        if (record && record.submission_packet && record.submission_packet.prepared_at && !handoffIsCurrent) counts.handoffsRefresh += 1;
         if (record && record.status === "contacted") counts.awaiting += 1;
         if (card.dataset.ruleStatus === "restriction_detected") counts.blocked += 1;
     });
