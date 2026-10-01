@@ -369,6 +369,12 @@ try:
     assert 'function runAudiencePlan()' in live_discovery_html
     assert 'No automatic posting' in live_discovery_html
     assert 'id="audienceDiscoverButton"' in live_discovery_html
+    assert 'id="automationReadinessChecklist"' in live_discovery_html
+    assert 'function renderAutomationReadinessChecklist(connector)' in live_discovery_html
+    assert 'policy.registry_enabled === true' in live_discovery_html
+    assert 'policy.deployment_enabled === true' in live_discovery_html
+    assert 'policy.connector_opt_in === true' in live_discovery_html
+    assert 'Checklist status never authorizes a send.' in live_discovery_html
     assert 'id="automationConnectorStatus"' in live_discovery_html
     assert 'AUTOMATION_CONNECTORS_URL' in live_discovery_html
     assert 'function loadAutomationConnectorStatus()' in live_discovery_html
