@@ -1595,6 +1595,14 @@ function chooseCampaignWorkspace() {
     restoreCampaignWorkspace(ids[index]);
 }
 
+function restoreWorkspaceFromQuery() {
+    const workspaceId = new URLSearchParams(window.location.search).get("workspace");
+    if (!workspaceId) return false;
+    const clean = String(workspaceId).trim().replace(/[^a-zA-Z0-9._-]/g, "").slice(0, 120);
+    if (!clean || !campaignWorkspaceRegistry()[clean]) return false;
+    return restoreCampaignWorkspace(clean);
+}
+
 function legacyCampaignTrackingPrefixes() {
     const profile = currentCampaignTrackingProfile();
     const sources = [
@@ -2219,7 +2227,7 @@ async function runDiscovery() {
     }
 }
 
-</script>
+window.addEventListener("DOMContentLoaded", restoreWorkspaceFromQuery);\n\n</script>
 
 </body>
 </html>
