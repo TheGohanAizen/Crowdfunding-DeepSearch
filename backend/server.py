@@ -1647,6 +1647,9 @@ def automation_ledger_connection():
     connection.execute(
         "CREATE INDEX IF NOT EXISTS idx_automation_rate_events_window ON automation_rate_events(mechanism, consumed_at)"
     )
+    # Schema setup/migrations may open an implicit SQLite transaction. Commit it
+    # before callers begin their own explicit write transaction (BEGIN IMMEDIATE).
+    connection.commit()
     return connection
 
 def persist_automation_execution_record(record):
