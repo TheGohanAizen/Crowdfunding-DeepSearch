@@ -464,8 +464,8 @@ try:
         start = live_discovery_html.index(signature)
         assert 'saveCampaignWorkspaceProfile();' in live_discovery_html[start:start + 140]
     assert 'permissionReviewIsCurrent(record, card.dataset.routeFingerprint || "")' in live_discovery_html
-    assert 'key.startsWith(currentCampaignTrackingPrefix())' in live_discovery_html
-    assert 'currentCampaignTrackingPrefix() + key.slice(TRACKING_PREFIX.length)' in live_discovery_html
+    assert 'key.startsWith(TRACKING_PREFIX + "campaign:")' in live_discovery_html
+    assert 'destinationPrefix + key.slice(TRACKING_PREFIX.length).replace(/^campaign:[^:]+:/, "")' in live_discovery_html
     assert 'value="draft_ready"' in live_discovery_html
     assert 'tracked === "reviewed" && !!(record && record.outreach_draft)' in live_discovery_html
     assert 'audience-reviewed-routes' in live_discovery_html
