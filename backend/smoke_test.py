@@ -268,8 +268,14 @@ try:
     assert '/live-discovery.html?workspace=' in workspace_operations_html
     assert 'encodeURIComponent(item.workspace_id)' in workspace_operations_html
     assert "function renderActionQueue()" in workspace_operations_html
+    assert "function analyticsFreshnessLabel(value)" in workspace_operations_html
+    assert "stale 7d+" in workspace_operations_html
+    assert "stale 24h+" in workspace_operations_html
+    assert "current <24h" in workspace_operations_html
+    assert "Institutional analytics updated" in workspace_operations_html
+    assert "version:7" in workspace_operations_html
     assert "action_queue:actionQueue(50)" in workspace_operations_html
-    assert "version:6" in workspace_operations_html
+    assert "version:7" in workspace_operations_html
     assert "private_notes_included:false" in workspace_operations_html
     assert "response_details_included:false" in workspace_operations_html
     assert "outreach_draft_bodies_included:false" in workspace_operations_html
@@ -301,7 +307,7 @@ try:
     assert 'Institutional reviewed' in workspace_operations_html
     assert 'Institutional overdue 24h+' in workspace_operations_html
     assert 'Institutional analytics snapshot pending' in workspace_operations_html
-    assert 'version:6' in workspace_operations_html
+    assert 'version:7' in workspace_operations_html
     assert 'function exportCampaignProgressSummary()' in live_discovery_html
     assert 'crowdfunding-deepsearch-campaign-progress-summary' in live_discovery_html
     assert 'institutional_opportunities: institutionalProgressSnapshot()' in live_discovery_html
@@ -518,7 +524,7 @@ try:
     assert 'summary.audience_analytics=profile.analytics_summary||null' in workspace_operations_html
     assert 'Permission reviews need refresh' in workspace_operations_html
     assert 'Handoffs need refresh' in workspace_operations_html
-    assert 'version:6' in workspace_operations_html
+    assert 'version:7' in workspace_operations_html
     assert 'status === "handoff_refresh"' in live_discovery_html
     assert 'status === "permission_refresh"' in live_discovery_html
     assert 'snapshot.permission_reviews_current += 1' in live_discovery_html
@@ -529,7 +535,7 @@ try:
     assert 'duplicates_merged: Number(document.getElementById("audienceDuplicatesMergedCount")?.textContent || 0)' in live_discovery_html
     assert 'Duplicate discoveries merged' in workspace_operations_html
     assert 'duplicatesMerged' in workspace_operations_html
-    assert 'version:6' in workspace_operations_html
+    assert 'version:7' in workspace_operations_html
     assert 'id="exportAudienceProgressButton"' in live_discovery_html
     assert 'function audienceProgressSnapshot()' in live_discovery_html
     assert 'function exportAudienceProgressSummary()' in live_discovery_html
