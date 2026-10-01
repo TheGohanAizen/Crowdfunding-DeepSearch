@@ -103,4 +103,17 @@ The first backend planner defines four bounded public-web discovery lanes:
 
 Automatic scope progressively samples local, state/province, national, and worldwide discovery. Audience candidates use a separate stable tracking namespace from institutional opportunities. V1 discovery actions default to `review_required`; discovery does not imply permission to post, submit, or contact automatically.
 
-Next implementation stages are candidate normalization/ranking, channel-rule evidence, a dedicated audience API response, and frontend audience results/tracking.
+Audience DeepSearch has now progressed beyond the original V1 checklist. The current implementation includes candidate normalization/ranking, channel-rule evidence, dedicated audience planning/preview/discovery APIs, frontend results and tracking, campaign-specific workspaces, permission-review freshness checks, assisted outreach drafts, same-site submission-route verification, assisted submission packets, response/follow-up states, CSV outreach-ledger export, durable automation execution metadata, idempotency/retry controls, and a registered-but-disabled SendGrid connector guarded by explicit authorization, deployment opt-in, compliance preflight, durable storage, deduplication, and rate limiting.
+
+### Current development frontier
+
+The next additive phase is the operations/analytics layer:
+
+1. Aggregate per-workspace funnel metrics without exposing private note text.
+2. Surface counts for discovered, saved, reviewed, draft-ready, submission-ready, contacted, responded, closed, and follow-up due.
+3. Measure duplicate suppression and stale permission/submission handoffs.
+4. Preserve separate institutional-opportunity and public-audience reporting.
+5. Add exportable campaign progress summaries and bounded follow-up views.
+6. Keep automatic distribution disabled unless a registered connector passes all permission, compliance, deduplication, storage, and deployment gates.
+
+The production baseline is protected by GitHub backend checks and exact-commit Render deployment verification.
