@@ -254,7 +254,7 @@ try:
     assert "function actionQueue(limit=50)" in workspace_operations_html
     assert "function renderActionQueue()" in workspace_operations_html
     assert "action_queue:actionQueue(50)" in workspace_operations_html
-    assert "version:3" in workspace_operations_html
+    assert "version:4" in workspace_operations_html
     assert "private_notes_included:false" in workspace_operations_html
     assert "response_details_included:false" in workspace_operations_html
     assert "outreach_draft_bodies_included:false" in workspace_operations_html
@@ -476,6 +476,13 @@ try:
     assert 'status === "permission_refresh"' in live_discovery_html
     assert 'snapshot.permission_reviews_current += 1' in live_discovery_html
     assert 'snapshot.permission_reviews_need_refresh += 1' in live_discovery_html
+    assert 'id="audienceDuplicatesMergedCount"' in live_discovery_html
+    assert 'function updateAudienceDashboard(results, audienceMeta)' in live_discovery_html
+    assert 'audienceMeta.duplicates_merged' in live_discovery_html
+    assert 'duplicates_merged: Number(document.getElementById("audienceDuplicatesMergedCount")?.textContent || 0)' in live_discovery_html
+    assert 'Duplicate discoveries merged' in workspace_operations_html
+    assert 'duplicatesMerged' in workspace_operations_html
+    assert 'version:4' in workspace_operations_html
     assert 'id="exportAudienceProgressButton"' in live_discovery_html
     assert 'function audienceProgressSnapshot()' in live_discovery_html
     assert 'function exportAudienceProgressSummary()' in live_discovery_html
