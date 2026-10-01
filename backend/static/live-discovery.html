@@ -274,6 +274,8 @@ button:hover { background: #1d4ed8; }
       <div><strong id="audienceSubmissionReadyCount">0</strong><span>Submission Ready</span></div>
       <div><strong id="audienceHandoffPreparedCount">0</strong><span>Handoffs Prepared</span></div>
       <div><strong id="audienceHandoffRefreshCount">0</strong><span>Handoffs Need Refresh</span></div>
+      <div><strong id="audiencePermissionCurrentCount">0</strong><span>Permission Reviews Current</span></div>
+      <div><strong id="audiencePermissionRefreshCount">0</strong><span>Permission Reviews Need Refresh</span></div>
     </div>
     <div class="filters" id="audienceFilters">
       <label>Audience view
@@ -297,6 +299,7 @@ button:hover { background: #1d4ed8; }
           <option value="submission_ready">Same-site submission route + permission confirmed</option>
           <option value="handoff_prepared">Submission handoff prepared</option>
           <option value="handoff_refresh">Submission handoff needs refresh</option>
+          <option value="permission_refresh">Permission review needs refresh</option>
         </select>
       </label>
       <label>Channel
@@ -329,6 +332,7 @@ button:hover { background: #1d4ed8; }
       <button type="button" id="audienceSubmissionReadyButton" onclick="setAudienceSubmissionReadyQueue()">Submission-ready queue</button>
       <button type="button" id="audienceHandoffPreparedButton" onclick="setAudienceHandoffPreparedQueue()">Handoffs prepared</button>
       <button type="button" id="audienceHandoffRefreshButton" onclick="setAudienceHandoffRefreshQueue()">Handoffs need refresh</button>
+      <button type="button" id="audiencePermissionRefreshButton" onclick="setAudiencePermissionRefreshQueue()">Permission reviews need refresh</button>
       <button type="button" id="exportAudienceProgressButton" onclick="exportAudienceProgressSummary()">Export progress summary</button>
     </div>
     <div id="audiencePlanList"></div>
@@ -391,6 +395,12 @@ function submissionPacketIsCurrent(record, routeFingerprint, verifiedApplication
 function setAudienceHandoffRefreshQueue() {
     const status = document.getElementById("audienceStatusFilter");
     if (status) status.value = "handoff_refresh";
+    applyAudienceFilters();
+}
+
+function setAudiencePermissionRefreshQueue() {
+    const status = document.getElementById("audienceStatusFilter");
+    if (status) status.value = "permission_refresh";
     applyAudienceFilters();
 }
 
@@ -1049,6 +1059,8 @@ function applyAudienceFilters() {
             || (status === "contact_ready" && rule === "rules_or_submission_route_found" && tracked === "reviewed" && !!(record && record.outreach_draft) && permissionReviewIsCurrent(record, card.dataset.routeFingerprint || ""))
             || (status === "submission_ready" && rule === "rules_or_submission_route_found" && tracked === "reviewed" && card.dataset.hasApplicationRoute === "true" && !!(record && record.outreach_draft) && permissionReviewIsCurrent(record, card.dataset.routeFingerprint || ""))
             || (status === "handoff_prepared" && submissionPacketIsCurrent(record, card.dataset.routeFingerprint || "", JSON.parse(card.dataset.verifiedApplicationRoutes || "[]")))
+            || (status === "handoff_refresh" && !!(record && record.submission_packet && record.submission_packet.prepared_at) && !submissionPacketIsCurrent(record, card.dataset.routeFingerprint || "", JSON.parse(card.dataset.verifiedApplicationRoutes || "[]")))
+            || (status === "permission_refresh" && !!(record && record.permission_review && record.permission_review.reviewed_at) && !permissionReviewIsCurrent(record, card.dataset.routeFingerprint || ""))
             || status === tracked;
         const channelMatch = channel === "all" || card.dataset.channelType === channel;
         const show = statusMatch && channelMatch;
@@ -1202,7 +1214,7 @@ function audienceProgressSnapshot() {
         not_started: 0, saved: 0, reviewed: 0, contacted: 0, responded: 0, closed: 0,
         ever_reviewed: 0, ever_contacted: 0, ever_responded: 0,
         followups_due: 0, drafts_prepared: 0, contact_ready: 0, submission_ready: 0,
-        handoffs_prepared: 0, handoffs_need_refresh: 0, restricted: 0
+        handoffs_prepared: 0, handoffs_need_refresh: 0, permission_reviews_current: 0, permission_reviews_need_refresh: 0, restricted: 0
     };
     const now = new Date();
     cards.forEach(function(card) {
@@ -1216,6 +1228,8 @@ function audienceProgressSnapshot() {
         if (record && record.status !== "closed" && record.follow_up_at && new Date(record.follow_up_at) <= now) snapshot.followups_due += 1;
         if (record && record.outreach_draft) snapshot.drafts_prepared += 1;
         const permissionCurrent = permissionReviewIsCurrent(record, card.dataset.routeFingerprint || "");
+        if (permissionCurrent) snapshot.permission_reviews_current += 1;
+        if (record && record.permission_review && record.permission_review.reviewed_at && !permissionCurrent) snapshot.permission_reviews_need_refresh += 1;
         if (record && record.status === "reviewed" && record.outreach_draft && permissionCurrent && card.dataset.ruleStatus === "rules_or_submission_route_found") snapshot.contact_ready += 1;
         if (record && record.status === "reviewed" && record.outreach_draft && permissionCurrent && card.dataset.ruleStatus === "rules_or_submission_route_found" && card.dataset.hasApplicationRoute === "true") snapshot.submission_ready += 1;
         const verifiedRoutes = JSON.parse(card.dataset.verifiedApplicationRoutes || "[]");
@@ -1261,7 +1275,7 @@ function exportAudienceProgressSummary() {
 
 function updateAudienceTrackingDashboard() {
     const cards = Array.from(document.querySelectorAll("#audiencePlanList .result-card"));
-    const counts = {saved: 0, reviewed: 0, contacted: 0, responded: 0, closed: 0, everReviewed: 0, everContacted: 0, everResponded: 0, followups: 0, drafts: 0, ready: 0, submissionReady: 0, handoffsPrepared: 0, handoffsRefresh: 0, awaiting: 0, blocked: 0, notStarted: 0};
+    const counts = {saved: 0, reviewed: 0, contacted: 0, responded: 0, closed: 0, everReviewed: 0, everContacted: 0, everResponded: 0, followups: 0, drafts: 0, ready: 0, submissionReady: 0, handoffsPrepared: 0, handoffsRefresh: 0, permissionCurrent: 0, permissionRefresh: 0, awaiting: 0, blocked: 0, notStarted: 0};
     const now = new Date();
     cards.forEach(function(card) {
         const record = card.dataset.audienceTrackingKey ? readTrackingRecord(card.dataset.audienceTrackingKey) : null;
@@ -1277,6 +1291,9 @@ function updateAudienceTrackingDashboard() {
         if (trackingHasStatus(record, "responded")) counts.everResponded += 1;
         if (record && record.status !== "closed" && record.follow_up_at && new Date(record.follow_up_at) <= now) counts.followups += 1;
         if (record && record.outreach_draft) counts.drafts += 1;
+        const permissionCurrent = permissionReviewIsCurrent(record, card.dataset.routeFingerprint || "");
+        if (permissionCurrent) counts.permissionCurrent += 1;
+        if (record && record.permission_review && record.permission_review.reviewed_at && !permissionCurrent) counts.permissionRefresh += 1;
         if (record && record.status === "reviewed" && record.outreach_draft && permissionReviewIsCurrent(record, card.dataset.routeFingerprint || "") && card.dataset.ruleStatus === "rules_or_submission_route_found") counts.ready += 1;
         if (record && record.status === "reviewed" && record.outreach_draft && permissionReviewIsCurrent(record, card.dataset.routeFingerprint || "") && card.dataset.ruleStatus === "rules_or_submission_route_found" && card.dataset.hasApplicationRoute === "true") counts.submissionReady += 1;
         const verifiedApplicationRoutes = JSON.parse(card.dataset.verifiedApplicationRoutes || "[]");
@@ -1307,6 +1324,8 @@ function updateAudienceTrackingDashboard() {
     set("audienceSubmissionReadyCount", counts.submissionReady);
     set("audienceHandoffPreparedCount", counts.handoffsPrepared);
     set("audienceHandoffRefreshCount", counts.handoffsRefresh);
+    set("audiencePermissionCurrentCount", counts.permissionCurrent);
+    set("audiencePermissionRefreshCount", counts.permissionRefresh);
     const reviewedPercent = cards.length ? Math.round((counts.everReviewed / cards.length) * 100) : 0;
     set("audienceReviewProgress", reviewedPercent + "%");
 }
