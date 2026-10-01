@@ -287,6 +287,8 @@ button:hover { background: #1d4ed8; }
           <option value="responded">Responded</option>
           <option value="closed">Closed</option>
           <option value="followup_due">Follow-up due</option>
+          <option value="followup_overdue">Follow-up overdue (24h+)</option>
+          <option value="followup_upcoming">Follow-up upcoming (next 7 days)</option>
           <option value="high_score">High relevance (70+)</option>
           <option value="high_priority">High priority (80+)</option>
           <option value="contact_ready">Reviewed + draft ready</option>
@@ -310,12 +312,15 @@ button:hover { background: #1d4ed8; }
           <option value="score_desc">Highest relevance first</option>
           <option value="rules_first">Rules/submission routes first</option>
           <option value="restrictions_first">Restrictions first</option>
+          <option value="followup_soonest">Follow-up soonest</option>
         </select>
       </label>
       <span id="audienceVisibleCount"></span>
       <button type="button" id="exportAudienceCsvButton" onclick="exportAudienceCsv()">Export visible CSV</button>
       <button type="button" id="audienceReviewQueueButton" onclick="setAudienceReviewQueue()">Review queue</button>
       <button type="button" id="audienceFollowupQueueButton" onclick="setAudienceFollowupQueue()">Follow-up queue</button>
+      <button type="button" id="audienceOverdueQueueButton" onclick="setAudienceOverdueQueue()">Overdue follow-ups</button>
+      <button type="button" id="audienceUpcomingQueueButton" onclick="setAudienceUpcomingQueue()">Upcoming 7 days</button>
       <button type="button" id="audienceRestrictedQueueButton" onclick="setAudienceRestrictedQueue()">Restrictions queue</button>
       <button type="button" id="audienceContactReadyButton" onclick="setAudienceContactReadyQueue()">Contact-ready queue</button>
       <button type="button" id="audienceAwaitingButton" onclick="setAudienceAwaitingQueue()">Awaiting response</button>
@@ -1005,6 +1010,13 @@ function applyAudienceFilters() {
             const bRules = b.dataset.ruleStatus === "rules_or_submission_route_found" ? 1 : 0;
             return bRules - aRules || bScore - aScore;
         }
+        if (sortMode === "followup_soonest") {
+            const aRecord = a.dataset.audienceTrackingKey ? readTrackingRecord(a.dataset.audienceTrackingKey) : null;
+            const bRecord = b.dataset.audienceTrackingKey ? readTrackingRecord(b.dataset.audienceTrackingKey) : null;
+            const aTime = aRecord && aRecord.follow_up_at ? new Date(aRecord.follow_up_at).getTime() : Number.MAX_SAFE_INTEGER;
+            const bTime = bRecord && bRecord.follow_up_at ? new Date(bRecord.follow_up_at).getTime() : Number.MAX_SAFE_INTEGER;
+            return aTime - bTime || bScore - aScore;
+        }
         if (sortMode === "restrictions_first") {
             const aRestricted = a.dataset.ruleStatus === "restriction_detected" ? 1 : 0;
             const bRestricted = b.dataset.ruleStatus === "restriction_detected" ? 1 : 0;
@@ -1018,12 +1030,18 @@ function applyAudienceFilters() {
         const record = card.dataset.audienceTrackingKey ? readTrackingRecord(card.dataset.audienceTrackingKey) : null;
         const tracked = record && record.status ? record.status : "not_started";
         const rule = card.dataset.ruleStatus || "not_checked";
-        const followupDue = !!(record && record.status !== "closed" && record.follow_up_at && new Date(record.follow_up_at) <= new Date());
+        const now = new Date();
+        const followupAt = record && record.follow_up_at ? new Date(record.follow_up_at) : null;
+        const followupDue = !!(record && record.status !== "closed" && followupAt && followupAt <= now);
+        const followupOverdue = !!(followupDue && (now.getTime() - followupAt.getTime()) >= 24 * 60 * 60 * 1000);
+        const followupUpcoming = !!(record && record.status !== "closed" && followupAt && followupAt > now && followupAt.getTime() <= now.getTime() + 7 * 24 * 60 * 60 * 1000);
         const statusMatch = status === "all"
             || (status === "actionable_review" && rule === "rules_or_submission_route_found")
             || (status === "needs_review" && !["restriction_detected", "rules_or_submission_route_found"].includes(rule))
             || (status === "restricted" && rule === "restriction_detected")
             || (status === "followup_due" && followupDue)
+            || (status === "followup_overdue" && followupOverdue)
+            || (status === "followup_upcoming" && followupUpcoming)
             || (status === "high_score" && Number(card.dataset.audienceScore || 0) >= 70)
             || (status === "high_priority" && card.dataset.audiencePriority === "high")
             || (status === "draft_ready" && !!(record && record.outreach_draft))
@@ -1076,7 +1094,23 @@ function setAudienceFollowupQueue() {
     const status = document.getElementById("audienceStatusFilter");
     const sort = document.getElementById("audienceSort");
     if (status) status.value = "followup_due";
-    if (sort) sort.value = "score_desc";
+    if (sort) sort.value = "followup_soonest";
+    applyAudienceFilters();
+}
+
+function setAudienceOverdueQueue() {
+    const status = document.getElementById("audienceStatusFilter");
+    const sort = document.getElementById("audienceSort");
+    if (status) status.value = "followup_overdue";
+    if (sort) sort.value = "followup_soonest";
+    applyAudienceFilters();
+}
+
+function setAudienceUpcomingQueue() {
+    const status = document.getElementById("audienceStatusFilter");
+    const sort = document.getElementById("audienceSort");
+    if (status) status.value = "followup_upcoming";
+    if (sort) sort.value = "followup_soonest";
     applyAudienceFilters();
 }
 
