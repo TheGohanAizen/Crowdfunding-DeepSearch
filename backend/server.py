@@ -2062,6 +2062,11 @@ def consume_automation_rate_limit(mechanism, idempotency_key):
     cutoff_iso = datetime.fromtimestamp(now.timestamp() - 3600, tz=timezone.utc).isoformat()
     with automation_ledger_connection() as connection:
         connection.execute("BEGIN IMMEDIATE")
+        retention_cutoff_iso = datetime.fromtimestamp(now.timestamp() - (48 * 3600), tz=timezone.utc).isoformat()
+        cleanup_cursor = connection.execute(
+            "DELETE FROM automation_rate_events WHERE consumed_at < ?",
+            (retention_cutoff_iso,),
+        )
         existing = connection.execute(
             """SELECT 1 FROM automation_rate_events
                WHERE mechanism = ? AND idempotency_key = ? LIMIT 1""",
@@ -2081,6 +2086,7 @@ def consume_automation_rate_limit(mechanism, idempotency_key):
                 "remaining": max(0, limit - used),
                 "consumed": False,
                 "reason": "quota_already_consumed_for_execution",
+                "pruned_events": cleanup_cursor.rowcount,
             }
         if used >= limit:
             connection.rollback()
@@ -2091,6 +2097,7 @@ def consume_automation_rate_limit(mechanism, idempotency_key):
                 "remaining": 0,
                 "consumed": False,
                 "reason": "hourly_rate_limit_exhausted",
+                "pruned_events": cleanup_cursor.rowcount,
             }
         connection.execute(
             """INSERT INTO automation_rate_events
@@ -2106,6 +2113,7 @@ def consume_automation_rate_limit(mechanism, idempotency_key):
         "remaining": max(0, limit - used),
         "consumed": True,
         "reason": "quota_consumed",
+        "pruned_events": cleanup_cursor.rowcount,
     }
 
 def automation_idempotency_key(workspace_id, tracking_id, mechanism, route):
