@@ -105,15 +105,27 @@ Automatic scope progressively samples local, state/province, national, and world
 
 Audience DeepSearch has now progressed beyond the original V1 checklist. The current implementation includes candidate normalization/ranking, channel-rule evidence, dedicated audience planning/preview/discovery APIs, frontend results and tracking, campaign-specific workspaces, permission-review freshness checks, assisted outreach drafts, same-site submission-route verification, assisted submission packets, response/follow-up states, CSV outreach-ledger export, durable automation execution metadata, idempotency/retry controls, and a registered-but-disabled SendGrid connector guarded by explicit authorization, deployment opt-in, compliance preflight, durable storage, deduplication, and rate limiting.
 
+### Operations & Analytics implementation status
+
+The operations/analytics layer is now implemented across both institutional opportunities and public-audience discovery:
+
+1. Privacy-safe per-workspace aggregate snapshots are persisted without private notes, response-detail text, outreach-draft bodies, or recipient addresses.
+2. Audience reporting tracks discovered, saved, reviewed, draft-ready, submission-ready, contacted, responded, closed, follow-up due, permission-review freshness, submission-handoff freshness, and duplicate discoveries merged.
+3. Institutional reporting now has a complete saved → reviewed → contacted → responded → closed funnel plus due, 24h+ overdue, and next-7-day follow-up metrics.
+4. Institutional and public-audience funnels remain separately reported in the campaign progress export and cross-workspace operations dashboard.
+5. Workspace Operations provides a bounded 50-item action queue, prioritizes overdue before due before upcoming work, distinguishes institutional opportunities from audience leads, and reports queue composition without exposing private record content.
+6. The privacy-safe Workspace Operations export has advanced to schema v6 and includes aggregate stale-action, duplicate-suppression, institutional-funnel, and action-queue metrics.
+7. Automatic distribution remains disabled unless a registered connector passes all permission, compliance, deduplication, storage, explicit-authorization, and deployment gates.
+
 ### Current development frontier
 
-The next additive phase is the operations/analytics layer:
+The next additive phase is operational quality and navigation:
 
-1. Aggregate per-workspace funnel metrics without exposing private note text.
-2. Surface counts for discovered, saved, reviewed, draft-ready, submission-ready, contacted, responded, closed, and follow-up due.
-3. Measure duplicate suppression and stale permission/submission handoffs.
-4. Preserve separate institutional-opportunity and public-audience reporting.
-5. Add exportable campaign progress summaries and bounded follow-up views.
-6. Keep automatic distribution disabled unless a registered connector passes all permission, compliance, deduplication, storage, and deployment gates.
+1. Add direct, privacy-safe navigation from cross-workspace queue items back to the correct campaign workspace and workflow view without embedding private content in URLs.
+2. Consolidate follow-up classification into reusable helpers so audience, institutional, campaign-export, and cross-workspace calculations cannot drift.
+3. Add stronger regression coverage for queue bounds, closed-record exclusion, urgency ordering, and privacy-safe exports.
+4. Surface analytics snapshot freshness so operators can distinguish current metrics from workspaces that have not been opened/refreshed recently.
+5. Improve institutional route/readiness reporting while keeping eligibility claims explicitly unverified until confirmed from official source evidence.
+6. Continue dry-run and compliance-preflight development for registered automation connectors; do not enable live sending merely to advance the roadmap.
 
 The production baseline is protected by GitHub backend checks and exact-commit Render deployment verification.
