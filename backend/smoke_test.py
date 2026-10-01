@@ -256,6 +256,11 @@ try:
     assert "Institutional opportunity" in workspace_operations_html
     assert "Audience lead" in workspace_operations_html
     assert "action_queue_counts:actionQueueCounts(actionQueue(50))" in workspace_operations_html
+    assert 'function restoreWorkspaceFromQuery()' in live_discovery_html
+    assert 'get("workspace")' in live_discovery_html
+    assert 'DOMContentLoaded", restoreWorkspaceFromQuery' in live_discovery_html
+    assert '/live-discovery.html?workspace=' in workspace_operations_html
+    assert 'encodeURIComponent(item.workspace_id)' in workspace_operations_html
     assert "function renderActionQueue()" in workspace_operations_html
     assert "action_queue:actionQueue(50)" in workspace_operations_html
     assert "version:6" in workspace_operations_html
