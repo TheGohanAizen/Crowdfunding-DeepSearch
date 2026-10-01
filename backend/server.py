@@ -1992,20 +1992,27 @@ def automation_storage_status():
     """Describe whether the configured execution store is suitable for live automation."""
     path = str(AUTOMATION_LEDGER_PATH or "").strip()
     persistent_declared = env_flag("AUTOMATION_STORAGE_PERSISTENT")
-    ephemeral_path = path.startswith("/tmp/") or path == "/tmp"
+    memory_path = path == ":memory:"
+    ephemeral_path = path.startswith("/tmp/") or path == "/tmp" or memory_path
+    path_prepared = False
+    storage_error = None
+    if path:
+        try:
+            prepare_automation_storage_path()
+            path_prepared = True
+        except RuntimeError as error:
+            storage_error = str(error)
+    live_ready = bool(path and path_prepared and persistent_declared and not ephemeral_path)
     return {
         "backend": "sqlite",
         "path_configured": bool(path),
+        "path_prepared": path_prepared,
         "persistent_declared": persistent_declared,
         "ephemeral_path": ephemeral_path,
-        "live_ready": bool(path and persistent_declared and not ephemeral_path),
-        "reason": (
-            "persistent_storage_ready"
-            if path and persistent_declared and not ephemeral_path
-            else "durable_automation_storage_required"
-        ),
+        "live_ready": live_ready,
+        "reason": "persistent_storage_ready" if live_ready else "durable_automation_storage_required",
+        "storage_error": storage_error,
     }
-
 
 def automation_rate_limit_contract(mechanism):
     """Return the configured bounded rate contract without consuming quota."""
