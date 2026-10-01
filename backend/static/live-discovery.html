@@ -1285,6 +1285,12 @@ function persistAudienceAnalyticsSnapshot(snapshot) {
                 permission_reviews_need_refresh: snapshot.permission_reviews_need_refresh,
                 contact_rate_percent: snapshot.contact_rate_percent,
                 response_rate_percent: snapshot.response_rate_percent,
+                service_area_confirmed: snapshot.service_area_confirmed,
+                service_area_possible: snapshot.service_area_possible,
+                application_routes_detected: snapshot.application_routes_detected,
+                contact_routes_detected: snapshot.contact_routes_detected,
+                program_evidence_detected: snapshot.program_evidence_detected,
+                eligibility_language_detected_unverified: snapshot.eligibility_language_detected_unverified,
                 duplicates_merged: Number(document.getElementById("audienceDuplicatesMergedCount")?.textContent || 0)
             },
             analytics_updated_at: snapshot.exported_at
@@ -1802,10 +1808,16 @@ function updateOutreachDashboard() {
 function institutionalProgressSnapshot() {
     const cards = Array.from(document.querySelectorAll("#resultList .result-card"));
     const now = new Date();
-    const metrics = {total_opportunities: cards.length, not_started: 0, saved: 0, reviewed: 0, contacted: 0, responded: 0, closed: 0, followups_due: 0, followups_overdue_24h: 0, followups_upcoming_7d: 0, ever_contacted: 0, ever_responded: 0};
+    const metrics = {total_opportunities: cards.length, not_started: 0, saved: 0, reviewed: 0, contacted: 0, responded: 0, closed: 0, followups_due: 0, followups_overdue_24h: 0, followups_upcoming_7d: 0, service_area_confirmed: 0, service_area_possible: 0, application_routes_detected: 0, contact_routes_detected: 0, program_evidence_detected: 0, eligibility_language_detected_unverified: 0, ever_contacted: 0, ever_responded: 0};
     cards.forEach(function(card) {
         const record = card.dataset.trackingKey ? readTrackingRecord(card.dataset.trackingKey) : null;
         const status = record && record.status ? record.status : "not_started";
+        if (card.dataset.serviceArea === "confirmed") metrics.service_area_confirmed += 1;
+        if (card.dataset.serviceArea === "possible") metrics.service_area_possible += 1;
+        if (card.dataset.applicationRouteDetected === "true") metrics.application_routes_detected += 1;
+        if (card.dataset.contactRouteDetected === "true") metrics.contact_routes_detected += 1;
+        if (card.dataset.programEvidenceDetected === "true") metrics.program_evidence_detected += 1;
+        if (card.dataset.eligibilityLanguageDetected === "true") metrics.eligibility_language_detected_unverified += 1;
         if (Object.prototype.hasOwnProperty.call(metrics, status)) metrics[status] += 1;
         else metrics.not_started += 1;
         if (record && Array.isArray(record.history) && record.history.some(x => x && x.status === "contacted") || status === "contacted") metrics.ever_contacted += 1;
@@ -2103,6 +2115,10 @@ async function runDiscovery() {
             card.dataset.stage = geographicStage;
             card.dataset.status = reviewStatus;
             card.dataset.serviceArea = item.service_area_status || "not_confirmed";
+            card.dataset.applicationRouteDetected = sourceCheck.application_route_found ? "true" : "false";
+            card.dataset.contactRouteDetected = sourceCheck.contact_route_found ? "true" : "false";
+            card.dataset.programEvidenceDetected = sourceCheck.program_evidence_found ? "true" : "false";
+            card.dataset.eligibilityLanguageDetected = sourceCheck.eligibility_language_found ? "true" : "false";
             const reviewLabel = reviewStatus === "needs_review" ? "Needs review"
                 : reviewStatus === "low_relevance" ? "Low relevance" : "Unverified";
             const safeStatusClass = ["needs_review", "unverified", "low_relevance"].includes(reviewStatus)
