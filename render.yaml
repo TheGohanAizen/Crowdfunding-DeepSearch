@@ -35,3 +35,5 @@ services:
         value: "false"
       - key: AUTOMATION_OPERATIONAL_TOOLS_ENABLED
         value: "false"
+      - key: AUTOMATION_STORAGE_BACKEND
+        value: "sqlite"
