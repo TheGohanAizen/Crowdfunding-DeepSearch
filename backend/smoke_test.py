@@ -413,7 +413,7 @@ try:
     assert 'counts.handoffsPrepared += 1' in live_discovery_html
     assert 'function submissionPacketIsCurrent(record, routeFingerprint, verifiedApplicationRoutes)' in live_discovery_html
     assert 'route_fingerprint: routeFingerprint' in live_discovery_html
-    assert 'submissionPacketIsCurrent(record, card.dataset.routeFingerprint || "")' in live_discovery_html
+    assert 'submissionPacketIsCurrent(record, card.dataset.routeFingerprint || "", JSON.parse(card.dataset.verifiedApplicationRoutes || "[]"))' in live_discovery_html
     import_pos = live_discovery_html.index('function importTracking(event)')
     restore_pos = live_discovery_html.index('if (restore) profileRestored = applyImportedCampaignProfile(campaign);', import_pos)
     destination_pos = live_discovery_html.index('const destinationPrefix = currentCampaignTrackingPrefix();', import_pos)
