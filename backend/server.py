@@ -1997,7 +1997,13 @@ def automation_storage_status():
     path = str(AUTOMATION_LEDGER_PATH or "").strip()
     persistent_declared = env_flag("AUTOMATION_STORAGE_PERSISTENT")
     memory_path = path == ":memory:"
-    ephemeral_path = path.startswith("/tmp/") or path == "/tmp" or memory_path
+    absolute_path = os.path.abspath(path) if path and not memory_path else path
+    ephemeral_roots = ("/tmp", "/var/tmp", "/dev/shm")
+    ephemeral_path = memory_path or any(
+        absolute_path == root or absolute_path.startswith(root + os.sep)
+        for root in ephemeral_roots
+    )
+    explicit_path_configured = "AUTOMATION_LEDGER_PATH" in os.environ and bool(path)
     path_prepared = False
     storage_error = None
     if path:
@@ -2007,14 +2013,23 @@ def automation_storage_status():
         except RuntimeError as error:
             storage_error = str(error)
     supported_backend = backend == "sqlite"
-    live_ready = bool(supported_backend and path and path_prepared and persistent_declared and not ephemeral_path)
+    persistence_evidence = bool(
+        supported_backend
+        and explicit_path_configured
+        and persistent_declared
+        and path_prepared
+        and not ephemeral_path
+    )
+    live_ready = persistence_evidence
     return {
         "backend": backend,
         "supported_backend": supported_backend,
         "path_configured": bool(path),
+        "explicit_path_configured": explicit_path_configured,
         "path_prepared": path_prepared,
         "persistent_declared": persistent_declared,
         "ephemeral_path": ephemeral_path,
+        "persistence_evidence": persistence_evidence,
         "live_ready": live_ready,
         "reason": (
             "persistent_storage_ready"
