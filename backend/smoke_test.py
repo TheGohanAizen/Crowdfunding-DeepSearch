@@ -260,6 +260,13 @@ try:
     assert "outreach_draft_bodies_included:false" in workspace_operations_html
     assert "recipient_addresses_included:false" in workspace_operations_html
     assert 'id="workspaceOperationsButton"' in live_discovery_html
+    assert 'id="exportCampaignProgressButton"' in live_discovery_html
+    assert 'function institutionalProgressSnapshot()' in live_discovery_html
+    assert 'function exportCampaignProgressSummary()' in live_discovery_html
+    assert 'crowdfunding-deepsearch-campaign-progress-summary' in live_discovery_html
+    assert 'institutional_opportunities: institutionalProgressSnapshot()' in live_discovery_html
+    assert 'audience: audienceProgressSnapshot()' in live_discovery_html
+    assert 'recipient_addresses_included:false' in live_discovery_html
     assert "/workspace-operations.html" in live_discovery_html
     assert 'href="/live-discovery.html"' in workspace_operations_html
     assert live_discovery_html.startswith("<!DOCTYPE html>\n<html")
