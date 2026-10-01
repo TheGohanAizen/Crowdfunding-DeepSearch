@@ -471,6 +471,36 @@ async function automationBlockerLabel(code) {
     return labels[code] || String(code || "automation authorization is incomplete").replaceAll("_", " ");
 }
 
+function automationBlockerCategory(code) {
+    const value = String(code || "");
+    if (["user_authorization_required","live_send_authorization_required","current_permission_review_required","verified_route_required","workspace_id_required","lead_not_automation_eligible","lead_send_not_enabled"].includes(value)) return "Permission / authorization";
+    if (["verified_sender_email_required","verified_sender_identity_required","email_compliance_confirmation_required","unsubscribe_mechanism_required","server_verified_sender_email_required","server_sender_verification_required","server_email_compliance_confirmation_required","server_unsubscribe_mechanism_required"].includes(value)) return "Compliance / sender";
+    if (["deduplication_clearance_required","idempotency_key_already_recorded"].includes(value)) return "Duplicate protection";
+    if (["durable_automation_storage_required","automation_rate_limit_unavailable_or_exhausted"].includes(value)) return "Storage / quota";
+    if (["mechanism_not_registered","connector_not_configured","connector_send_disabled","live_send_policy_disabled"].includes(value)) return "Connector / deployment";
+    return "Other prerequisite";
+}
+
+function groupedAutomationBlockers(codes) {
+    const groups = {};
+    (Array.isArray(codes) ? codes : []).forEach(function(code) {
+        const category = automationBlockerCategory(code);
+        if (!groups[category]) groups[category] = [];
+        groups[category].push(code);
+    });
+    return groups;
+}
+
+async function automationBlockerSummary(codes) {
+    const groups = groupedAutomationBlockers(codes);
+    const parts = [];
+    for (const category of Object.keys(groups)) {
+        const labels = await Promise.all(groups[category].map(automationBlockerLabel));
+        parts.push(category + ": " + labels.join("; "));
+    }
+    return parts.join(" | ");
+}
+
 function loadAutomationConnectorStatus() {
     const status = document.getElementById("automationConnectorStatus");
     if (!status) return;
@@ -539,10 +569,10 @@ async function loadSendGridPreflightStatus() {
         const response = await fetch(SENDGRID_SERVER_READINESS_URL);
         const data = await response.json();
         if (!response.ok) throw new Error(data.message || "SendGrid server readiness unavailable.");
-        const blockers = Array.isArray(data.blockers) ? data.blockers.map(automationBlockerLabel) : [];
+        const blockerSummary = await automationBlockerSummary(data.blockers);
         status.textContent = data.ready
             ? "SendGrid server readiness: all deployment prerequisites report ready. No send is authorized by this check."
-            : "SendGrid server readiness: blocked — " + blockers.join("; ") + ". No send was attempted.";
+            : "SendGrid server readiness: blocked — " + (blockerSummary || "prerequisites incomplete") + ". No send was attempted.";
     } catch (error) {
         status.textContent = "SendGrid server readiness: unavailable — live sending remains disabled.";
     }
