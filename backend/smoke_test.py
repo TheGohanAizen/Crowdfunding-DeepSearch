@@ -399,6 +399,10 @@ try:
     assert '"Duplicate protection"' in live_discovery_html
     assert '"Storage / quota"' in live_discovery_html
     assert '"Connector / deployment"' in live_discovery_html
+    assert 'sendgrid_api_key_not_configured: "the SendGrid credential is not configured"' in live_discovery_html
+    assert 'execution_check_authorization_required: "permission to run this non-sending check is required"' in live_discovery_html
+    assert 'durable_automation_storage_required: "verified durable execution storage is required"' in live_discovery_html
+    assert 'server_unsubscribe_mechanism_required: "the deployment unsubscribe mechanism is not confirmed"' in live_discovery_html
     assert 'fetch(AUTOMATION_OPERATIONAL_READINESS_URL)' in live_discovery_html
     assert 'Diagnostic only — sent: no; network I/O: no; authorization granted: no.' in live_discovery_html
     assert 'SENDGRID_SERVER_READINESS_URL' in live_discovery_html
