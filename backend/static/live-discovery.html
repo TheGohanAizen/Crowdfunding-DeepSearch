@@ -563,10 +563,18 @@ async function loadAutomationOperationalReadiness() {
         if (!response.ok || data.status !== "ok") throw new Error("Operational readiness unavailable.");
         const storage = data.storage || {};
         const quota = data.rate_limit || {};
-        const storageLabel = storage.live_ready ? "durable storage ready" : "durable storage blocked";
+        const storageLabel = storage.live_ready ? "durable storage ready" : "durable storage blocked (" + ({
+            storage_path_not_explicitly_configured: "storage location is not explicitly configured",
+            storage_not_declared_persistent: "persistent storage has not been declared",
+            storage_path_is_ephemeral: "storage location appears ephemeral",
+            storage_persistence_evidence_missing: "durable-storage evidence is missing"
+        }[storage.reason] || "inspect storage configuration") + ")";
         const quotaLabel = quota.allowed
             ? "hourly quota available (" + Number(quota.remaining || 0) + " remaining of " + Number(quota.limit_per_hour || 0) + ")"
-            : "hourly quota blocked or unavailable";
+            : "hourly quota blocked or unavailable (" + ({
+                hourly_rate_limit_exhausted: "hourly limit reached",
+                rate_limit_storage_unavailable: "quota ledger unavailable"
+            }[quota.reason] || "inspect quota configuration") + ")";
         status.textContent = "Automation storage / quota readiness: " + storageLabel + "; " + quotaLabel + ". Diagnostic only — sent: no; network I/O: no; authorization granted: no.";
     } catch (error) {
         status.textContent = "Automation storage / quota readiness: unavailable. No send was attempted.";
