@@ -921,7 +921,15 @@ function renderAudienceLead(item) {
                 : "Execution prerequisites: blocked — " + (blockerSummary || "prerequisites incomplete") + ". Nothing was sent.";
             if (data.receipt) {
                 const updated = readTrackingRecord(audienceTrackingKey) || {};
-                updated.last_automation_execution_check = data.receipt;
+                updated.last_automation_execution_check = {
+                    mechanism: String(data.receipt.mechanism || "").slice(0, 80),
+                    allowed: data.receipt.allowed === true,
+                    blockers: (Array.isArray(data.receipt.blockers) ? data.receipt.blockers : []).map(function(code) { return String(code).slice(0, 80); }).slice(0, 30),
+                    checked_at: data.receipt.checked_at || new Date().toISOString(),
+                    sent: false,
+                    network_io: false,
+                    authorization_granted: false
+                };
                 try { localStorage.setItem(audienceTrackingKey, JSON.stringify(updated)); } catch (error) {}
             }
         } catch (error) {
