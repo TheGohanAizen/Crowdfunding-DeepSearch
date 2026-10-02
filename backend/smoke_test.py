@@ -388,6 +388,9 @@ try:
     assert 'const blockerSummary = await automationBlockerSummary(blockers);' in live_discovery_html
     assert 'const blockerSummary = await automationBlockerSummary(data.blockers);' in live_discovery_html
     assert 'Execution prerequisites: blocked — ' in live_discovery_html
+    assert 'updated.last_automation_execution_check = {' in live_discovery_html
+    assert 'updated.last_automation_execution_check = data.receipt' not in live_discovery_html
+    assert 'authorization_granted: false' in live_discovery_html
     assert 'async function automationBlockerSummary(codes)' in live_discovery_html
     assert '"Permission / authorization"' in live_discovery_html
     assert '"Compliance / sender"' in live_discovery_html
