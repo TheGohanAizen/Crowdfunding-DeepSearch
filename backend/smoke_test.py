@@ -381,6 +381,10 @@ try:
     assert '"sent": False' in server_source
     assert 'id="automationOperationalReadiness"' in live_discovery_html
     assert 'function loadAutomationOperationalReadiness()' in live_discovery_html
+    assert 'storage location is not explicitly configured' in live_discovery_html
+    assert 'persistent storage has not been declared' in live_discovery_html
+    assert 'hourly limit reached' in live_discovery_html
+    assert 'quota ledger unavailable' in live_discovery_html
     assert 'function automationBlockerCategory(code)' in live_discovery_html
     assert 'function groupedAutomationBlockers(codes)' in live_discovery_html
     assert 'updated.last_automation_dry_run = {' in live_discovery_html
