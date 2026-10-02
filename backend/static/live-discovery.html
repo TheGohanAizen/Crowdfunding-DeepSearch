@@ -909,7 +909,7 @@ function renderAudienceLead(item) {
             });
             const data = await response.json();
             if (!response.ok) throw new Error(data.message || "Execution prerequisite check failed.");
-            const blockers = Array.isArray(data.blockers) ? data.blockers.map(automationBlockerLabel) : [];
+            const blockerSummary = await automationBlockerSummary(data.blockers);
             let state = card.querySelector(".audience-execution-check-state");
             if (!state) {
                 state = document.createElement("div");
@@ -918,7 +918,7 @@ function renderAudienceLead(item) {
             }
             state.textContent = data.allowed
                 ? "Execution prerequisites: satisfied in non-sending check — nothing was sent."
-                : "Execution prerequisites: blocked — " + blockers.join("; ") + ". Nothing was sent.";
+                : "Execution prerequisites: blocked — " + (blockerSummary || "prerequisites incomplete") + ". Nothing was sent.";
             if (data.receipt) {
                 const updated = readTrackingRecord(audienceTrackingKey) || {};
                 updated.last_automation_execution_check = data.receipt;
