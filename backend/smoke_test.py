@@ -41,9 +41,10 @@ try:
             assert connector_status_code == 200
             assert connector_readiness["status"] == "ok"
             assert connector_readiness["automatic_distribution_enabled"] is False
-            assert len(connector_readiness["connectors"]) == 1
+            assert len(connector_readiness["connectors"]) == 2
             assert connector_readiness["connectors"][0]["mechanism"] == "sendgrid_mail_v3"
             assert connector_readiness["connectors"][0]["send_enabled"] is False
+            assert any(item["mechanism"] == "brevo_email_v3" and item["send_enabled"] is False for item in connector_readiness["connectors"])
             assert connector_readiness["unregistered_routes_remain_manual"] is True
             break
         except Exception as error:
@@ -807,6 +808,13 @@ try:
     prepare_automation_storage_path = crowdfunding_server.prepare_automation_storage_path
     automation_storage_status = crowdfunding_server.automation_storage_status
     sendgrid_server_preflight = crowdfunding_server.sendgrid_server_preflight
+    brevo_server_preflight = crowdfunding_server.brevo_server_preflight
+    build_brevo_email_v3_payload = crowdfunding_server.build_brevo_email_v3_payload
+    assert "brevo_email_v3" in crowdfunding_server.SUPPORTED_AUTOMATION_MECHANISMS
+    brevo_payload = build_brevo_email_v3_payload("recipient@example.com", "sender@example.com", "Test", "Body")
+    assert brevo_payload["to"][0]["email"] == "recipient@example.com"
+    assert brevo_payload["sender"]["email"] == "sender@example.com"
+    assert brevo_payload["textContent"] == "Body"
     check_only_auth = validate_live_send_authorization({
         "user_authorized_check": True,
         "permission_review_current": True,
