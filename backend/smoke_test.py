@@ -42,9 +42,9 @@ try:
             assert connector_readiness["status"] == "ok"
             assert connector_readiness["automatic_distribution_enabled"] is False
             assert len(connector_readiness["connectors"]) == 2
-            assert connector_readiness["connectors"][0]["mechanism"] == "sendgrid_mail_v3"
-            assert connector_readiness["connectors"][0]["send_enabled"] is False
-            assert any(item["mechanism"] == "brevo_email_v3" and item["send_enabled"] is False for item in connector_readiness["connectors"])
+            connector_by_mechanism = {item["mechanism"]: item for item in connector_readiness["connectors"]}
+            assert connector_by_mechanism["sendgrid_mail_v3"]["send_enabled"] is False
+            assert connector_by_mechanism["brevo_email_v3"]["send_enabled"] is False
             assert connector_readiness["unregistered_routes_remain_manual"] is True
             break
         except Exception as error:
