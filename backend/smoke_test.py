@@ -813,6 +813,8 @@ try:
     brevo_unsubscribe_footer = crowdfunding_server.brevo_unsubscribe_footer
     suppress_automation_email = crowdfunding_server.suppress_automation_email
     automation_email_suppression_status = crowdfunding_server.automation_email_suppression_status
+    build_automation_unsubscribe_token = crowdfunding_server.build_automation_unsubscribe_token
+    email_from_automation_unsubscribe_token = crowdfunding_server.email_from_automation_unsubscribe_token
     assert "brevo_email_v3" in crowdfunding_server.SUPPORTED_AUTOMATION_MECHANISMS
     brevo_payload = build_brevo_email_v3_payload("recipient@example.com", "sender@example.com", "Test", "Body")
     assert brevo_payload["to"][0]["email"] == "recipient@example.com"
@@ -827,6 +829,22 @@ try:
     assert automation_email_suppression_status("optout@example.com")["suppressed"] is False
     assert suppress_automation_email("OptOut@example.com")["suppressed"] is True
     assert automation_email_suppression_status("optout@example.com")["suppressed"] is True
+    original_unsubscribe_secret = os.environ.get("AUTOMATION_UNSUBSCRIBE_SECRET")
+    try:
+        os.environ["AUTOMATION_UNSUBSCRIBE_SECRET"] = "smoke-test-secret-that-is-longer-than-32-characters"
+        unsubscribe_token = build_automation_unsubscribe_token("SignedOptOut@example.com")
+        assert "signedoptout@example.com" not in unsubscribe_token
+        assert email_from_automation_unsubscribe_token(unsubscribe_token) == "signedoptout@example.com"
+        try:
+            email_from_automation_unsubscribe_token(unsubscribe_token + "tampered")
+            raise AssertionError("Tampered unsubscribe token should be rejected")
+        except ValueError:
+            pass
+    finally:
+        if original_unsubscribe_secret is None:
+            os.environ.pop("AUTOMATION_UNSUBSCRIBE_SECRET", None)
+        else:
+            os.environ["AUTOMATION_UNSUBSCRIBE_SECRET"] = original_unsubscribe_secret
     check_only_auth = validate_live_send_authorization({
         "user_authorized_check": True,
         "permission_review_current": True,
