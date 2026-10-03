@@ -1518,11 +1518,15 @@ def brevo_server_preflight():
     if not env_flag("BREVO_COMPLIANCE_CONFIRMED"):
         blockers.append("server_email_compliance_confirmation_required")
     unsubscribe_ready = env_flag("BREVO_UNSUBSCRIBE_READY")
-    unsubscribe_url = str(os.environ.get("BREVO_UNSUBSCRIBE_URL", "")).strip()
+    public_base_url = str(os.environ.get("PUBLIC_BASE_URL", "")).strip().rstrip("/")
+    unsubscribe_secret = automation_unsubscribe_secret()
     if not unsubscribe_ready:
         blockers.append("server_unsubscribe_mechanism_required")
-    elif not unsubscribe_url.lower().startswith("https://"):
-        blockers.append("server_unsubscribe_url_required")
+    else:
+        if not public_base_url.lower().startswith("https://"):
+            blockers.append("server_public_base_url_required")
+        if len(unsubscribe_secret) < 32:
+            blockers.append("server_unsubscribe_signing_secret_required")
     policy = automation_live_send_policy("brevo_email_v3")
     if not policy["live_send_enabled"]:
         blockers.append("live_send_policy_disabled")
@@ -1553,8 +1557,12 @@ def build_brevo_email_v3_payload(to_email, from_email, subject, body, reply_to=N
         raise ValueError("Missing required email fields: " + ", ".join(missing))
     if "@" not in fields["to_email"] or "@" not in fields["from_email"]:
         raise ValueError("Valid recipient and sender email addresses are required.")
-    unsubscribe_url = str(os.environ.get("BREVO_UNSUBSCRIBE_URL", "")).strip()
     if env_flag("BREVO_UNSUBSCRIBE_READY"):
+        public_base_url = str(os.environ.get("PUBLIC_BASE_URL", "")).strip().rstrip("/")
+        if not public_base_url.lower().startswith("https://"):
+            raise RuntimeError("A secure public base URL is required for unsubscribe links.")
+        token = build_automation_unsubscribe_token(fields["to_email"])
+        unsubscribe_url = public_base_url + "/api/automation/unsubscribe/" + token
         fields["body"] += brevo_unsubscribe_footer(unsubscribe_url)
     payload = {"sender": {"email": fields["from_email"]}, "to": [{"email": fields["to_email"]}], "subject": fields["subject"], "textContent": fields["body"]}
     reply = str(reply_to or "").strip()
