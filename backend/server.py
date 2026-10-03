@@ -1718,10 +1718,50 @@ def automation_ledger_connection():
     connection.execute(
         "CREATE INDEX IF NOT EXISTS idx_automation_rate_events_window ON automation_rate_events(mechanism, consumed_at)"
     )
+    connection.execute(
+        """CREATE TABLE IF NOT EXISTS automation_email_suppressions (
+            email TEXT PRIMARY KEY,
+            reason TEXT NOT NULL DEFAULT 'unsubscribe',
+            suppressed_at TEXT NOT NULL
+        )"""
+    )
     # Schema setup/migrations may open an implicit SQLite transaction. Commit it
     # before callers begin their own explicit write transaction (BEGIN IMMEDIATE).
     connection.commit()
     return connection
+
+def normalize_automation_email(value):
+    return str(value or "").strip().lower()
+
+
+def automation_email_suppression_status(email):
+    """Check local opt-out state without exposing the suppression list."""
+    normalized = normalize_automation_email(email)
+    if "@" not in normalized:
+        return {"suppressed": False, "valid": False}
+    with automation_ledger_connection() as connection:
+        row = connection.execute(
+            "SELECT 1 FROM automation_email_suppressions WHERE email = ?",
+            (normalized,),
+        ).fetchone()
+    return {"suppressed": row is not None, "valid": True}
+
+
+def suppress_automation_email(email, reason="unsubscribe"):
+    """Persist an email opt-out locally; no provider/network action is performed."""
+    normalized = normalize_automation_email(email)
+    if "@" not in normalized:
+        raise ValueError("A valid email address is required.")
+    safe_reason = str(reason or "unsubscribe").strip()[:64] or "unsubscribe"
+    with automation_ledger_connection() as connection:
+        connection.execute(
+            """INSERT INTO automation_email_suppressions (email, reason, suppressed_at)
+               VALUES (?, ?, ?)
+               ON CONFLICT(email) DO UPDATE SET reason=excluded.reason, suppressed_at=excluded.suppressed_at""",
+            (normalized, safe_reason, datetime.now(timezone.utc).isoformat()),
+        )
+    return {"suppressed": True}
+
 
 def persist_automation_execution_record(record):
     """Persist a non-secret execution record once per idempotency key."""
@@ -1972,6 +2012,8 @@ def build_live_sendgrid_execution_candidate(data):
     to_email = str(data.get("to_email") or "").strip()
     if not to_email:
         blockers.append("recipient_email_required")
+    elif automation_email_suppression_status(to_email)["suppressed"]:
+        blockers.append("recipient_unsubscribed")
     if not str(draft.get("subject") or "").strip():
         blockers.append("outreach_subject_required")
     if not str(draft.get("body") or "").strip():
