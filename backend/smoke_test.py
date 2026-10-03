@@ -811,6 +811,8 @@ try:
     brevo_server_preflight = crowdfunding_server.brevo_server_preflight
     build_brevo_email_v3_payload = crowdfunding_server.build_brevo_email_v3_payload
     brevo_unsubscribe_footer = crowdfunding_server.brevo_unsubscribe_footer
+    suppress_automation_email = crowdfunding_server.suppress_automation_email
+    automation_email_suppression_status = crowdfunding_server.automation_email_suppression_status
     assert "brevo_email_v3" in crowdfunding_server.SUPPORTED_AUTOMATION_MECHANISMS
     brevo_payload = build_brevo_email_v3_payload("recipient@example.com", "sender@example.com", "Test", "Body")
     assert brevo_payload["to"][0]["email"] == "recipient@example.com"
@@ -822,6 +824,9 @@ try:
         raise AssertionError("Insecure unsubscribe URL should be rejected")
     except ValueError:
         pass
+    assert automation_email_suppression_status("optout@example.com")["suppressed"] is False
+    assert suppress_automation_email("OptOut@example.com")["suppressed"] is True
+    assert automation_email_suppression_status("optout@example.com")["suppressed"] is True
     check_only_auth = validate_live_send_authorization({
         "user_authorized_check": True,
         "permission_review_current": True,
