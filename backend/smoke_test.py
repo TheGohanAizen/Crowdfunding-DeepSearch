@@ -835,6 +835,23 @@ try:
         unsubscribe_token = build_automation_unsubscribe_token("SignedOptOut@example.com")
         assert "signedoptout@example.com" not in unsubscribe_token
         assert email_from_automation_unsubscribe_token(unsubscribe_token) == "signedoptout@example.com"
+        original_public_base_url = os.environ.get("PUBLIC_BASE_URL")
+        original_brevo_unsubscribe_ready = os.environ.get("BREVO_UNSUBSCRIBE_READY")
+        try:
+            os.environ["PUBLIC_BASE_URL"] = "https://crowdfunding-deepsearch.onrender.com"
+            os.environ["BREVO_UNSUBSCRIBE_READY"] = "true"
+            signed_payload = build_brevo_email_v3_payload("recipient@example.com", "sender@example.com", "Test", "Body")
+            assert "https://crowdfunding-deepsearch.onrender.com/api/automation/unsubscribe/" in signed_payload["textContent"]
+            assert "recipient@example.com" not in signed_payload["textContent"].split("unsubscribe here: ", 1)[-1]
+        finally:
+            if original_public_base_url is None:
+                os.environ.pop("PUBLIC_BASE_URL", None)
+            else:
+                os.environ["PUBLIC_BASE_URL"] = original_public_base_url
+            if original_brevo_unsubscribe_ready is None:
+                os.environ.pop("BREVO_UNSUBSCRIBE_READY", None)
+            else:
+                os.environ["BREVO_UNSUBSCRIBE_READY"] = original_brevo_unsubscribe_ready
         try:
             email_from_automation_unsubscribe_token(unsubscribe_token + "tampered")
             raise AssertionError("Tampered unsubscribe token should be rejected")
