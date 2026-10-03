@@ -241,6 +241,7 @@ button:hover { background: #1d4ed8; }
     <button id="audienceDiscoverButton" type="button" onclick="runAudienceDiscovery()">Run Audience DeepSearch</button>
     <div id="automationConnectorStatus" class="notice">Automatic distribution status: checking connector readiness…</div>
     <div id="sendgridPreflightStatus" class="notice">SendGrid production preflight: not configured — sending remains disabled.</div>
+    <div id="brevoPreflightStatus" class="notice">Brevo production preflight: checking non-secret deployment readiness…</div>
     <div id="automationReadinessChecklist" class="notice">Automation readiness checklist: loading non-secret deployment gates…</div>
     <div id="automationOperationalReadiness" class="notice">Automation storage / quota readiness: loading non-secret operational signals…</div>
 
@@ -448,6 +449,7 @@ const AUTOMATION_DRY_RUN_URL = apiRoot + "/api/automation/dry-run";
 const AUTOMATION_EXECUTION_CHECK_URL = apiRoot + "/api/automation/execution-check";
 const SENDGRID_PREFLIGHT_URL = apiRoot + "/api/automation/connectors/sendgrid/preflight";
 const SENDGRID_SERVER_READINESS_URL = apiRoot + "/api/automation/connectors/sendgrid/server-readiness";
+const BREVO_SERVER_READINESS_URL = apiRoot + "/api/automation/connectors/brevo/server-readiness";
 const AUTOMATION_OPERATIONAL_READINESS_URL = apiRoot + "/api/automation/operational-readiness";
 const SENDGRID_SIMULATE_URL = apiRoot + "/api/automation/connectors/sendgrid/simulate";
 
@@ -523,13 +525,17 @@ function loadAutomationConnectorStatus() {
         const connectors = Array.isArray(data.connectors) ? data.connectors : [];
         const connectorCount = connectors.length;
         const sendgrid = connectors.find(function(connector) { return connector.mechanism === "sendgrid_mail_v3"; });
+        const brevo = connectors.find(function(connector) { return connector.mechanism === "brevo_email_v3"; });
         renderAutomationReadinessChecklist(sendgrid);
         const sendgridSuffix = sendgrid
             ? " SendGrid: registered" + (sendgrid.configured ? ", credentials configured" : ", credentials not configured") + (sendgrid.send_enabled ? ", live send enabled." : ", live send disabled.")
             : "";
+        const brevoSuffix = brevo
+            ? " Brevo: registered" + (brevo.configured ? ", credentials configured" : ", credentials not configured") + (brevo.send_enabled ? ", live send enabled." : ", live send disabled.")
+            : "";
         status.textContent = enabled
-            ? "Automatic distribution status: approved connector available." + sendgridSuffix
-            : "Automatic distribution status: disabled — " + connectorCount + " approved connector" + (connectorCount === 1 ? "" : "s") + " available; unregistered routes remain manual." + sendgridSuffix;
+            ? "Automatic distribution status: approved connector available." + sendgridSuffix + brevoSuffix
+            : "Automatic distribution status: disabled — " + connectorCount + " approved connector" + (connectorCount === 1 ? "" : "s") + " available; unregistered routes remain manual." + sendgridSuffix + brevoSuffix;
     } catch (error) {
         status.textContent = "Automatic distribution status: unavailable — manual review remains required.";
         renderAutomationReadinessChecklist(null);
@@ -581,6 +587,22 @@ async function loadAutomationOperationalReadiness() {
     }
 }
 
+async function loadBrevoPreflightStatus() {
+    const status = document.getElementById("brevoPreflightStatus");
+    if (!status) return;
+    try {
+        const response = await fetch(BREVO_SERVER_READINESS_URL);
+        const data = await response.json();
+        if (!response.ok) throw new Error("Brevo server readiness unavailable.");
+        const blockerSummary = await automationBlockerSummary(data.blockers);
+        status.textContent = data.ready
+            ? "Brevo server readiness: deployment prerequisites report ready. No send is authorized by this check."
+            : "Brevo server readiness: blocked — " + (blockerSummary || "prerequisites incomplete") + ". No send was attempted.";
+    } catch (error) {
+        status.textContent = "Brevo server readiness: unavailable — live sending remains disabled.";
+    }
+}
+
 async function loadSendGridPreflightStatus() {
     const status = document.getElementById("sendgridPreflightStatus");
     if (!status) return;
@@ -628,6 +650,7 @@ loadCampaignProfile();
 loadAutomationConnectorStatus();
 loadAutomationOperationalReadiness();
 loadSendGridPreflightStatus();
+loadBrevoPreflightStatus();
 
 function renderSavedAudienceDraft(card, trackingKey, draft) {
     if (!draft) return;
