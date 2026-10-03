@@ -810,11 +810,18 @@ try:
     sendgrid_server_preflight = crowdfunding_server.sendgrid_server_preflight
     brevo_server_preflight = crowdfunding_server.brevo_server_preflight
     build_brevo_email_v3_payload = crowdfunding_server.build_brevo_email_v3_payload
+    brevo_unsubscribe_footer = crowdfunding_server.brevo_unsubscribe_footer
     assert "brevo_email_v3" in crowdfunding_server.SUPPORTED_AUTOMATION_MECHANISMS
     brevo_payload = build_brevo_email_v3_payload("recipient@example.com", "sender@example.com", "Test", "Body")
     assert brevo_payload["to"][0]["email"] == "recipient@example.com"
     assert brevo_payload["sender"]["email"] == "sender@example.com"
     assert brevo_payload["textContent"] == "Body"
+    assert "unsubscribe here" in brevo_unsubscribe_footer("https://example.com/unsubscribe")
+    try:
+        brevo_unsubscribe_footer("http://example.com/unsubscribe")
+        raise AssertionError("Insecure unsubscribe URL should be rejected")
+    except ValueError:
+        pass
     check_only_auth = validate_live_send_authorization({
         "user_authorized_check": True,
         "permission_review_current": True,
