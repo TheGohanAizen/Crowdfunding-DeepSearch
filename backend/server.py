@@ -2,6 +2,8 @@ import json
 import os
 import re
 import hashlib
+import hmac
+import base64
 import ipaddress
 import socket
 import sqlite3
@@ -1730,6 +1732,46 @@ def automation_ledger_connection():
     connection.commit()
     return connection
 
+def automation_unsubscribe_secret():
+    return str(os.environ.get("AUTOMATION_UNSUBSCRIBE_SECRET", "")).strip()
+
+
+def build_automation_unsubscribe_token(email):
+    """Create an opaque signed token; the address is not exposed in the unsubscribe URL."""
+    normalized = normalize_automation_email(email)
+    secret = automation_unsubscribe_secret()
+    if "@" not in normalized:
+        raise ValueError("A valid email address is required.")
+    if len(secret) < 32:
+        raise RuntimeError("A strong unsubscribe signing secret is required.")
+    encoded = base64.urlsafe_b64encode(normalized.encode("utf-8")).decode("ascii").rstrip("=")
+    signature = hmac.new(secret.encode("utf-8"), encoded.encode("ascii"), hashlib.sha256).hexdigest()
+    return encoded + "." + signature
+
+
+def email_from_automation_unsubscribe_token(token):
+    """Verify a signed unsubscribe token and recover its normalized address."""
+    raw = str(token or "").strip()
+    if "." not in raw:
+        raise ValueError("Invalid unsubscribe token.")
+    encoded, signature = raw.rsplit(".", 1)
+    secret = automation_unsubscribe_secret()
+    if len(secret) < 32:
+        raise RuntimeError("A strong unsubscribe signing secret is required.")
+    expected = hmac.new(secret.encode("utf-8"), encoded.encode("ascii"), hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(signature, expected):
+        raise ValueError("Invalid unsubscribe token.")
+    try:
+        padded = encoded + ("=" * (-len(encoded) % 4))
+        email = base64.urlsafe_b64decode(padded.encode("ascii")).decode("utf-8")
+    except Exception as error:
+        raise ValueError("Invalid unsubscribe token.") from error
+    normalized = normalize_automation_email(email)
+    if "@" not in normalized:
+        raise ValueError("Invalid unsubscribe token.")
+    return normalized
+
+
 def normalize_automation_email(value):
     return str(value or "").strip().lower()
 
@@ -2853,6 +2895,16 @@ def create_app():
         except Exception:
             app.logger.exception("Audience discovery request failed")
             return jsonify({"status": "error", "message": "Audience discovery request failed."}), 500
+
+    @app.route("/api/automation/unsubscribe/<token>", methods=["GET"])
+    def automation_unsubscribe(token):
+        try:
+            email = email_from_automation_unsubscribe_token(token)
+            suppress_automation_email(email, "unsubscribe")
+        except (ValueError, RuntimeError):
+            return ("Invalid or unavailable unsubscribe link.", 400, {"Content-Type": "text/plain; charset=utf-8"})
+        return ("You have been unsubscribed from future Crowdfunding DeepSearch outreach emails.", 200, {"Content-Type": "text/plain; charset=utf-8"})
+
 
     @app.route("/api/automation/executions/reconcile", methods=["POST", "OPTIONS"])
     def automation_execution_reconcile():
