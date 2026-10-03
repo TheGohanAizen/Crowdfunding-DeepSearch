@@ -1345,6 +1345,17 @@ AUTOMATION_CONNECTOR_REGISTRY = {
         "requires_verified_sender": True,
         "requires_unsubscribe_compliance": True,
     },
+    "brevo_email_v3": {
+        "action_type": "official_api",
+        "credential_env": "BREVO_API_KEY",
+        "rate_limit_per_hour": 12,
+        "send_enabled": False,
+        "requires_user_authorization": True,
+        "documentation_url": "https://developers.brevo.com/reference/sendtransacemail",
+        "endpoint": "https://api.brevo.com/v3/smtp/email",
+        "requires_verified_sender": True,
+        "requires_unsubscribe_compliance": True,
+    },
 }
 
 INVALID_AUTOMATION_CONNECTORS = {
@@ -1490,6 +1501,49 @@ def sendgrid_server_preflight():
         "credentials_configured": bool(os.environ.get("SENDGRID_API_KEY")),
         "live_send_policy": policy,
     }
+
+
+def brevo_server_preflight():
+    """Validate trusted deployment-side Brevo prerequisites without exposing secrets."""
+    blockers = []
+    from_email = str(os.environ.get("BREVO_FROM_EMAIL", "")).strip()
+    if not os.environ.get("BREVO_API_KEY"):
+        blockers.append("brevo_api_key_not_configured")
+    if "@" not in from_email:
+        blockers.append("server_verified_sender_email_required")
+    if not env_flag("BREVO_SENDER_VERIFIED"):
+        blockers.append("server_sender_verification_required")
+    if not env_flag("BREVO_COMPLIANCE_CONFIRMED"):
+        blockers.append("server_email_compliance_confirmation_required")
+    if not env_flag("BREVO_UNSUBSCRIBE_READY"):
+        blockers.append("server_unsubscribe_mechanism_required")
+    policy = automation_live_send_policy("brevo_email_v3")
+    if not policy["live_send_enabled"]:
+        blockers.append("live_send_policy_disabled")
+    return {
+        "ready": not blockers,
+        "blockers": blockers,
+        "from_email": from_email or None,
+        "credentials_configured": bool(os.environ.get("BREVO_API_KEY")),
+        "live_send_policy": policy,
+    }
+
+
+def build_brevo_email_v3_payload(to_email, from_email, subject, body, reply_to=None):
+    """Build but do not send a conservative Brevo single-recipient payload."""
+    fields = {"to_email": str(to_email or "").strip(), "from_email": str(from_email or "").strip(), "subject": str(subject or "").strip(), "body": str(body or "").strip()}
+    missing = [name for name, value in fields.items() if not value]
+    if missing:
+        raise ValueError("Missing required email fields: " + ", ".join(missing))
+    if "@" not in fields["to_email"] or "@" not in fields["from_email"]:
+        raise ValueError("Valid recipient and sender email addresses are required.")
+    payload = {"sender": {"email": fields["from_email"]}, "to": [{"email": fields["to_email"]}], "subject": fields["subject"], "textContent": fields["body"]}
+    reply = str(reply_to or "").strip()
+    if reply:
+        if "@" not in reply:
+            raise ValueError("A valid reply-to email address is required.")
+        payload["replyTo"] = {"email": reply}
+    return payload
 
 
 def build_sendgrid_mail_v3_payload(to_email, from_email, subject, body, reply_to=None):
