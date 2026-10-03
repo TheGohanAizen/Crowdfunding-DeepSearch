@@ -2909,6 +2909,22 @@ def create_app():
             "live_send_policy": result["live_send_policy"],
         })
 
+    @app.route("/api/automation/connectors/brevo/server-readiness", methods=["GET", "OPTIONS"])
+    def brevo_server_readiness():
+        if request.method == "OPTIONS":
+            return ("", 204)
+        result = brevo_server_preflight()
+        return jsonify({
+            "ready": result["ready"],
+            "blockers": result["blockers"],
+            "from_email_configured": bool(result["from_email"]),
+            "credentials_configured": result["credentials_configured"],
+            "live_send_policy": result["live_send_policy"],
+            "sent": False,
+            "network_io": False,
+            "authorization_granted": False,
+        })
+
     @app.route("/api/automation/operational-readiness", methods=["GET", "OPTIONS"])
     def automation_operational_readiness():
         if request.method == "OPTIONS":
