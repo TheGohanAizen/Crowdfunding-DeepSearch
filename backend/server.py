@@ -1515,8 +1515,12 @@ def brevo_server_preflight():
         blockers.append("server_sender_verification_required")
     if not env_flag("BREVO_COMPLIANCE_CONFIRMED"):
         blockers.append("server_email_compliance_confirmation_required")
-    if not env_flag("BREVO_UNSUBSCRIBE_READY"):
+    unsubscribe_ready = env_flag("BREVO_UNSUBSCRIBE_READY")
+    unsubscribe_url = str(os.environ.get("BREVO_UNSUBSCRIBE_URL", "")).strip()
+    if not unsubscribe_ready:
         blockers.append("server_unsubscribe_mechanism_required")
+    elif not unsubscribe_url.lower().startswith("https://"):
+        blockers.append("server_unsubscribe_url_required")
     policy = automation_live_send_policy("brevo_email_v3")
     if not policy["live_send_enabled"]:
         blockers.append("live_send_policy_disabled")
@@ -1529,6 +1533,16 @@ def brevo_server_preflight():
     }
 
 
+def brevo_unsubscribe_footer(unsubscribe_url):
+    """Build a plain-text opt-out footer only from an explicit HTTPS unsubscribe URL."""
+    url = str(unsubscribe_url or "").strip()
+    if not url:
+        raise ValueError("An unsubscribe URL is required.")
+    if not url.lower().startswith("https://"):
+        raise ValueError("The unsubscribe URL must use HTTPS.")
+    return "\n\n---\nTo stop receiving these outreach emails, unsubscribe here: " + url
+
+
 def build_brevo_email_v3_payload(to_email, from_email, subject, body, reply_to=None):
     """Build but do not send a conservative Brevo single-recipient payload."""
     fields = {"to_email": str(to_email or "").strip(), "from_email": str(from_email or "").strip(), "subject": str(subject or "").strip(), "body": str(body or "").strip()}
@@ -1537,6 +1551,9 @@ def build_brevo_email_v3_payload(to_email, from_email, subject, body, reply_to=N
         raise ValueError("Missing required email fields: " + ", ".join(missing))
     if "@" not in fields["to_email"] or "@" not in fields["from_email"]:
         raise ValueError("Valid recipient and sender email addresses are required.")
+    unsubscribe_url = str(os.environ.get("BREVO_UNSUBSCRIBE_URL", "")).strip()
+    if env_flag("BREVO_UNSUBSCRIBE_READY"):
+        fields["body"] += brevo_unsubscribe_footer(unsubscribe_url)
     payload = {"sender": {"email": fields["from_email"]}, "to": [{"email": fields["to_email"]}], "subject": fields["subject"], "textContent": fields["body"]}
     reply = str(reply_to or "").strip()
     if reply:
