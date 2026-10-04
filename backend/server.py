@@ -1527,6 +1527,9 @@ def brevo_server_preflight():
             blockers.append("server_public_base_url_required")
         if len(unsubscribe_secret) < 32:
             blockers.append("server_unsubscribe_signing_secret_required")
+    storage = automation_storage_status()
+    if unsubscribe_ready and not storage.get("live_ready"):
+        blockers.append("durable_unsubscribe_storage_required")
     policy = automation_live_send_policy("brevo_email_v3")
     if not policy["live_send_enabled"]:
         blockers.append("live_send_policy_disabled")
@@ -1537,6 +1540,7 @@ def brevo_server_preflight():
         "credentials_configured": bool(os.environ.get("BREVO_API_KEY")),
         "public_base_url_configured": public_base_url.lower().startswith("https://"),
         "unsubscribe_signing_secret_configured": len(unsubscribe_secret) >= 32,
+        "unsubscribe_storage_ready": storage.get("live_ready") is True,
         "live_send_policy": policy,
     }
 
@@ -3042,6 +3046,7 @@ def create_app():
             "credentials_configured": result["credentials_configured"],
             "public_base_url_configured": result["public_base_url_configured"],
             "unsubscribe_signing_secret_configured": result["unsubscribe_signing_secret_configured"],
+            "unsubscribe_storage_ready": result["unsubscribe_storage_ready"],
             "live_send_policy": result["live_send_policy"],
             "sent": False,
             "network_io": False,
