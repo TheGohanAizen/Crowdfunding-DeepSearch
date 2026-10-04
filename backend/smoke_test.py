@@ -816,10 +816,18 @@ try:
     build_automation_unsubscribe_token = crowdfunding_server.build_automation_unsubscribe_token
     email_from_automation_unsubscribe_token = crowdfunding_server.email_from_automation_unsubscribe_token
     assert "brevo_email_v3" in crowdfunding_server.SUPPORTED_AUTOMATION_MECHANISMS
-    brevo_payload = build_brevo_email_v3_payload("recipient@example.com", "sender@example.com", "Test", "Body")
-    assert brevo_payload["to"][0]["email"] == "recipient@example.com"
-    assert brevo_payload["sender"]["email"] == "sender@example.com"
-    assert brevo_payload["textContent"] == "Body"
+    original_brevo_unsubscribe_ready_for_baseline = os.environ.get("BREVO_UNSUBSCRIBE_READY")
+    try:
+        os.environ.pop("BREVO_UNSUBSCRIBE_READY", None)
+        brevo_payload = build_brevo_email_v3_payload("recipient@example.com", "sender@example.com", "Test", "Body")
+        assert brevo_payload["to"][0]["email"] == "recipient@example.com"
+        assert brevo_payload["sender"]["email"] == "sender@example.com"
+        assert brevo_payload["textContent"] == "Body"
+    finally:
+        if original_brevo_unsubscribe_ready_for_baseline is None:
+            os.environ.pop("BREVO_UNSUBSCRIBE_READY", None)
+        else:
+            os.environ["BREVO_UNSUBSCRIBE_READY"] = original_brevo_unsubscribe_ready_for_baseline
     brevo_readiness = brevo_server_preflight()
     assert isinstance(brevo_readiness["public_base_url_configured"], bool)
     assert isinstance(brevo_readiness["unsubscribe_signing_secret_configured"], bool)
