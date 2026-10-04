@@ -1524,6 +1524,43 @@ def brevo_provider_suppression_capability():
     }
 
 
+def brevo_provider_suppression_request(email=None, limit=100, offset=0):
+    """Build a Brevo transactional suppression read request without performing network I/O."""
+    endpoint = (AUTOMATION_CONNECTOR_REGISTRY.get("brevo_email_v3") or {}).get("provider_suppression_read_endpoint")
+    if not endpoint:
+        raise RuntimeError("Brevo provider suppression read endpoint is not configured.")
+    safe_limit = max(1, min(int(limit or 100), 100))
+    safe_offset = max(0, int(offset or 0))
+    normalized = normalize_automation_email(email) if email else None
+    if normalized is not None and "@" not in normalized:
+        raise ValueError("A valid email address is required.")
+    return {
+        "method": "GET",
+        "url": endpoint,
+        "query": {"limit": safe_limit, "offset": safe_offset, "sort": "desc"},
+        "match_email": normalized,
+        "authentication": "api-key",
+        "network_io": False,
+        "sending_enabled": False,
+        "authorization_granted": False,
+    }
+
+
+def brevo_provider_suppression_response_contains_email(payload, email):
+    """Inspect a Brevo blocked-contact response locally without exposing other contacts."""
+    normalized = normalize_automation_email(email)
+    if "@" not in normalized:
+        raise ValueError("A valid email address is required.")
+    contacts = payload.get("contacts") if isinstance(payload, dict) else None
+    if not isinstance(contacts, list):
+        return {"suppressed": False, "valid_response": False}
+    suppressed = any(
+        normalize_automation_email(item.get("email")) == normalized
+        for item in contacts if isinstance(item, dict)
+    )
+    return {"suppressed": suppressed, "valid_response": True}
+
+
 def brevo_server_preflight():
     """Validate trusted deployment-side Brevo prerequisites without exposing secrets."""
     blockers = []
