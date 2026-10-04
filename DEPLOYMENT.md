@@ -43,19 +43,31 @@ Example:
 
 ## Controlled automatic email activation (currently disabled)
 
-Automatic email delivery is **not** enabled merely by configuring credentials. Do not switch on live sending until a verified sender, unsubscribe handling, permission checks, duplicate protection, durable storage, and an authorized test have all passed.
+Automatic email delivery is **not** enabled merely by configuring credentials or unsubscribe support. Brevo is the current target provider. Keep every live-send switch off until sender verification, compliance review, unsubscribe handling, permission checks, duplicate protection, durable storage, rate limiting, and an explicitly authorized single-recipient test have all passed.
 
-Configure these Render environment variables using the Render dashboard, **not** GitHub commits:
+### Brevo setup gates
 
-- `SENDGRID_API_KEY` — private SendGrid API credential.
-- `SENDGRID_FROM_EMAIL` — the sender email actually verified in SendGrid.
-- `SENDGRID_SENDER_VERIFIED=true` — set only after verification.
-- `SENDGRID_COMPLIANCE_CONFIRMED=true` — set only after reviewing applicable email requirements.
-- `SENDGRID_UNSUBSCRIBE_READY=true` — set only after a working unsubscribe mechanism is confirmed.
+Configure secrets and deployment settings in Render, never in GitHub:
+
+- `BREVO_API_KEY` — private Brevo API credential.
+- `BREVO_FROM_EMAIL` — sender email actually verified in Brevo.
+- `BREVO_SENDER_VERIFIED=true` — only after Brevo shows the sender verified.
+- `PUBLIC_BASE_URL=https://crowdfunding-deepsearch.onrender.com` — public HTTPS application origin used to build signed unsubscribe links.
+- `AUTOMATION_UNSUBSCRIBE_SECRET` — private random signing secret of at least 32 characters.
+- `BREVO_UNSUBSCRIBE_READY=true` — only after the signed public unsubscribe endpoint and durable suppression storage are confirmed.
+- `BREVO_COMPLIANCE_CONFIRMED=true` — only after the applicable outreach/email requirements have actually been reviewed and satisfied.
 - `AUTOMATION_STORAGE_BACKEND=sqlite`
-- `AUTOMATION_LEDGER_PATH` — absolute path on a mounted persistent disk; never use a temporary directory.
-- `AUTOMATION_STORAGE_PERSISTENT=true` — set only after confirming persistence.
+- `AUTOMATION_LEDGER_PATH` — absolute path on a mounted persistent disk; never a temporary filesystem.
+- `AUTOMATION_STORAGE_PERSISTENT=true` — only after persistence is confirmed.
 
-After the above prerequisites are verified, a deliberate code change to the `sendgrid_mail_v3` registry entry (`send_enabled: True`) and two separate deployment switches (`AUTOMATION_LIVE_SEND_ENABLED=true` and `AUTOMATION_SENDGRID_MAIL_V3_ENABLED=true`) are needed. **Do not make these activation changes during setup.** Review the non-secret `/api/automation/connectors/sendgrid/server-readiness` and `/api/automation/operational-readiness` responses first. Neither endpoint sends messages or grants authorization.
+The non-secret `/api/automation/connectors/brevo/server-readiness` endpoint reports whether credentials, sender, public base URL, signing secret, compliance, unsubscribe, and live policy gates are present without returning secret values. `/api/automation/operational-readiness` reports storage/rate-limit readiness. Neither endpoint sends messages or grants authorization.
 
-Before the first live attempt, use a recipient address you control, complete the route/permission review, confirm the unsubscribe path, and explicitly authorize the individual action. The live-send gates and hourly quota remain mandatory. Discovery results alone are not permission to contact a recipient. Never commit or share API keys, recipient lists, or deployment-hook URLs.
+### Live activation remains separate
+
+Even when `BREVO_UNSUBSCRIBE_READY=true`, sending remains disabled. Live delivery additionally requires a deliberate code change to the `brevo_email_v3` registry entry (`send_enabled: True`), `AUTOMATION_LIVE_SEND_ENABLED=true`, and `AUTOMATION_BREVO_EMAIL_V3_ENABLED=true`. Do not make those changes during setup.
+
+Before the first live attempt, use a recipient address the operator controls, complete route/permission review, confirm that its signed unsubscribe link writes to durable suppression storage, and explicitly authorize that individual action. Discovery results alone are not permission to contact a recipient. Never commit or share API keys, signing secrets, recipient lists, or deployment-hook URLs.
+
+### Legacy SendGrid
+
+SendGrid support remains registered but disabled. Its corresponding variables are `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL`, `SENDGRID_SENDER_VERIFIED`, `SENDGRID_COMPLIANCE_CONFIRMED`, and `SENDGRID_UNSUBSCRIBE_READY`. Do not enable SendGrid merely because Brevo setup is complete.
