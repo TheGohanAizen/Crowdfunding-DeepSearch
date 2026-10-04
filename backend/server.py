@@ -1357,6 +1357,9 @@ AUTOMATION_CONNECTOR_REGISTRY = {
         "endpoint": "https://api.brevo.com/v3/smtp/email",
         "requires_verified_sender": True,
         "requires_unsubscribe_compliance": True,
+        "provider_suppression_supported": True,
+        "provider_suppression_read_endpoint": "https://api.brevo.com/v3/smtp/blockedContacts",
+        "provider_suppression_write_mode": "contact_email_blacklist",
     },
 }
 
@@ -1502,6 +1505,22 @@ def sendgrid_server_preflight():
         "from_email": from_email or None,
         "credentials_configured": bool(os.environ.get("SENDGRID_API_KEY")),
         "live_send_policy": policy,
+    }
+
+
+def brevo_provider_suppression_capability():
+    """Describe Brevo provider-side suppression capability without network I/O."""
+    connector = AUTOMATION_CONNECTOR_REGISTRY.get("brevo_email_v3") or {}
+    configured = bool(os.environ.get("BREVO_API_KEY"))
+    return {
+        "mechanism": "brevo_email_v3",
+        "supported": connector.get("provider_suppression_supported") is True,
+        "credentials_configured": configured,
+        "read_endpoint_configured": bool(connector.get("provider_suppression_read_endpoint")),
+        "write_mode": connector.get("provider_suppression_write_mode"),
+        "network_io": False,
+        "authorization_granted": False,
+        "sending_enabled": False,
     }
 
 
