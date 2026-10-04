@@ -820,6 +820,9 @@ try:
     assert brevo_payload["to"][0]["email"] == "recipient@example.com"
     assert brevo_payload["sender"]["email"] == "sender@example.com"
     assert brevo_payload["textContent"] == "Body"
+    brevo_readiness = brevo_server_preflight()
+    assert isinstance(brevo_readiness["public_base_url_configured"], bool)
+    assert isinstance(brevo_readiness["unsubscribe_signing_secret_configured"], bool)
     assert "unsubscribe here" in brevo_unsubscribe_footer("https://example.com/unsubscribe")
     try:
         brevo_unsubscribe_footer("http://example.com/unsubscribe")
