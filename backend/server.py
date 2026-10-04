@@ -1535,6 +1535,8 @@ def brevo_server_preflight():
         "blockers": blockers,
         "from_email": from_email or None,
         "credentials_configured": bool(os.environ.get("BREVO_API_KEY")),
+        "public_base_url_configured": public_base_url.lower().startswith("https://"),
+        "unsubscribe_signing_secret_configured": len(unsubscribe_secret) >= 32,
         "live_send_policy": policy,
     }
 
@@ -3038,6 +3040,8 @@ def create_app():
             "blockers": result["blockers"],
             "from_email_configured": bool(result["from_email"]),
             "credentials_configured": result["credentials_configured"],
+            "public_base_url_configured": result["public_base_url_configured"],
+            "unsubscribe_signing_secret_configured": result["unsubscribe_signing_secret_configured"],
             "live_send_policy": result["live_send_policy"],
             "sent": False,
             "network_io": False,
