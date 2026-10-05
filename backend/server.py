@@ -3410,6 +3410,41 @@ def create_app():
         except ValueError as error:
             return jsonify({"status": "error", "message": str(error)}), 400
 
+    @app.route("/api/automation/connectors/brevo/execution-candidate", methods=["POST", "OPTIONS"])
+    def brevo_execution_candidate():
+        if request.method == "OPTIONS":
+            return ("", 204)
+        if not automation_operational_tools_enabled():
+            return jsonify({"status": "disabled", "message": "Automation operational tools are disabled."}), 404
+        if request.content_length is not None and request.content_length > 65536:
+            return jsonify({"status": "error", "message": "Request body is too large."}), 413
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            return jsonify({"status": "error", "message": "A JSON request body is required."}), 400
+        if data.get("user_authorized_check") is not True:
+            return jsonify({
+                "status": "blocked",
+                "ready": False,
+                "sent": False,
+                "network_io": False,
+                "authorization_granted": False,
+                "blockers": ["execution_check_authorization_required"],
+            }), 403
+        to_email = str(data.get("to_email") or "").strip()
+        if "@" not in to_email:
+            return jsonify({"status": "error", "message": "A valid recipient email is required."}), 400
+        provider_suppression = verify_brevo_provider_suppression(to_email)
+        plan = build_brevo_execution_candidate(data, provider_suppression=provider_suppression)
+        # This endpoint performs a read-only provider suppression check, then
+        # returns redacted diagnostics. It never executes the candidate.
+        result = redact_automation_plan(plan)
+        result["provider_suppression_checked"] = provider_suppression.get("verified") is True
+        result["provider_suppression_clear"] = provider_suppression.get("clear") is True
+        result["provider_suppression_suppressed"] = provider_suppression.get("suppressed") is True
+        result["sent"] = False
+        result["authorization_granted"] = False
+        return jsonify(result)
+
     @app.route("/api/automation/connectors/brevo/execution-diagnostics", methods=["POST", "OPTIONS"])
     def brevo_execution_diagnostics():
         if request.method == "OPTIONS":
