@@ -573,6 +573,7 @@ async function loadAutomationOperationalReadiness() {
         if (!response.ok || data.status !== "ok") throw new Error("Operational readiness unavailable.");
         const storage = data.storage || {};
         const quota = data.rate_limit || {};
+        const dailyQuota = data.daily_rate_limit || {};
         const storageLabel = storage.live_ready ? "durable storage ready" : "durable storage blocked (" + ({
             storage_path_not_explicitly_configured: "storage location is not explicitly configured",
             storage_not_declared_persistent: "persistent storage has not been declared",
@@ -584,12 +585,15 @@ async function loadAutomationOperationalReadiness() {
             storage_path_not_ready: "the configured storage path is not ready"
         }[storage.reason] || "inspect storage configuration") + ")";
         const quotaLabel = quota.allowed
-            ? "hourly quota available (" + Number(quota.remaining || 0) + " remaining of " + Number(quota.limit_per_hour || 0) + ")"
-            : "hourly quota blocked or unavailable (" + ({
+            ? "Brevo hourly quota available (" + Number(quota.remaining || 0) + " remaining of " + Number(quota.limit_per_hour || 0) + ")"
+            : "Brevo hourly quota blocked or unavailable (" + ({
                 hourly_rate_limit_exhausted: "hourly limit reached",
                 rate_limit_storage_unavailable: "quota ledger unavailable"
             }[quota.reason] || "inspect quota configuration") + ")";
-        status.textContent = "Automation storage / quota readiness: " + storageLabel + "; " + quotaLabel + ". Diagnostic only — sent: no; network I/O: no; authorization granted: no.";
+        const dailyQuotaLabel = dailyQuota.allowed
+            ? "daily quota available (" + Number(dailyQuota.remaining || 0) + " remaining of " + Number(dailyQuota.limit_per_day || 0) + ")"
+            : "daily quota blocked or unavailable";
+        status.textContent = "Automation storage / quota readiness: " + storageLabel + "; " + quotaLabel + "; " + dailyQuotaLabel + ". Diagnostic only — sent: no; network I/O: no; authorization granted: no.";
     } catch (error) {
         status.textContent = "Automation storage / quota readiness: unavailable. No send was attempted.";
     }
