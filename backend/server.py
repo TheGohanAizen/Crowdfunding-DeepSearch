@@ -1351,6 +1351,7 @@ AUTOMATION_CONNECTOR_REGISTRY = {
         "action_type": "official_api",
         "credential_env": "BREVO_API_KEY",
         "rate_limit_per_hour": 12,
+        "rate_limit_per_day": 300,
         "send_enabled": False,
         "requires_user_authorization": True,
         "documentation_url": "https://developers.brevo.com/reference/sendtransacemail",
@@ -2370,6 +2371,44 @@ def automation_rate_limit_status(mechanism, now=None):
             continue
     remaining = max(0, limit - used)
     return {**contract, "allowed": remaining > 0, "used_last_hour": used, "remaining": remaining}
+
+
+def automation_daily_rate_limit_status(mechanism, now=None):
+    """Read the connector's UTC-day quota status without consuming quota."""
+    status = automation_connector_status(mechanism)
+    connector = AUTOMATION_CONNECTOR_REGISTRY.get(str(mechanism or "").strip()) or {}
+    limit = connector.get("rate_limit_per_day")
+    if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1:
+        return {"mechanism": status.get("mechanism"), "allowed": False, "reason": "daily_rate_limit_contract_unavailable", "limit_per_day": None}
+    current = now if isinstance(now, datetime) else datetime.now(timezone.utc)
+    if current.tzinfo is None:
+        current = current.replace(tzinfo=timezone.utc)
+    current = current.astimezone(timezone.utc)
+    day_start = current.replace(hour=0, minute=0, second=0, microsecond=0)
+    with automation_ledger_connection() as connection:
+        rows = connection.execute(
+            "SELECT consumed_at FROM automation_rate_events WHERE mechanism = ?",
+            (str(mechanism or "").strip(),),
+        ).fetchall()
+    used = 0
+    for row in rows:
+        try:
+            consumed = datetime.fromisoformat(str(row["consumed_at"]).replace("Z", "+00:00"))
+            if consumed.tzinfo is None:
+                consumed = consumed.replace(tzinfo=timezone.utc)
+            if consumed.astimezone(timezone.utc) >= day_start:
+                used += 1
+        except (TypeError, ValueError):
+            continue
+    remaining = max(0, limit - used)
+    return {
+        "mechanism": status.get("mechanism"),
+        "allowed": remaining > 0,
+        "limit_per_day": limit,
+        "used_today": used,
+        "remaining_today": remaining,
+        "day_basis": "UTC",
+    }
 
 
 def prune_automation_rate_events(retention_hours=48):
