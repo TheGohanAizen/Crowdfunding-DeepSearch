@@ -849,6 +849,83 @@ try:
     finally:
         if original_brevo_key_for_suppression is not None:
             os.environ["BREVO_API_KEY"] = original_brevo_key_for_suppression
+
+    class FakeBrevoSuppressionResponse:
+        def __init__(self, payload):
+            self.payload = payload
+        def __enter__(self):
+            return self
+        def __exit__(self, exc_type, exc, tb):
+            return False
+        def read(self):
+            return json.dumps(self.payload).encode("utf-8")
+
+    original_server_urlopen = crowdfunding_server.urlopen
+    original_brevo_key_for_paging = os.environ.get("BREVO_API_KEY")
+    try:
+        os.environ["BREVO_API_KEY"] = "smoke-test-read-only-key"
+
+        def paged_match_urlopen(request, timeout=8):
+            if "offset=100" in request.full_url:
+                return FakeBrevoSuppressionResponse(
+                    {"contacts": [{"email": "target@example.com"}], "count": 101}
+                )
+            return FakeBrevoSuppressionResponse(
+                {"contacts": [{"email": "other-" + str(i) + "@example.com"} for i in range(100)], "count": 101}
+            )
+
+        crowdfunding_server.urlopen = paged_match_urlopen
+        paged_match = verify_brevo_provider_suppression("target@example.com")
+        assert paged_match["verified"] is True
+        assert paged_match["suppressed"] is True
+        assert paged_match["clear"] is False
+        assert paged_match["pages_checked"] == 2
+        assert paged_match["sent"] is False
+        assert paged_match["authorization_granted"] is False
+
+        def paged_clear_urlopen(request, timeout=8):
+            if "offset=100" in request.full_url:
+                return FakeBrevoSuppressionResponse(
+                    {"contacts": [{"email": "last-other@example.com"}], "count": 101}
+                )
+            return FakeBrevoSuppressionResponse(
+                {"contacts": [{"email": "other-" + str(i) + "@example.com"} for i in range(100)], "count": 101}
+            )
+
+        crowdfunding_server.urlopen = paged_clear_urlopen
+        paged_clear = verify_brevo_provider_suppression("target@example.com")
+        assert paged_clear["verified"] is True
+        assert paged_clear["suppressed"] is False
+        assert paged_clear["clear"] is True
+        assert paged_clear["exhaustive"] is True
+        assert paged_clear["pages_checked"] == 2
+        assert paged_clear["sent"] is False
+        assert paged_clear["authorization_granted"] is False
+
+        bounded_incomplete = verify_brevo_provider_suppression("target@example.com", max_pages=1)
+        assert bounded_incomplete["verified"] is True
+        assert bounded_incomplete["suppressed"] is False
+        assert bounded_incomplete["clear"] is False
+        assert bounded_incomplete["exhaustive"] is False
+        assert bounded_incomplete["reason"] == "provider_suppression_lookup_incomplete"
+        assert bounded_incomplete["page_ceiling"] == 1
+        assert bounded_incomplete["sent"] is False
+        assert bounded_incomplete["authorization_granted"] is False
+
+        crowdfunding_server.urlopen = lambda request, timeout=8: FakeBrevoSuppressionResponse({"unexpected": []})
+        malformed_lookup = verify_brevo_provider_suppression("target@example.com")
+        assert malformed_lookup["verified"] is False
+        assert malformed_lookup["clear"] is False
+        assert malformed_lookup["reason"] == "provider_suppression_response_invalid"
+        assert malformed_lookup["sent"] is False
+        assert malformed_lookup["authorization_granted"] is False
+    finally:
+        crowdfunding_server.urlopen = original_server_urlopen
+        if original_brevo_key_for_paging is None:
+            os.environ.pop("BREVO_API_KEY", None)
+        else:
+            os.environ["BREVO_API_KEY"] = original_brevo_key_for_paging
+
     original_provider_verified = os.environ.pop("BREVO_PROVIDER_SUPPRESSION_VERIFIED", None)
     original_storage_persistent = os.environ.get("AUTOMATION_STORAGE_PERSISTENT")
     original_storage_path = os.environ.get("AUTOMATION_LEDGER_PATH")
