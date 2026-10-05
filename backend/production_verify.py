@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Verify that the expected Crowdfunding DeepSearch commit is live on Render.
 
-This check only calls /api/deployment and /api/health. It never calls discovery
-or a search provider, so it cannot consume Tavily search credits.
+This check only calls deployment/health and non-sending local readiness endpoints.
+It never calls discovery, search providers, Brevo, or a mail-send endpoint, so it
+cannot consume Tavily search credits or send email.
 """
 import json
 import os
@@ -39,7 +40,21 @@ def main():
                 health = get_json("/api/health")
                 if health.get("status") != "ok":
                     raise RuntimeError("Health endpoint did not report ok.")
+                brevo = get_json("/api/automation/connectors/brevo/server-readiness")
+                if brevo.get("sent") is not False:
+                    raise RuntimeError("Brevo readiness endpoint did not explicitly report sent=false.")
+                if brevo.get("network_io") is not False:
+                    raise RuntimeError("Brevo readiness endpoint unexpectedly reported network I/O.")
+                if brevo.get("authorization_granted") is not False:
+                    raise RuntimeError("Brevo readiness endpoint unexpectedly reported authorization.")
+                if brevo.get("unsubscribe_token_storage_ready") is not True:
+                    raise RuntimeError("Stateless unsubscribe token readiness is not active.")
+                if not isinstance(brevo.get("durable_unsubscribe_ready"), bool):
+                    raise RuntimeError("Durable unsubscribe readiness signal is missing.")
+                if not isinstance(brevo.get("provider_suppression_ready"), bool):
+                    raise RuntimeError("Provider suppression readiness signal is missing.")
                 print(f"Production verified: {live_commit} is live and healthy.")
+                print("Brevo readiness remained non-sending: sent=false, network_io=false, authorization_granted=false.")
                 print("No discovery/search endpoint was called; no Tavily credits were used.")
                 return 0
             print(f"Attempt {attempt}/{ATTEMPTS}: live commit is {live_commit or 'unknown'}; waiting for {expected}.")
