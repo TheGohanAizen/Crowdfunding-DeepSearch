@@ -724,6 +724,9 @@ try:
     assert 'data.get("campaign_summary") or data.get("campaignSummary")' in protected_source
     assert 'key = protected_paths[path] + ":" + client' in protected_source
     server_source = open(os.path.join(ROOT, "backend", "server.py"), encoding="utf-8").read()
+    assert 'response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"' in server_source
+    assert 'response.headers["X-Permitted-Cross-Domain-Policies"] = "none"' in server_source
+    assert 'response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"' in server_source
     assert '"credit_usage_known": not retrieval.get("configured", False)' in server_source
     assert 'does not claim zero credits' in server_source
     assert 'MAX_AUDIENCE_RULE_CHECKS = env_int("MAX_AUDIENCE_RULE_CHECKS", 4, 0, 12)' in server_source
