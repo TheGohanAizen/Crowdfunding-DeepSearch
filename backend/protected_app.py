@@ -1,3 +1,4 @@
+import hashlib
 import json
 import threading
 import time
@@ -41,8 +42,20 @@ def _normalized_payload(raw_body, namespace="opportunity"):
     goal = data.get("goal")
     if goal in ("", None):
         goal = None
+    campaign_url = str(data.get("campaign_url") or data.get("campaignUrl") or "").strip()
+    campaign_summary = " ".join(str(data.get("campaign_summary") or data.get("campaignSummary") or "").split()).strip()[:1200]
+    campaign_context = hashlib.sha256(
+        (campaign_url + "\x1f" + campaign_summary).encode("utf-8")
+    ).hexdigest()
     key = json.dumps(
-        {"namespace": namespace, "need": need, "location": location, "goal": goal, "scope": scope},
+        {
+            "namespace": namespace,
+            "need": need,
+            "location": location,
+            "goal": goal,
+            "scope": scope,
+            "campaign_context": campaign_context,
+        },
         sort_keys=True,
         separators=(",", ":"),
     )
