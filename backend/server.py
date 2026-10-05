@@ -1561,6 +1561,45 @@ def brevo_provider_suppression_response_contains_email(payload, email):
     return {"suppressed": suppressed, "valid_response": True}
 
 
+def verify_brevo_provider_suppression(email, timeout=8):
+    """Read Brevo transactional blocked contacts only; never sends or authorizes email."""
+    api_key = str(os.environ.get("BREVO_API_KEY", "")).strip()
+    if not api_key:
+        return {"verified": False, "suppressed": False, "reason": "brevo_api_key_not_configured", "network_io": False, "sent": False, "authorization_granted": False}
+    spec = brevo_provider_suppression_request(email)
+    request = Request(
+        spec["url"] + "?" + urlencode(spec["query"]),
+        method="GET",
+        headers={
+            "api-key": api_key,
+            "Accept": "application/json",
+            "User-Agent": "CrowdfundingDeepSearch/2.0",
+        },
+    )
+    try:
+        with urlopen(request, timeout=max(1, min(int(timeout or 8), 15))) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+        inspected = brevo_provider_suppression_response_contains_email(payload, email)
+        return {
+            "verified": inspected["valid_response"] is True,
+            "suppressed": inspected["suppressed"] is True,
+            "reason": "provider_suppression_state_verified" if inspected["valid_response"] else "invalid_provider_response",
+            "network_io": True,
+            "sent": False,
+            "authorization_granted": False,
+        }
+    except (HTTPError, URLError, TimeoutError, ValueError, json.JSONDecodeError) as error:
+        return {
+            "verified": False,
+            "suppressed": False,
+            "reason": "provider_suppression_lookup_failed",
+            "error_type": type(error).__name__,
+            "network_io": True,
+            "sent": False,
+            "authorization_granted": False,
+        }
+
+
 def brevo_server_preflight():
     """Validate trusted deployment-side Brevo prerequisites without exposing secrets."""
     blockers = []
