@@ -1361,7 +1361,7 @@ AUTOMATION_CONNECTOR_REGISTRY = {
         "requires_unsubscribe_compliance": True,
         "provider_suppression_supported": True,
         "provider_suppression_read_endpoint": "https://api.brevo.com/v3/smtp/blockedContacts",
-        "provider_suppression_write_mode": "contact_email_blacklist",
+        "provider_suppression_write_mode": None,
     },
 }
 
@@ -1520,6 +1520,8 @@ def brevo_provider_suppression_capability():
         "credentials_configured": configured,
         "read_endpoint_configured": bool(connector.get("provider_suppression_read_endpoint")),
         "write_mode": connector.get("provider_suppression_write_mode"),
+        "write_supported": bool(connector.get("provider_suppression_write_mode")),
+        "read_only": not bool(connector.get("provider_suppression_write_mode")),
         "network_io": False,
         "authorization_granted": False,
         "sending_enabled": False,
