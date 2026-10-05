@@ -2313,6 +2313,92 @@ def build_live_sendgrid_execution_candidate(data):
     }
 
 
+def build_brevo_execution_candidate(data, provider_suppression=None):
+    """Build a Brevo execution envelope locally; never performs provider network I/O."""
+    if not isinstance(data, dict):
+        raise ValueError("A JSON request body is required.")
+    execution = validate_automation_execution_request(data)
+    send_authorization = validate_live_send_authorization(data)
+    server_preflight = brevo_server_preflight()
+    blockers = list(execution["blockers"])
+    blockers.extend(code for code in send_authorization["blockers"] if code not in blockers)
+    blockers.extend(code for code in server_preflight["blockers"] if code not in blockers)
+
+    draft = data.get("draft") if isinstance(data.get("draft"), dict) else {}
+    to_email = str(data.get("to_email") or "").strip()
+    if not to_email or "@" not in to_email:
+        blockers.append("recipient_email_required")
+    else:
+        local_suppression = automation_email_suppression_status(to_email)
+        if local_suppression.get("suppressed") is True:
+            blockers.append("recipient_unsubscribed")
+
+    if not str(draft.get("subject") or "").strip():
+        blockers.append("outreach_subject_required")
+    if not str(draft.get("body") or "").strip():
+        blockers.append("outreach_body_required")
+
+    provider_state = provider_suppression if isinstance(provider_suppression, dict) else {}
+    if not provider_state:
+        blockers.append("provider_suppression_check_required")
+    elif provider_state.get("suppressed") is True:
+        blockers.append("recipient_provider_suppressed")
+    elif not (
+        provider_state.get("verified") is True
+        and provider_state.get("clear") is True
+        and provider_state.get("exhaustive") is True
+    ):
+        blockers.append("provider_suppression_clearance_required")
+
+    duplicate_status = automation_execution_duplicate_status(execution.get("idempotency_key"))
+    if duplicate_status["duplicate"]:
+        blockers.append("idempotency_key_already_recorded")
+
+    storage = automation_storage_status()
+    if not storage["live_ready"]:
+        blockers.append("durable_automation_storage_required")
+
+    hourly_rate = automation_rate_limit_status("brevo_email_v3")
+    if not hourly_rate.get("allowed"):
+        blockers.append("automation_rate_limit_unavailable_or_exhausted")
+    daily_rate = automation_daily_rate_limit_status("brevo_email_v3")
+    if not daily_rate.get("allowed"):
+        blockers.append("automation_daily_rate_limit_unavailable_or_exhausted")
+
+    blockers = list(dict.fromkeys(blockers))
+    payload = None
+    if not blockers:
+        payload = build_brevo_email_v3_payload(
+            to_email,
+            server_preflight["from_email"],
+            draft["subject"],
+            draft["body"],
+            data.get("reply_to"),
+        )
+
+    return {
+        "ready": not blockers,
+        "sent": False,
+        "network_io": False,
+        "authorization_granted": False,
+        "mechanism": "brevo_email_v3",
+        "blockers": blockers,
+        "idempotency_key": execution.get("idempotency_key"),
+        "duplicate_status": duplicate_status,
+        "provider_suppression": {
+            "verified": provider_state.get("verified") is True,
+            "suppressed": provider_state.get("suppressed") is True,
+            "clear": provider_state.get("clear") is True,
+            "exhaustive": provider_state.get("exhaustive") is True,
+        },
+        "hourly_rate_limit": hourly_rate,
+        "daily_rate_limit": daily_rate,
+        "storage": storage,
+        "payload": payload,
+        "endpoint": AUTOMATION_CONNECTOR_REGISTRY["brevo_email_v3"]["endpoint"],
+    }
+
+
 def build_disabled_sendgrid_execution_plan(data):
     """Build the final SendGrid execution envelope without performing network I/O."""
     if not isinstance(data, dict):
