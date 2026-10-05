@@ -855,6 +855,8 @@ try:
     try:
         os.environ["AUTOMATION_STORAGE_PERSISTENT"] = "false"
         os.environ["AUTOMATION_LEDGER_PATH"] = "/tmp/crowdfunding-deepsearch-provider-gate.sqlite3"
+        original_unsubscribe_ready_for_provider_gate = os.environ.get("BREVO_UNSUBSCRIBE_READY")
+        os.environ["BREVO_UNSUBSCRIBE_READY"] = "true"
         provider_gate_preflight = brevo_server_preflight()
         assert provider_gate_preflight["provider_suppression_verified"] is False
         assert provider_gate_preflight["provider_suppression_ready"] is False
@@ -873,6 +875,10 @@ try:
             os.environ["AUTOMATION_LEDGER_PATH"] = original_storage_path
         else:
             os.environ.pop("AUTOMATION_LEDGER_PATH", None)
+        if original_unsubscribe_ready_for_provider_gate is not None:
+            os.environ["BREVO_UNSUBSCRIBE_READY"] = original_unsubscribe_ready_for_provider_gate
+        else:
+            os.environ.pop("BREVO_UNSUBSCRIBE_READY", None)
     original_brevo_unsubscribe_ready_for_baseline = os.environ.get("BREVO_UNSUBSCRIBE_READY")
     try:
         os.environ.pop("BREVO_UNSUBSCRIBE_READY", None)
