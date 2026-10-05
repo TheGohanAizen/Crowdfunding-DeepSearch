@@ -1904,6 +1904,13 @@ def email_from_automation_unsubscribe_token(token):
     if len(raw) < 32 or len(raw) > 512:
         raise ValueError("Invalid unsubscribe token.")
     try:
+        # Require one canonical URL-safe Base64 representation. Some decoders
+        # otherwise ignore trailing bytes after padding, which could let a
+        # visibly modified token resolve to the same authenticated payload.
+        decoded = base64.b64decode(raw.encode("ascii"), altchars=b"-_", validate=True)
+        canonical = base64.urlsafe_b64encode(decoded).decode("ascii")
+        if not hmac.compare_digest(canonical, raw):
+            raise ValueError("Invalid unsubscribe token.")
         email = automation_unsubscribe_cipher().decrypt(raw.encode("ascii")).decode("utf-8")
     except (InvalidToken, UnicodeError, ValueError) as error:
         raise ValueError("Invalid unsubscribe token.") from error
