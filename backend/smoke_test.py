@@ -727,6 +727,15 @@ try:
     assert 'response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"' in server_source
     assert 'response.headers["X-Permitted-Cross-Domain-Policies"] = "none"' in server_source
     assert 'response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"' in server_source
+    assert '@app.route("/api/automation/connectors/brevo/execution-candidate", methods=["POST", "OPTIONS"])' in server_source
+    brevo_candidate_route = server_source.split('def brevo_execution_candidate():', 1)[1].split('@app.route', 1)[0]
+    assert "automation_operational_tools_enabled()" in brevo_candidate_route
+    assert 'data.get("user_authorized_check") is not True' in brevo_candidate_route
+    assert "verify_brevo_provider_suppression(to_email)" in brevo_candidate_route
+    assert "build_brevo_execution_candidate(data, provider_suppression=provider_suppression)" in brevo_candidate_route
+    assert "redact_automation_plan(plan)" in brevo_candidate_route
+    assert 'result["sent"] = False' in brevo_candidate_route
+    assert 'result["authorization_granted"] = False' in brevo_candidate_route
     assert '@app.route("/api/automation/connectors/brevo/execution-diagnostics", methods=["POST", "OPTIONS"])' in server_source
     brevo_diagnostics_route = server_source.split('def brevo_execution_diagnostics():', 1)[1].split('@app.route', 1)[0]
     assert "automation_operational_tools_enabled()" in brevo_diagnostics_route
@@ -1037,6 +1046,7 @@ try:
             provider_suppression={"verified": True, "suppressed": False, "clear": True, "exhaustive": True},
         )
         assert brevo_candidate["ready"] is False
+    assert brevo_candidate["status"] == "blocked"
         assert brevo_candidate["sent"] is False
         assert brevo_candidate["network_io"] is False
         assert brevo_candidate["authorization_granted"] is False
