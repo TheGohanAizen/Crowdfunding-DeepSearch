@@ -30,7 +30,7 @@ Build a global crowdfunding discovery and promotion platform that analyzes campa
 
 ## Current production checkpoint
 
-Latest exact production-verified application commit before this checkpoint: `bbb8e977831d03e65c69d364c239bb1fe81a50e4`.
+Latest exact production-verified application commit before this checkpoint: `52a4f1880bd0d6c454aad696527f1c9e2b62462d`.
 Both Backend checks and Verify Production Deployment succeeded for that SHA.
 
 Recent Brevo work includes:
@@ -41,7 +41,8 @@ Recent Brevo work includes:
 - public unsubscribe endpoint;
 - non-secret readiness signals for public base URL/signing secret;
 - deployment-aware smoke tests;
-- durable unsubscribe-storage readiness gate.
+- durable unsubscribe-storage readiness gate;
+- non-sending Brevo provider-suppression capability and response-inspection helpers.
 
 ## Known Render/Brevo configuration state
 
@@ -74,11 +75,11 @@ The current GET unsubscribe endpoint immediately mutates suppression state. Cons
 ## NEXT ACTION
 
 Implement the Brevo provider-backed suppression layer without sending email:
-1. Add explicit non-secret provider-suppression capability/readiness metadata.
-2. Add provider suppression read/write helpers using the official Brevo API only after validating exact API contracts.
-3. Keep all provider network operations separate from ordinary readiness checks unless explicitly designed as a safe verification call.
-4. Add regression tests proving provider suppression readiness does not authorize sending.
-5. Integrate provider-backed suppression into Brevo preflight only after verification; local SQLite remains an additional guard.
+1. Finish regression/production verification for the non-sending provider suppression inspection helpers.
+2. Add a narrowly scoped Brevo suppression verification call using the official API; it must read suppression state only and must never send email.
+3. Do not equate contact-level emailBlacklisted state with transactional suppression unless the verified API semantics support that conclusion.
+4. Add regression tests proving provider suppression verification cannot authorize sending.
+5. Integrate verified provider-backed suppression into Brevo preflight only after the durable behavior is established; local SQLite remains an additional guard.
 6. Update frontend blocker labels/status and this checkpoint.
 7. Run Backend checks and exact production verification after each safe milestone.
 
