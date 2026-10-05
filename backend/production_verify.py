@@ -53,6 +53,10 @@ def main():
                     raise RuntimeError("Durable unsubscribe readiness signal is missing.")
                 if not isinstance(brevo.get("provider_suppression_ready"), bool):
                     raise RuntimeError("Provider suppression readiness signal is missing.")
+                if brevo.get("provider_suppression_read_only") is not True:
+                    raise RuntimeError("Brevo provider suppression is not explicitly read-only.")
+                if brevo.get("provider_suppression_write_supported") is not False:
+                    raise RuntimeError("Unverified Brevo provider suppression write capability is exposed.")
                 print(f"Production verified: {live_commit} is live and healthy.")
                 print("Brevo readiness remained non-sending: sent=false, network_io=false, authorization_granted=false.")
                 print("No discovery/search endpoint was called; no Tavily credits were used.")
