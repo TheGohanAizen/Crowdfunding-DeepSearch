@@ -1647,7 +1647,11 @@ def brevo_server_preflight():
         and provider_suppression_verified
     )
     unsubscribe_token_storage_ready = True
-    durable_unsubscribe_ready = storage.get("live_ready") is True or provider_suppression_ready
+    # Provider suppression verification is intentionally read-only. It can
+    # protect sends against provider-known blocks, but it cannot make a new
+    # unsubscribe durable because this application does not yet have a
+    # verified provider-side suppression write path.
+    durable_unsubscribe_ready = storage.get("live_ready") is True
     if unsubscribe_ready and not durable_unsubscribe_ready:
         blockers.append("durable_unsubscribe_storage_required")
     policy = automation_live_send_policy("brevo_email_v3")
