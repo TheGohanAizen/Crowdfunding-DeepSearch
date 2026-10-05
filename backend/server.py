@@ -3409,6 +3409,21 @@ def create_app():
         except ValueError as error:
             return jsonify({"status": "error", "message": str(error)}), 400
 
+    @app.route("/api/automation/connectors/brevo/execution-diagnostics", methods=["POST", "OPTIONS"])
+    def brevo_execution_diagnostics():
+        if request.method == "OPTIONS":
+            return ("", 204)
+        if not automation_operational_tools_enabled():
+            return jsonify({"status": "disabled", "message": "Automation operational tools are disabled."}), 404
+        if request.content_length is not None and request.content_length > 65536:
+            return jsonify({"status": "error", "message": "Request body is too large."}), 413
+        data = request.get_json(silent=True)
+        try:
+            plan = build_brevo_execution_candidate(data)
+            return jsonify(redact_automation_plan(plan))
+        except ValueError as error:
+            return jsonify({"status": "error", "message": str(error)}), 400
+
     @app.route("/api/automation/connectors/sendgrid/execution-plan", methods=["POST", "OPTIONS"])
     def sendgrid_execution_plan():
         if request.method == "OPTIONS":
