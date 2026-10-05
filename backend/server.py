@@ -1645,7 +1645,12 @@ def brevo_server_preflight():
         and provider_suppression.get("read_endpoint_configured") is True
         and provider_suppression_verified
     )
-    durable_unsubscribe_ready = storage.get("live_ready") is True or provider_suppression_ready
+    unsubscribe_token_storage_ready = storage.get("live_ready") is True
+    durable_unsubscribe_ready = unsubscribe_token_storage_ready and (
+        storage.get("live_ready") is True or provider_suppression_ready
+    )
+    if unsubscribe_ready and not unsubscribe_token_storage_ready:
+        blockers.append("durable_unsubscribe_token_storage_required")
     if unsubscribe_ready and not durable_unsubscribe_ready:
         blockers.append("durable_unsubscribe_storage_required")
     policy = automation_live_send_policy("brevo_email_v3")
@@ -1662,6 +1667,7 @@ def brevo_server_preflight():
         "provider_suppression_supported": provider_suppression.get("supported") is True,
         "provider_suppression_verified": provider_suppression_verified,
         "provider_suppression_ready": provider_suppression_ready,
+        "unsubscribe_token_storage_ready": unsubscribe_token_storage_ready,
         "durable_unsubscribe_ready": durable_unsubscribe_ready,
         "live_send_policy": policy,
     }
@@ -3245,6 +3251,7 @@ def create_app():
             "provider_suppression_supported": result["provider_suppression_supported"],
             "provider_suppression_verified": result["provider_suppression_verified"],
             "provider_suppression_ready": result["provider_suppression_ready"],
+            "unsubscribe_token_storage_ready": result["unsubscribe_token_storage_ready"],
             "durable_unsubscribe_ready": result["durable_unsubscribe_ready"],
             "live_send_policy": result["live_send_policy"],
             "sent": False,
