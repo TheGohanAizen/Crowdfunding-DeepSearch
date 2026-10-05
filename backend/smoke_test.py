@@ -865,6 +865,15 @@ try:
         assert provider_gate_preflight["durable_unsubscribe_ready"] is False
         assert "durable_unsubscribe_token_storage_required" not in provider_gate_preflight["blockers"]
         assert "durable_unsubscribe_storage_required" in provider_gate_preflight["blockers"]
+
+        # Read-only provider suppression verification must never be mistaken
+        # for a durable write path for new unsubscribe requests.
+        os.environ["BREVO_PROVIDER_SUPPRESSION_VERIFIED"] = "true"
+        provider_read_only_preflight = brevo_server_preflight()
+        assert provider_read_only_preflight["provider_suppression_verified"] is True
+        assert provider_read_only_preflight["provider_suppression_ready"] is True
+        assert provider_read_only_preflight["durable_unsubscribe_ready"] is False
+        assert "durable_unsubscribe_storage_required" in provider_read_only_preflight["blockers"]
     finally:
         if original_provider_verified is not None:
             os.environ["BREVO_PROVIDER_SUPPRESSION_VERIFIED"] = original_provider_verified
