@@ -826,11 +826,19 @@ try:
     assert suppression_request["network_io"] is False
     assert suppression_request["sending_enabled"] is False
     suppression_match = brevo_provider_suppression_response_contains_email(
-        {"contacts": [{"email": "OPTOUT@example.com", "reason": {"code": "unsubscribed"}}]},
+        {"contacts": [{"email": "OPTOUT@example.com", "reason": {"code": "unsubscribed"}}], "count": 1},
         "optout@example.com",
     )
     assert suppression_match["suppressed"] is True
     assert suppression_match["valid_response"] is True
+    assert suppression_match["exhaustive"] is True
+    incomplete_suppression_match = brevo_provider_suppression_response_contains_email(
+        {"contacts": [{"email": "someoneelse@example.com"}], "count": 2},
+        "optout@example.com",
+    )
+    assert incomplete_suppression_match["suppressed"] is False
+    assert incomplete_suppression_match["clear"] is False
+    assert incomplete_suppression_match["exhaustive"] is False
     original_brevo_key_for_suppression = os.environ.pop("BREVO_API_KEY", None)
     try:
         no_key_verification = verify_brevo_provider_suppression("optout@example.com")
