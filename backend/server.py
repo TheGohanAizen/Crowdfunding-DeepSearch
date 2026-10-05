@@ -3070,14 +3070,24 @@ def create_app():
             app.logger.exception("Audience discovery request failed")
             return jsonify({"status": "error", "message": "Audience discovery request failed."}), 500
 
-    @app.route("/api/automation/unsubscribe/<token>", methods=["GET"])
+    @app.route("/api/automation/unsubscribe/<token>", methods=["GET", "POST"])
     def automation_unsubscribe(token):
         try:
             email = email_from_automation_unsubscribe_token(token)
-            suppress_automation_email(email, "unsubscribe")
         except (ValueError, RuntimeError):
             return ("Invalid or unavailable unsubscribe link.", 400, {"Content-Type": "text/plain; charset=utf-8"})
-        return ("You have been unsubscribed from future Crowdfunding DeepSearch outreach emails.", 200, {"Content-Type": "text/plain; charset=utf-8"})
+        if request.method == "GET":
+            return (
+                "<!doctype html><html><head><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
+                "<title>Confirm unsubscribe</title></head><body><main>"
+                "<h1>Confirm unsubscribe</h1><p>Use the button below to stop future Crowdfunding DeepSearch outreach emails.</p>"
+                "<form method=\"post\"><button type=\"submit\">Unsubscribe</button></form>"
+                "</main></body></html>",
+                200,
+                {"Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store"},
+            )
+        suppress_automation_email(email, "unsubscribe")
+        return ("You have been unsubscribed from future Crowdfunding DeepSearch outreach emails.", 200, {"Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store"})
 
 
     @app.route("/api/automation/executions/reconcile", methods=["POST", "OPTIONS"])
