@@ -1579,7 +1579,7 @@ def verify_brevo_provider_suppression(email, timeout=8, max_pages=100):
     """Read Brevo transactional blocked contacts only; never sends or authorizes email."""
     api_key = str(os.environ.get("BREVO_API_KEY", "")).strip()
     if not api_key:
-        return {"verified": False, "suppressed": False, "reason": "brevo_api_key_not_configured", "network_io": False, "sent": False, "authorization_granted": False}
+        return {"verified": False, "suppressed": False, "reason": "brevo_api_key_not_configured", "network_io": False, "sent": False, "authorization_granted": False, "checked_email": normalize_automation_email(email)}
 
     try:
         page_ceiling = max(1, min(int(max_pages or 100), 100))
@@ -1617,6 +1617,7 @@ def verify_brevo_provider_suppression(email, timeout=8, max_pages=100):
                     "network_io": True,
                     "sent": False,
                     "authorization_granted": False,
+                "checked_email": normalize_automation_email(email),
                 }
 
             if inspected["suppressed"] is True:
@@ -1630,6 +1631,7 @@ def verify_brevo_provider_suppression(email, timeout=8, max_pages=100):
                     "network_io": True,
                     "sent": False,
                     "authorization_granted": False,
+                "checked_email": normalize_automation_email(email),
                 }
 
             total_count = inspected.get("count")
@@ -1644,6 +1646,7 @@ def verify_brevo_provider_suppression(email, timeout=8, max_pages=100):
                     "network_io": True,
                     "sent": False,
                     "authorization_granted": False,
+                "checked_email": normalize_automation_email(email),
                 }
 
             page_size = int(inspected.get("page_size") or 0)
@@ -1666,6 +1669,7 @@ def verify_brevo_provider_suppression(email, timeout=8, max_pages=100):
             "network_io": True,
             "sent": False,
             "authorization_granted": False,
+                "checked_email": normalize_automation_email(email),
         }
     except (HTTPError, URLError, TimeoutError, ValueError, json.JSONDecodeError) as error:
         return {
@@ -1679,6 +1683,7 @@ def verify_brevo_provider_suppression(email, timeout=8, max_pages=100):
             "network_io": True,
             "sent": False,
             "authorization_granted": False,
+                "checked_email": normalize_automation_email(email),
         }
 
 def brevo_server_preflight():
@@ -2350,8 +2355,12 @@ def build_brevo_execution_candidate(data, provider_suppression=None):
         blockers.append("outreach_body_required")
 
     provider_state = provider_suppression if isinstance(provider_suppression, dict) else {}
+    provider_checked_email = normalize_automation_email(provider_state.get("checked_email")) if provider_state.get("checked_email") else ""
+    normalized_recipient = normalize_automation_email(to_email) if to_email else ""
     if not provider_state:
         blockers.append("provider_suppression_check_required")
+    elif not provider_checked_email or provider_checked_email != normalized_recipient:
+        blockers.append("provider_suppression_recipient_mismatch")
     elif provider_state.get("suppressed") is True:
         blockers.append("recipient_provider_suppressed")
     elif not (
@@ -2393,6 +2402,7 @@ def build_brevo_execution_candidate(data, provider_suppression=None):
         "sent": False,
         "network_io": False,
         "authorization_granted": False,
+                "checked_email": normalize_automation_email(email),
         "mechanism": "brevo_email_v3",
         "blockers": blockers,
         "idempotency_key": execution.get("idempotency_key"),
@@ -2850,6 +2860,7 @@ def automation_execution_receipt(candidate, prerequisite_result):
         "sent": False,
         "network_io": False,
         "authorization_granted": False,
+                "checked_email": normalize_automation_email(email),
         "blockers": blockers,
         "blocker_count": len(blockers),
         "checked_at": datetime.now(timezone.utc).isoformat(),
@@ -3428,6 +3439,7 @@ def create_app():
                 "sent": False,
                 "network_io": False,
                 "authorization_granted": False,
+                "checked_email": normalize_automation_email(email),
                 "blockers": ["execution_check_authorization_required"],
             }), 403
         to_email = str(data.get("to_email") or "").strip()
@@ -3506,6 +3518,7 @@ def create_app():
                 "sent": False,
                 "network_io": False,
                 "authorization_granted": False,
+                "checked_email": normalize_automation_email(email),
             }), 403
         email = str(data.get("email") or "").strip()
         if "@" not in email:
@@ -3545,6 +3558,7 @@ def create_app():
             "sent": False,
             "network_io": False,
             "authorization_granted": False,
+                "checked_email": normalize_automation_email(email),
         })
 
     @app.route("/api/automation/operational-readiness", methods=["GET", "OPTIONS"])
@@ -3589,6 +3603,7 @@ def create_app():
             "sent": False,
             "network_io": False,
             "authorization_granted": False,
+                "checked_email": normalize_automation_email(email),
         })
 
     @app.route("/api/automation/connectors/sendgrid/preflight", methods=["POST", "OPTIONS"])
