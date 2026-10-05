@@ -809,6 +809,8 @@ try:
     automation_storage_status = crowdfunding_server.automation_storage_status
     sendgrid_server_preflight = crowdfunding_server.sendgrid_server_preflight
     brevo_server_preflight = crowdfunding_server.brevo_server_preflight
+    brevo_provider_suppression_request = crowdfunding_server.brevo_provider_suppression_request
+    brevo_provider_suppression_response_contains_email = crowdfunding_server.brevo_provider_suppression_response_contains_email
     build_brevo_email_v3_payload = crowdfunding_server.build_brevo_email_v3_payload
     brevo_unsubscribe_footer = crowdfunding_server.brevo_unsubscribe_footer
     suppress_automation_email = crowdfunding_server.suppress_automation_email
@@ -816,6 +818,18 @@ try:
     build_automation_unsubscribe_token = crowdfunding_server.build_automation_unsubscribe_token
     email_from_automation_unsubscribe_token = crowdfunding_server.email_from_automation_unsubscribe_token
     assert "brevo_email_v3" in crowdfunding_server.SUPPORTED_AUTOMATION_MECHANISMS
+    suppression_request = brevo_provider_suppression_request("OptOut@example.com")
+    assert suppression_request["method"] == "GET"
+    assert suppression_request["query"]["limit"] == 100
+    assert suppression_request["match_email"] == "optout@example.com"
+    assert suppression_request["network_io"] is False
+    assert suppression_request["sending_enabled"] is False
+    suppression_match = brevo_provider_suppression_response_contains_email(
+        {"contacts": [{"email": "OPTOUT@example.com", "reason": {"code": "unsubscribed"}}]},
+        "optout@example.com",
+    )
+    assert suppression_match["suppressed"] is True
+    assert suppression_match["valid_response"] is True
     original_brevo_unsubscribe_ready_for_baseline = os.environ.get("BREVO_UNSUBSCRIBE_READY")
     try:
         os.environ.pop("BREVO_UNSUBSCRIBE_READY", None)
