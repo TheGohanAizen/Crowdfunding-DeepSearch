@@ -30,19 +30,25 @@ Build a global crowdfunding discovery and promotion platform that analyzes campa
 
 ## Current production checkpoint
 
-Latest exact production-verified application commit before this checkpoint: `52a4f1880bd0d6c454aad696527f1c9e2b62462d`.
+Latest exact production-verified application commit before this checkpoint update: `fac632fa7060c8ef48c0d9d30b79c3eec19a4928`.
 Both Backend checks and Verify Production Deployment succeeded for that SHA.
 
-Recent Brevo work includes:
+Current HEAD immediately before this checkpoint update includes additional Brevo durability hardening through `60d6943229b98d2043e6b70f5e9a509d643e1c0f`; inspect CI before assuming it is production-verified.
+
+Recent Brevo work now includes:
 - disabled Brevo connector foundation and non-sending readiness endpoint;
 - verified sender configuration support;
-- signed recipient-specific unsubscribe links;
+- opaque, stateless Fernet-encrypted recipient-specific unsubscribe tokens;
+- canonical URL-safe Base64 validation so visibly modified/padded tokens cannot resolve to the same payload;
+- scanner-safe unsubscribe flow: GET displays confirmation only; POST records the opt-out;
 - local SQLite suppression guard;
-- public unsubscribe endpoint;
+- public HTTPS unsubscribe endpoint;
 - non-secret readiness signals for public base URL/signing secret;
-- deployment-aware smoke tests;
-- durable unsubscribe-storage readiness gate;
-- non-sending Brevo provider-suppression capability and response-inspection helpers.
+- non-sending Brevo provider-suppression capability and read-only verification helper;
+- incomplete provider pagination is never treated as a verified clear recipient;
+- regression protection that provider suppression checks cannot authorize sending;
+- Brevo readiness UI labels updated and the primary checklist now prefers Brevo over legacy SendGrid;
+- explicit separation between provider suppression READ readiness and durable unsubscribe WRITE persistence.
 
 ## Known Render/Brevo configuration state
 
@@ -60,29 +66,30 @@ Still intentionally NOT activated:
 - `AUTOMATION_BREVO_EMAIL_V3_ENABLED`
 - Brevo registry `send_enabled` remains false.
 
-No live email should be sent during current development.
+Do not enable live sending during development merely because readiness checks pass.
 
-## Current architectural issue
+## Current architectural state
 
-Render remains the application host. Its free web-service filesystem is not treated as durable suppression storage. The project is moving toward provider-backed durable Brevo suppression/unsubscribe state while retaining the local suppression ledger as defense-in-depth.
+Render remains the application host. Its free web-service filesystem is not treated as durable suppression storage.
 
-Do not weaken the existing durable-storage blocker merely because Brevo has provider-side suppression. First implement and test a provider-backed suppression capability/readiness layer. Only allow provider-backed suppression to satisfy the Brevo unsubscribe durability gate after the integration itself has been explicitly verified.
+Brevo `GET /v3/smtp/blockedContacts` is a verified read-only source for transactional blocked/unsubscribed contacts, but the documented endpoint is paginated and does not provide a direct email query parameter. A match can be treated as suppressed; absence can only be treated as clear after exhaustive pagination.
 
-The current signed token encodes the recipient address in URL-safe base64 plus HMAC. It is tamper-resistant but not encrypted/fully opaque. Treat improving token privacy as future hardening before broad live use.
+CRITICAL: read-only provider suppression does **not** make new unsubscribe requests durable. The public unsubscribe POST currently writes the opt-out to the local SQLite suppression table. Because Render free storage is not trusted as durable, `brevo_server_preflight()` now requires actual durable local storage for `durable_unsubscribe_ready`; `BREVO_PROVIDER_SUPPRESSION_VERIFIED=true` alone cannot satisfy that gate.
 
-The current GET unsubscribe endpoint immediately mutates suppression state. Consider scanner-safe confirmation/POST or standards-compatible one-click unsubscribe behavior before broad live use.
+Do not equate Brevo contact-level `emailBlacklisted` with the transactional blocked-contact list unless official API semantics establish that equivalence for this use. No documented transactional blockedContacts write endpoint has been established in this checkpoint.
+
+Brevo's transactional send request supports custom **non-standard** headers; standard email headers are not supported through that request field. Do not try to force standard `List-Unsubscribe` / `List-Unsubscribe-Post` headers into the Brevo payload without a provider-supported mechanism.
 
 ## NEXT ACTION
 
-Implement the Brevo provider-backed suppression layer without sending email:
-1. Finish regression/production verification for the non-sending provider suppression inspection helpers.
-2. Add a narrowly scoped Brevo suppression verification call using the official API; it must read suppression state only and must never send email.
-3. Do not equate contact-level emailBlacklisted state with transactional suppression unless the verified API semantics support that conclusion.
-4. Add regression tests proving provider suppression verification cannot authorize sending.
-5. Integrate verified provider-backed suppression into Brevo preflight only after the durable behavior is established; local SQLite remains an additional guard.
-6. Update frontend blocker labels/status and this checkpoint.
-7. Run Backend checks and exact production verification after each safe milestone.
+Continue without sending email:
+1. Confirm Backend checks and exact production verification for current HEAD after the read/write durability separation.
+2. Improve `verify_brevo_provider_suppression` to paginate the read-only blocked-contact endpoint safely until a recipient match is found or the provider result is demonstrably exhaustive; enforce a fail-closed bounded ceiling if needed.
+3. Add regression tests for multi-page match, exhaustive no-match, malformed responses, and bounded incomplete lookup. Every outcome must keep `sent=false` and `authorization_granted=false`.
+4. Keep provider read readiness separate from unsubscribe write durability. Do not weaken `durable_unsubscribe_storage_required` unless a genuinely durable opt-out write path is implemented and verified.
+5. Investigate a durable suppression store compatible with the deployment (for example a persistent database/storage service) before enabling broad live outreach.
+6. Update this checkpoint after the next production-verified milestone.
 
 ## Safety invariant
 
-Readiness is not authorization. Unsubscribe readiness, provider credentials, sender verification, or compliance setup must never by themselves send a message. Live sending requires all independent policy gates plus explicit action-level user authorization.
+Readiness is not authorization. Unsubscribe readiness, provider credentials, sender verification, compliance setup, provider suppression verification, or durable storage must never by themselves send a message. Live sending requires all independent policy gates plus explicit action-level user authorization.
