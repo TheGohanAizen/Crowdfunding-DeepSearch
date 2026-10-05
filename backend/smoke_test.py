@@ -727,6 +727,13 @@ try:
     assert 'response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"' in server_source
     assert 'response.headers["X-Permitted-Cross-Domain-Policies"] = "none"' in server_source
     assert 'response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"' in server_source
+    assert '@app.route("/api/automation/connectors/brevo/suppression-check", methods=["POST", "OPTIONS"])' in server_source
+    brevo_suppression_route = server_source.split('def brevo_suppression_check():', 1)[1].split('@app.route', 1)[0]
+    assert "automation_operational_tools_enabled()" in brevo_suppression_route
+    assert 'data.get("user_authorized_check") is not True' in brevo_suppression_route
+    assert "verify_brevo_provider_suppression(email)" in brevo_suppression_route
+    assert 'result["authorization_granted"] = False' in brevo_suppression_route
+    assert 'result["sent"] = False' in brevo_suppression_route
     assert '"credit_usage_known": not retrieval.get("configured", False)' in server_source
     assert 'does not claim zero credits' in server_source
     assert 'MAX_AUDIENCE_RULE_CHECKS = env_int("MAX_AUDIENCE_RULE_CHECKS", 4, 0, 12)' in server_source
