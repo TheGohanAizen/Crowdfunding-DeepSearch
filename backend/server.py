@@ -2337,11 +2337,14 @@ def automation_rate_limit_contract(mechanism):
     """Return the configured bounded rate contract without consuming quota."""
     status = automation_connector_status(mechanism)
     limit = status.get("rate_limit_per_hour")
+    connector = AUTOMATION_CONNECTOR_REGISTRY.get(str(mechanism or "").strip()) or {}
+    daily_limit = connector.get("rate_limit_per_day")
     return {
         "mechanism": status.get("mechanism"),
         "registered": status.get("registered") is True,
         "configured": status.get("configured") is True,
         "limit_per_hour": limit if isinstance(limit, int) else None,
+        "limit_per_day": daily_limit if isinstance(daily_limit, int) and not isinstance(daily_limit, bool) else None,
         "enforcement_required": status.get("registered") is True,
     }
 
@@ -2466,6 +2469,13 @@ def consume_automation_rate_limit(mechanism, idempotency_key):
                WHERE mechanism = ? AND consumed_at > ?""",
             (mechanism_key, cutoff_iso),
         ).fetchone()["count"]
+        daily_limit = contract.get("limit_per_day")
+        day_start_iso = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+        used_today = connection.execute(
+            """SELECT COUNT(*) AS count FROM automation_rate_events
+               WHERE mechanism = ? AND consumed_at >= ?""",
+            (mechanism_key, day_start_iso),
+        ).fetchone()["count"] if isinstance(daily_limit, int) else 0
         if existing:
             connection.commit()
             return {
@@ -2477,7 +2487,7 @@ def consume_automation_rate_limit(mechanism, idempotency_key):
                 "reason": "quota_already_consumed_for_execution",
                 "pruned_events": cleanup_cursor.rowcount,
             }
-        if used >= limit:
+        if used >= limit or (isinstance(daily_limit, int) and used_today >= daily_limit):
             connection.rollback()
             return {
                 **contract,
@@ -2485,7 +2495,9 @@ def consume_automation_rate_limit(mechanism, idempotency_key):
                 "used_last_hour": used,
                 "remaining": 0,
                 "consumed": False,
-                "reason": "hourly_rate_limit_exhausted",
+                "reason": "daily_rate_limit_exhausted" if isinstance(daily_limit, int) and used_today >= daily_limit else "hourly_rate_limit_exhausted",
+                "used_today": used_today,
+                "remaining_today": max(0, daily_limit - used_today) if isinstance(daily_limit, int) else None,
                 "pruned_events": cleanup_cursor.rowcount,
             }
         connection.execute(
