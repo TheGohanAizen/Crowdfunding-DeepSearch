@@ -1636,7 +1636,16 @@ def brevo_server_preflight():
         if len(unsubscribe_secret) < 32:
             blockers.append("server_unsubscribe_signing_secret_required")
     storage = automation_storage_status()
-    if unsubscribe_ready and not storage.get("live_ready"):
+    provider_suppression = brevo_provider_suppression_capability()
+    provider_suppression_verified = env_flag("BREVO_PROVIDER_SUPPRESSION_VERIFIED")
+    provider_suppression_ready = (
+        provider_suppression.get("supported") is True
+        and provider_suppression.get("credentials_configured") is True
+        and provider_suppression.get("read_endpoint_configured") is True
+        and provider_suppression_verified
+    )
+    durable_unsubscribe_ready = storage.get("live_ready") is True or provider_suppression_ready
+    if unsubscribe_ready and not durable_unsubscribe_ready:
         blockers.append("durable_unsubscribe_storage_required")
     policy = automation_live_send_policy("brevo_email_v3")
     if not policy["live_send_enabled"]:
@@ -1649,6 +1658,10 @@ def brevo_server_preflight():
         "public_base_url_configured": public_base_url.lower().startswith("https://"),
         "unsubscribe_signing_secret_configured": len(unsubscribe_secret) >= 32,
         "unsubscribe_storage_ready": storage.get("live_ready") is True,
+        "provider_suppression_supported": provider_suppression.get("supported") is True,
+        "provider_suppression_verified": provider_suppression_verified,
+        "provider_suppression_ready": provider_suppression_ready,
+        "durable_unsubscribe_ready": durable_unsubscribe_ready,
         "live_send_policy": policy,
     }
 
@@ -3155,6 +3168,10 @@ def create_app():
             "public_base_url_configured": result["public_base_url_configured"],
             "unsubscribe_signing_secret_configured": result["unsubscribe_signing_secret_configured"],
             "unsubscribe_storage_ready": result["unsubscribe_storage_ready"],
+            "provider_suppression_supported": result["provider_suppression_supported"],
+            "provider_suppression_verified": result["provider_suppression_verified"],
+            "provider_suppression_ready": result["provider_suppression_ready"],
+            "durable_unsubscribe_ready": result["durable_unsubscribe_ready"],
             "live_send_policy": result["live_send_policy"],
             "sent": False,
             "network_io": False,
