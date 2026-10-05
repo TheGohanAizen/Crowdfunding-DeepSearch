@@ -1558,7 +1558,14 @@ def brevo_provider_suppression_response_contains_email(payload, email):
         normalize_automation_email(item.get("email")) == normalized
         for item in contacts if isinstance(item, dict)
     )
-    return {"suppressed": suppressed, "valid_response": True}
+    count = payload.get("count") if isinstance(payload, dict) else None
+    exhaustive = isinstance(count, int) and count <= len(contacts)
+    return {
+        "suppressed": suppressed,
+        "valid_response": True,
+        "exhaustive": exhaustive,
+        "clear": (not suppressed) and exhaustive,
+    }
 
 
 def verify_brevo_provider_suppression(email, timeout=8):
@@ -1583,7 +1590,13 @@ def verify_brevo_provider_suppression(email, timeout=8):
         return {
             "verified": inspected["valid_response"] is True,
             "suppressed": inspected["suppressed"] is True,
-            "reason": "provider_suppression_state_verified" if inspected["valid_response"] else "invalid_provider_response",
+            "clear": inspected.get("clear") is True,
+            "exhaustive": inspected.get("exhaustive") is True,
+            "reason": (
+                "provider_suppressed"
+                if inspected["suppressed"] is True
+                else ("provider_clear_verified" if inspected.get("clear") is True else "provider_suppression_lookup_incomplete")
+            ),
             "network_io": True,
             "sent": False,
             "authorization_granted": False,
