@@ -846,6 +846,30 @@ try:
         assert no_key_verification["network_io"] is False
         assert no_key_verification["sent"] is False
         assert no_key_verification["authorization_granted"] is False
+    original_provider_verified = os.environ.pop("BREVO_PROVIDER_SUPPRESSION_VERIFIED", None)
+    original_storage_persistent = os.environ.get("AUTOMATION_STORAGE_PERSISTENT")
+    original_storage_path = os.environ.get("AUTOMATION_LEDGER_PATH")
+    try:
+        os.environ["AUTOMATION_STORAGE_PERSISTENT"] = "false"
+        os.environ["AUTOMATION_LEDGER_PATH"] = "/tmp/crowdfunding-deepsearch-provider-gate.sqlite3"
+        provider_gate_preflight = brevo_server_preflight()
+        assert provider_gate_preflight["provider_suppression_verified"] is False
+        assert provider_gate_preflight["provider_suppression_ready"] is False
+        assert provider_gate_preflight["durable_unsubscribe_ready"] is False
+        assert "durable_unsubscribe_storage_required" in provider_gate_preflight["blockers"]
+    finally:
+        if original_provider_verified is not None:
+            os.environ["BREVO_PROVIDER_SUPPRESSION_VERIFIED"] = original_provider_verified
+        else:
+            os.environ.pop("BREVO_PROVIDER_SUPPRESSION_VERIFIED", None)
+        if original_storage_persistent is not None:
+            os.environ["AUTOMATION_STORAGE_PERSISTENT"] = original_storage_persistent
+        else:
+            os.environ.pop("AUTOMATION_STORAGE_PERSISTENT", None)
+        if original_storage_path is not None:
+            os.environ["AUTOMATION_LEDGER_PATH"] = original_storage_path
+        else:
+            os.environ.pop("AUTOMATION_LEDGER_PATH", None)
     finally:
         if original_brevo_key_for_suppression is not None:
             os.environ["BREVO_API_KEY"] = original_brevo_key_for_suppression
