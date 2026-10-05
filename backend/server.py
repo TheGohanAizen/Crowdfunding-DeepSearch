@@ -2389,6 +2389,7 @@ def build_brevo_execution_candidate(data, provider_suppression=None):
 
     return {
         "ready": not blockers,
+        "status": "ready" if not blockers else "blocked",
         "sent": False,
         "network_io": False,
         "authorization_granted": False,
