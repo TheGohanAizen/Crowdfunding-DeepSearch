@@ -718,6 +718,10 @@ try:
     protected_source = open(os.path.join(ROOT, "backend", "protected_app.py"), encoding="utf-8").read()
     assert '"/api/audience/discover": "audience"' in protected_source
     assert '"namespace": namespace' in protected_source
+    assert '"campaign_context": campaign_context' in protected_source
+    assert 'hashlib.sha256' in protected_source
+    assert 'data.get("campaign_url") or data.get("campaignUrl")' in protected_source
+    assert 'data.get("campaign_summary") or data.get("campaignSummary")' in protected_source
     assert 'key = protected_paths[path] + ":" + client' in protected_source
     server_source = open(os.path.join(ROOT, "backend", "server.py"), encoding="utf-8").read()
     assert '"credit_usage_known": not retrieval.get("configured", False)' in server_source
