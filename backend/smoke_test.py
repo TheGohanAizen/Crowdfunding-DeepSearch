@@ -811,6 +811,7 @@ try:
     brevo_server_preflight = crowdfunding_server.brevo_server_preflight
     brevo_provider_suppression_request = crowdfunding_server.brevo_provider_suppression_request
     brevo_provider_suppression_response_contains_email = crowdfunding_server.brevo_provider_suppression_response_contains_email
+    verify_brevo_provider_suppression = crowdfunding_server.verify_brevo_provider_suppression
     build_brevo_email_v3_payload = crowdfunding_server.build_brevo_email_v3_payload
     brevo_unsubscribe_footer = crowdfunding_server.brevo_unsubscribe_footer
     suppress_automation_email = crowdfunding_server.suppress_automation_email
@@ -830,6 +831,16 @@ try:
     )
     assert suppression_match["suppressed"] is True
     assert suppression_match["valid_response"] is True
+    original_brevo_key_for_suppression = os.environ.pop("BREVO_API_KEY", None)
+    try:
+        no_key_verification = verify_brevo_provider_suppression("optout@example.com")
+        assert no_key_verification["verified"] is False
+        assert no_key_verification["network_io"] is False
+        assert no_key_verification["sent"] is False
+        assert no_key_verification["authorization_granted"] is False
+    finally:
+        if original_brevo_key_for_suppression is not None:
+            os.environ["BREVO_API_KEY"] = original_brevo_key_for_suppression
     original_brevo_unsubscribe_ready_for_baseline = os.environ.get("BREVO_UNSUBSCRIBE_READY")
     try:
         os.environ.pop("BREVO_UNSUBSCRIBE_READY", None)
