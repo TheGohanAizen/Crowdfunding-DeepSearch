@@ -734,6 +734,13 @@ try:
     assert "verify_brevo_provider_suppression(email)" in brevo_suppression_route
     assert 'result["authorization_granted"] = False' in brevo_suppression_route
     assert 'result["sent"] = False' in brevo_suppression_route
+    operational_readiness_route = server_source.split('def automation_operational_readiness():', 1)[1].split('@app.route', 1)[0]
+    assert 'automation_rate_limit_status("brevo_email_v3")' in operational_readiness_route
+    assert 'automation_daily_rate_limit_status("brevo_email_v3")' in operational_readiness_route
+    assert '"daily_rate_limit"' in operational_readiness_route
+    assert '"sent": False' in operational_readiness_route
+    assert '"network_io": False' in operational_readiness_route
+    assert '"authorization_granted": False' in operational_readiness_route
     assert '"credit_usage_known": not retrieval.get("configured", False)' in server_source
     assert 'does not claim zero credits' in server_source
     assert 'MAX_AUDIENCE_RULE_CHECKS = env_int("MAX_AUDIENCE_RULE_CHECKS", 4, 0, 12)' in server_source
