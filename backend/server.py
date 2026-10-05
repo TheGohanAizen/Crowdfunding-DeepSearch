@@ -2235,7 +2235,7 @@ def execute_sendgrid_transport(plan, simulate=True):
 
 
 def redact_automation_plan(plan):
-    """Return a diagnostics-safe execution plan without message body or credentials."""
+    """Return a diagnostics-safe execution plan without recipient data, body, or credentials."""
     if not isinstance(plan, dict):
         return {}
     payload = plan.get("payload") if isinstance(plan.get("payload"), dict) else {}
@@ -2245,10 +2245,21 @@ def redact_automation_plan(plan):
         for item in personalizations:
             if isinstance(item, dict) and isinstance(item.get("to"), list):
                 recipient_count += len(item["to"])
+    brevo_recipients = payload.get("to") if isinstance(payload, dict) else None
+    if isinstance(brevo_recipients, list):
+        recipient_count += len(brevo_recipients)
+    body_present = bool(
+        payload.get("content")
+        or payload.get("textContent")
+        or payload.get("htmlContent")
+    ) if isinstance(payload, dict) else False
     return {
         "status": plan.get("status"),
+        "ready": plan.get("ready") is True,
         "allowed": plan.get("allowed") is True,
         "sent": plan.get("sent") is True,
+        "network_io": plan.get("network_io") is True,
+        "authorization_granted": plan.get("authorization_granted") is True,
         "mechanism": plan.get("mechanism"),
         "blockers": list(plan.get("blockers") or []),
         "idempotency_key": plan.get("idempotency_key"),
@@ -2256,7 +2267,7 @@ def redact_automation_plan(plan):
         "payload_present": bool(payload),
         "recipient_count": recipient_count,
         "subject_present": bool(payload.get("subject")) if isinstance(payload, dict) else False,
-        "body_present": bool(payload.get("content")) if isinstance(payload, dict) else False,
+        "body_present": body_present,
     }
 
 
