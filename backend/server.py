@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 from urllib.parse import quote_plus, urlencode, urlparse, urljoin, parse_qsl
 from urllib.request import HTTPRedirectHandler, Request, build_opener, urlopen
 from urllib.error import HTTPError, URLError
+from cryptography.fernet import Fernet, InvalidToken
 
 
 def env_int(name, default, minimum, maximum):
@@ -1645,12 +1646,8 @@ def brevo_server_preflight():
         and provider_suppression.get("read_endpoint_configured") is True
         and provider_suppression_verified
     )
-    unsubscribe_token_storage_ready = storage.get("live_ready") is True
-    durable_unsubscribe_ready = unsubscribe_token_storage_ready and (
-        storage.get("live_ready") is True or provider_suppression_ready
-    )
-    if unsubscribe_ready and not unsubscribe_token_storage_ready:
-        blockers.append("durable_unsubscribe_token_storage_required")
+    unsubscribe_token_storage_ready = True
+    durable_unsubscribe_ready = storage.get("live_ready") is True or provider_suppression_ready
     if unsubscribe_ready and not durable_unsubscribe_ready:
         blockers.append("durable_unsubscribe_storage_required")
     policy = automation_live_send_policy("brevo_email_v3")
@@ -1885,43 +1882,32 @@ def automation_unsubscribe_secret():
     return str(os.environ.get("AUTOMATION_UNSUBSCRIBE_SECRET", "")).strip()
 
 
-def build_automation_unsubscribe_token(email):
-    """Create a random opaque unsubscribe token and persist only its hash."""
-    normalized = normalize_automation_email(email)
+def automation_unsubscribe_cipher():
+    """Derive a stable authenticated-encryption key from the deployment secret."""
     secret = automation_unsubscribe_secret()
-    if "@" not in normalized:
-        raise ValueError("A valid email address is required.")
     if len(secret) < 32:
         raise RuntimeError("A strong unsubscribe signing secret is required.")
-    import secrets
-    raw = secrets.token_urlsafe(32)
-    token_hash = hmac.new(secret.encode("utf-8"), raw.encode("ascii"), hashlib.sha256).hexdigest()
-    with automation_ledger_connection() as connection:
-        connection.execute(
-            """INSERT INTO automation_unsubscribe_tokens (token_hash, email, created_at)
-               VALUES (?, ?, ?)""",
-            (token_hash, normalized, datetime.now(timezone.utc).isoformat()),
-        )
-    return raw
+    return Fernet(base64.urlsafe_b64encode(hashlib.sha256(secret.encode("utf-8")).digest()))
+
+
+def build_automation_unsubscribe_token(email):
+    """Create an opaque authenticated token that survives stateless deployments."""
+    normalized = normalize_automation_email(email)
+    if "@" not in normalized:
+        raise ValueError("A valid email address is required.")
+    return automation_unsubscribe_cipher().encrypt(normalized.encode("utf-8")).decode("ascii")
 
 
 def email_from_automation_unsubscribe_token(token):
-    """Resolve an opaque unsubscribe token without embedding the address in its URL."""
+    """Decrypt and authenticate an opaque unsubscribe token."""
     raw = str(token or "").strip()
-    secret = automation_unsubscribe_secret()
-    if len(secret) < 32:
-        raise RuntimeError("A strong unsubscribe signing secret is required.")
-    if len(raw) < 32 or len(raw) > 128:
+    if len(raw) < 32 or len(raw) > 512:
         raise ValueError("Invalid unsubscribe token.")
-    token_hash = hmac.new(secret.encode("utf-8"), raw.encode("ascii"), hashlib.sha256).hexdigest()
-    with automation_ledger_connection() as connection:
-        row = connection.execute(
-            "SELECT email FROM automation_unsubscribe_tokens WHERE token_hash = ?",
-            (token_hash,),
-        ).fetchone()
-    if row is None:
-        raise ValueError("Invalid unsubscribe token.")
-    normalized = normalize_automation_email(row["email"])
+    try:
+        email = automation_unsubscribe_cipher().decrypt(raw.encode("ascii")).decode("utf-8")
+    except (InvalidToken, UnicodeError, ValueError) as error:
+        raise ValueError("Invalid unsubscribe token.") from error
+    normalized = normalize_automation_email(email)
     if "@" not in normalized:
         raise ValueError("Invalid unsubscribe token.")
     return normalized
