@@ -1057,7 +1057,51 @@ try:
     assert default_storage["supported_backend"] is True
     assert default_storage["persistence_evidence"] is False
     assert default_storage["ephemeral_path"] is True
-    assert default_storage["reason"] == "durable_automation_storage_required"
+    assert default_storage["reason"] == "storage_path_not_explicitly_configured"
+
+    original_storage_path_value = crowdfunding_server.AUTOMATION_LEDGER_PATH
+    original_persistent_flag = os.environ.get("AUTOMATION_STORAGE_PERSISTENT")
+    original_persistent_root = os.environ.get("AUTOMATION_STORAGE_PERSISTENT_ROOT")
+    original_explicit_ledger_path = os.environ.get("AUTOMATION_LEDGER_PATH")
+    storage_test_root = os.path.abspath(".automation-storage-smoke")
+    storage_test_path = os.path.join(storage_test_root, "automation.sqlite3")
+    try:
+        crowdfunding_server.AUTOMATION_LEDGER_PATH = storage_test_path
+        os.environ["AUTOMATION_LEDGER_PATH"] = storage_test_path
+        os.environ["AUTOMATION_STORAGE_PERSISTENT"] = "true"
+
+        os.environ.pop("AUTOMATION_STORAGE_PERSISTENT_ROOT", None)
+        missing_root_storage = automation_storage_status()
+        assert missing_root_storage["live_ready"] is False
+        assert missing_root_storage["reason"] == "persistent_storage_root_required"
+
+        os.environ["AUTOMATION_STORAGE_PERSISTENT_ROOT"] = os.path.abspath(".different-storage-root")
+        outside_root_storage = automation_storage_status()
+        assert outside_root_storage["live_ready"] is False
+        assert outside_root_storage["path_within_persistent_root"] is False
+        assert outside_root_storage["reason"] == "storage_path_outside_persistent_root"
+
+        os.environ["AUTOMATION_STORAGE_PERSISTENT_ROOT"] = storage_test_root
+        mounted_storage = automation_storage_status()
+        assert mounted_storage["live_ready"] is True
+        assert mounted_storage["persistence_evidence"] is True
+        assert mounted_storage["path_within_persistent_root"] is True
+        assert mounted_storage["reason"] == "persistent_storage_ready"
+    finally:
+        crowdfunding_server.AUTOMATION_LEDGER_PATH = original_storage_path_value
+        if original_persistent_flag is None:
+            os.environ.pop("AUTOMATION_STORAGE_PERSISTENT", None)
+        else:
+            os.environ["AUTOMATION_STORAGE_PERSISTENT"] = original_persistent_flag
+        if original_persistent_root is None:
+            os.environ.pop("AUTOMATION_STORAGE_PERSISTENT_ROOT", None)
+        else:
+            os.environ["AUTOMATION_STORAGE_PERSISTENT_ROOT"] = original_persistent_root
+        if original_explicit_ledger_path is None:
+            os.environ.pop("AUTOMATION_LEDGER_PATH", None)
+        else:
+            os.environ["AUTOMATION_LEDGER_PATH"] = original_explicit_ledger_path
+
     original_env = dict(os.environ)
     try:
         for env_name in (
