@@ -57,8 +57,11 @@ Configure secrets and deployment settings in Render, never in GitHub:
 - `BREVO_UNSUBSCRIBE_READY=true` — only after the signed public unsubscribe endpoint and durable suppression storage are confirmed.
 - `BREVO_COMPLIANCE_CONFIRMED=true` — only after the applicable outreach/email requirements have actually been reviewed and satisfied.
 - `AUTOMATION_STORAGE_BACKEND=sqlite`
-- `AUTOMATION_LEDGER_PATH` — absolute path on a mounted persistent disk; never a temporary filesystem.
-- `AUTOMATION_STORAGE_PERSISTENT=true` — only after persistence is confirmed.
+- `AUTOMATION_LEDGER_PATH` — absolute SQLite path on a mounted persistent disk; never a temporary filesystem.
+- `AUTOMATION_STORAGE_PERSISTENT_ROOT` — absolute mount root of that persistent disk. The ledger path must resolve inside this root.
+- `AUTOMATION_STORAGE_PERSISTENT=true` — only after the disk is actually attached and persistence is confirmed. This flag alone is not accepted as proof of durability.
+
+For a future Render persistent-disk deployment, a typical layout is a disk mounted at a dedicated path such as `/var/data`, with `AUTOMATION_STORAGE_PERSISTENT_ROOT=/var/data` and `AUTOMATION_LEDGER_PATH=/var/data/crowdfunding-deepsearch-automation.sqlite3`. Do not set these as durable on a free web-service filesystem merely because the directory is writable.
 
 The non-secret `/api/automation/connectors/brevo/server-readiness` endpoint reports whether credentials, sender, public base URL, signing secret, compliance, unsubscribe, and live policy gates are present without returning secret values. `/api/automation/operational-readiness` reports storage/rate-limit readiness. Neither endpoint sends messages or grants authorization.
 
