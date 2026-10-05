@@ -1548,8 +1548,8 @@ def brevo_provider_suppression_request(email=None, limit=100, offset=0):
     }
 
 
-def brevo_provider_suppression_response_contains_email(payload, email):
-    """Inspect a Brevo blocked-contact response locally without exposing other contacts."""
+def brevo_provider_suppression_response_contains_email(payload, email, offset=0):
+    """Inspect one Brevo blocked-contact page locally without exposing other contacts."""
     normalized = normalize_automation_email(email)
     if "@" not in normalized:
         raise ValueError("A valid email address is required.")
@@ -1561,44 +1561,106 @@ def brevo_provider_suppression_response_contains_email(payload, email):
         for item in contacts if isinstance(item, dict)
     )
     count = payload.get("count") if isinstance(payload, dict) else None
-    exhaustive = isinstance(count, int) and count <= len(contacts)
+    safe_offset = max(0, int(offset or 0))
+    exhaustive = isinstance(count, int) and count >= 0 and count <= safe_offset + len(contacts)
     return {
         "suppressed": suppressed,
         "valid_response": True,
         "exhaustive": exhaustive,
         "clear": (not suppressed) and exhaustive,
+        "page_size": len(contacts),
+        "count": count if isinstance(count, int) and count >= 0 else None,
     }
 
 
-def verify_brevo_provider_suppression(email, timeout=8):
+def verify_brevo_provider_suppression(email, timeout=8, max_pages=100):
     """Read Brevo transactional blocked contacts only; never sends or authorizes email."""
     api_key = str(os.environ.get("BREVO_API_KEY", "")).strip()
     if not api_key:
         return {"verified": False, "suppressed": False, "reason": "brevo_api_key_not_configured", "network_io": False, "sent": False, "authorization_granted": False}
-    spec = brevo_provider_suppression_request(email)
-    request = Request(
-        spec["url"] + "?" + urlencode(spec["query"]),
-        method="GET",
-        headers={
-            "api-key": api_key,
-            "Accept": "application/json",
-            "User-Agent": "CrowdfundingDeepSearch/2.0",
-        },
-    )
+
     try:
-        with urlopen(request, timeout=max(1, min(int(timeout or 8), 15))) as response:
-            payload = json.loads(response.read().decode("utf-8"))
-        inspected = brevo_provider_suppression_response_contains_email(payload, email)
+        page_ceiling = max(1, min(int(max_pages or 100), 100))
+    except (TypeError, ValueError):
+        page_ceiling = 100
+    offset = 0
+    pages_checked = 0
+    total_count = None
+
+    try:
+        while pages_checked < page_ceiling:
+            spec = brevo_provider_suppression_request(email, limit=100, offset=offset)
+            request = Request(
+                spec["url"] + "?" + urlencode(spec["query"]),
+                method="GET",
+                headers={
+                    "api-key": api_key,
+                    "Accept": "application/json",
+                    "User-Agent": "CrowdfundingDeepSearch/2.0",
+                },
+            )
+            with urlopen(request, timeout=max(1, min(int(timeout or 8), 15))) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+
+            inspected = brevo_provider_suppression_response_contains_email(payload, email, offset=offset)
+            pages_checked += 1
+            if inspected["valid_response"] is not True:
+                return {
+                    "verified": False,
+                    "suppressed": False,
+                    "clear": False,
+                    "exhaustive": False,
+                    "reason": "provider_suppression_response_invalid",
+                    "pages_checked": pages_checked,
+                    "network_io": True,
+                    "sent": False,
+                    "authorization_granted": False,
+                }
+
+            if inspected["suppressed"] is True:
+                return {
+                    "verified": True,
+                    "suppressed": True,
+                    "clear": False,
+                    "exhaustive": inspected.get("exhaustive") is True,
+                    "reason": "provider_suppressed",
+                    "pages_checked": pages_checked,
+                    "network_io": True,
+                    "sent": False,
+                    "authorization_granted": False,
+                }
+
+            total_count = inspected.get("count")
+            if inspected.get("clear") is True:
+                return {
+                    "verified": True,
+                    "suppressed": False,
+                    "clear": True,
+                    "exhaustive": True,
+                    "reason": "provider_clear_verified",
+                    "pages_checked": pages_checked,
+                    "network_io": True,
+                    "sent": False,
+                    "authorization_granted": False,
+                }
+
+            page_size = int(inspected.get("page_size") or 0)
+            if page_size <= 0 or total_count is None:
+                break
+            next_offset = offset + page_size
+            if next_offset <= offset:
+                break
+            offset = next_offset
+
         return {
-            "verified": inspected["valid_response"] is True,
-            "suppressed": inspected["suppressed"] is True,
-            "clear": inspected.get("clear") is True,
-            "exhaustive": inspected.get("exhaustive") is True,
-            "reason": (
-                "provider_suppressed"
-                if inspected["suppressed"] is True
-                else ("provider_clear_verified" if inspected.get("clear") is True else "provider_suppression_lookup_incomplete")
-            ),
+            "verified": True,
+            "suppressed": False,
+            "clear": False,
+            "exhaustive": False,
+            "reason": "provider_suppression_lookup_incomplete",
+            "pages_checked": pages_checked,
+            "provider_count": total_count,
+            "page_ceiling": page_ceiling,
             "network_io": True,
             "sent": False,
             "authorization_granted": False,
@@ -1607,13 +1669,15 @@ def verify_brevo_provider_suppression(email, timeout=8):
         return {
             "verified": False,
             "suppressed": False,
+            "clear": False,
+            "exhaustive": False,
             "reason": "provider_suppression_lookup_failed",
             "error_type": type(error).__name__,
+            "pages_checked": pages_checked,
             "network_io": True,
             "sent": False,
             "authorization_granted": False,
         }
-
 
 def brevo_server_preflight():
     """Validate trusted deployment-side Brevo prerequisites without exposing secrets."""
