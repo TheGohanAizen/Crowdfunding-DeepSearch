@@ -1043,7 +1043,7 @@ try:
                 "to_email": "recipient@example.com",
                 "draft": {"subject": "Test", "body": "Body"},
             },
-            provider_suppression={"verified": True, "suppressed": False, "clear": True, "exhaustive": True},
+            provider_suppression={"verified": True, "suppressed": False, "clear": True, "exhaustive": True, "checked_email": "recipient@example.com"},
         )
         assert brevo_candidate["ready"] is False
     assert brevo_candidate["status"] == "blocked"
@@ -1069,6 +1069,21 @@ try:
             }
         )
         assert "provider_suppression_check_required" in missing_provider_candidate["blockers"]
+    mismatched_provider_candidate = build_brevo_execution_candidate(
+        {
+            "lead": brevo_candidate_lead,
+            "user_authorized_check": True,
+            "permission_review_current": True,
+            "deduplication_clear": True,
+            "workspace_id": "workspace_smoke_mismatch",
+            "route": "https://example.com/contact",
+            "to_email": "recipient@example.com",
+            "draft": {"subject": "Test", "body": "Body"},
+        },
+        provider_suppression={"verified": True, "suppressed": False, "clear": True, "exhaustive": True, "checked_email": "other@example.com"},
+    )
+    assert "provider_suppression_recipient_mismatch" in mismatched_provider_candidate["blockers"]
+    assert mismatched_provider_candidate["payload"] is None
         assert missing_provider_candidate["sent"] is False
         assert missing_provider_candidate["network_io"] is False
 
