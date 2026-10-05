@@ -989,56 +989,66 @@ try:
             os.environ["BREVO_UNSUBSCRIBE_READY"] = original_unsubscribe_ready_for_provider_gate
         else:
             os.environ.pop("BREVO_UNSUBSCRIBE_READY", None)
-    brevo_candidate_lead = {
-        "tracking_id": "lead_brevo_smoke",
-        "name": "Brevo smoke lead",
-        "channel_rules": {
-            "automation_eligibility": {
-                "eligible": True,
-                "send_enabled": True,
-                "supported_mechanism": "brevo_email_v3",
-            }
-        },
-    }
-    brevo_candidate = build_brevo_execution_candidate(
-        {
-            "lead": brevo_candidate_lead,
-            "user_authorized_check": True,
-            "user_authorized_send": False,
-            "permission_review_current": True,
-            "deduplication_clear": True,
-            "workspace_id": "workspace_smoke",
-            "route": "https://example.com/contact",
-            "to_email": "recipient@example.com",
-            "draft": {"subject": "Test", "body": "Body"},
-        },
-        provider_suppression={"verified": True, "suppressed": False, "clear": True, "exhaustive": True},
-    )
-    assert brevo_candidate["ready"] is False
-    assert brevo_candidate["sent"] is False
-    assert brevo_candidate["network_io"] is False
-    assert brevo_candidate["authorization_granted"] is False
-    assert brevo_candidate["payload"] is None
-    assert brevo_candidate["provider_suppression"]["clear"] is True
-    assert "connector_send_disabled" in brevo_candidate["blockers"]
-    assert "live_send_authorization_required" in brevo_candidate["blockers"]
-    assert "live_send_policy_disabled" in brevo_candidate["blockers"]
-
-    missing_provider_candidate = build_brevo_execution_candidate(
-        {
-            "lead": brevo_candidate_lead,
-            "user_authorized_check": True,
-            "permission_review_current": True,
-            "deduplication_clear": True,
-            "workspace_id": "workspace_smoke_missing_provider",
-            "route": "https://example.com/contact",
-            "to_email": "recipient@example.com",
-            "draft": {"subject": "Test", "body": "Body"},
+    original_brevo_key_for_candidate = os.environ.get("BREVO_API_KEY")
+    try:
+        os.environ["BREVO_API_KEY"] = "smoke-test-candidate-key"
+        brevo_candidate_lead = {
+            "tracking_id": "lead_brevo_smoke",
+            "name": "Brevo smoke lead",
+            "channel_rules": {
+                "automation_eligibility": {
+                    "eligible": True,
+                    "send_enabled": True,
+                    "supported_mechanism": "brevo_email_v3",
+                }
+            },
         }
-    )
-    assert "provider_suppression_check_required" in missing_provider_candidate["blockers"]
-    assert missing_provider_candidate["sent"] is False
-    assert missing_provider_candidate["network_io"] is False
+        brevo_candidate = build_brevo_execution_candidate(
+            {
+                "lead": brevo_candidate_lead,
+                "user_authorized_check": True,
+                "user_authorized_send": False,
+                "permission_review_current": True,
+                "deduplication_clear": True,
+                "workspace_id": "workspace_smoke",
+                "route": "https://example.com/contact",
+                "to_email": "recipient@example.com",
+                "draft": {"subject": "Test", "body": "Body"},
+            },
+            provider_suppression={"verified": True, "suppressed": False, "clear": True, "exhaustive": True},
+        )
+        assert brevo_candidate["ready"] is False
+        assert brevo_candidate["sent"] is False
+        assert brevo_candidate["network_io"] is False
+        assert brevo_candidate["authorization_granted"] is False
+        assert brevo_candidate["payload"] is None
+        assert brevo_candidate["provider_suppression"]["clear"] is True
+        assert "connector_send_disabled" in brevo_candidate["blockers"]
+        assert "live_send_authorization_required" in brevo_candidate["blockers"]
+        assert "live_send_policy_disabled" in brevo_candidate["blockers"]
+
+        missing_provider_candidate = build_brevo_execution_candidate(
+            {
+                "lead": brevo_candidate_lead,
+                "user_authorized_check": True,
+                "permission_review_current": True,
+                "deduplication_clear": True,
+                "workspace_id": "workspace_smoke_missing_provider",
+                "route": "https://example.com/contact",
+                "to_email": "recipient@example.com",
+                "draft": {"subject": "Test", "body": "Body"},
+            }
+        )
+        assert "provider_suppression_check_required" in missing_provider_candidate["blockers"]
+        assert missing_provider_candidate["sent"] is False
+        assert missing_provider_candidate["network_io"] is False
+
+
+    finally:
+        if original_brevo_key_for_candidate is None:
+            os.environ.pop("BREVO_API_KEY", None)
+        else:
+            os.environ["BREVO_API_KEY"] = original_brevo_key_for_candidate
 
     original_brevo_unsubscribe_ready_for_baseline = os.environ.get("BREVO_UNSUBSCRIBE_READY")
     try:
