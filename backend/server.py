@@ -3454,7 +3454,8 @@ def create_app():
         if request.method == "OPTIONS":
             return ("", 204)
         storage = automation_storage_status()
-        rate_limit = automation_rate_limit_status("sendgrid_mail_v3")
+        rate_limit = automation_rate_limit_status("brevo_email_v3")
+        daily_rate_limit = automation_daily_rate_limit_status("brevo_email_v3")
         return jsonify({
             "status": "ok",
             "storage": {
@@ -3478,6 +3479,14 @@ def create_app():
                 "remaining": rate_limit.get("remaining"),
                 "allowed": rate_limit.get("allowed") is True,
                 "reason": rate_limit.get("reason"),
+            },
+            "daily_rate_limit": {
+                "mechanism": daily_rate_limit.get("mechanism"),
+                "limit_per_day": daily_rate_limit.get("limit_per_day"),
+                "used_today": daily_rate_limit.get("used_today"),
+                "remaining": daily_rate_limit.get("remaining"),
+                "allowed": daily_rate_limit.get("allowed") is True,
+                "reason": daily_rate_limit.get("reason"),
             },
             "sent": False,
             "network_io": False,
