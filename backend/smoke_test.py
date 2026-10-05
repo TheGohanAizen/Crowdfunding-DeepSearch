@@ -727,6 +727,10 @@ try:
     assert 'response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"' in server_source
     assert 'response.headers["X-Permitted-Cross-Domain-Policies"] = "none"' in server_source
     assert 'response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"' in server_source
+    assert '@app.route("/api/automation/connectors/brevo/execution-diagnostics", methods=["POST", "OPTIONS"])' in server_source
+    brevo_diagnostics_route = server_source.split('def brevo_execution_diagnostics():', 1)[1].split('@app.route', 1)[0]
+    assert "automation_operational_tools_enabled()" in brevo_diagnostics_route
+    assert "redact_automation_plan(plan)" in brevo_diagnostics_route
     assert '@app.route("/api/automation/connectors/brevo/suppression-check", methods=["POST", "OPTIONS"])' in server_source
     brevo_suppression_route = server_source.split('def brevo_suppression_check():', 1)[1].split('@app.route', 1)[0]
     assert "automation_operational_tools_enabled()" in brevo_suppression_route
@@ -834,6 +838,7 @@ try:
     brevo_provider_suppression_response_contains_email = crowdfunding_server.brevo_provider_suppression_response_contains_email
     verify_brevo_provider_suppression = crowdfunding_server.verify_brevo_provider_suppression
     build_brevo_execution_candidate = crowdfunding_server.build_brevo_execution_candidate
+    redact_automation_plan = crowdfunding_server.redact_automation_plan
     build_brevo_email_v3_payload = crowdfunding_server.build_brevo_email_v3_payload
     brevo_unsubscribe_footer = crowdfunding_server.brevo_unsubscribe_footer
     suppress_automation_email = crowdfunding_server.suppress_automation_email
@@ -1063,6 +1068,34 @@ try:
             os.environ.pop("BREVO_API_KEY", None)
         else:
             os.environ["BREVO_API_KEY"] = original_brevo_key_for_candidate
+
+    redacted_brevo_plan = redact_automation_plan({
+        "ready": True,
+        "sent": False,
+        "network_io": False,
+        "authorization_granted": False,
+        "mechanism": "brevo_email_v3",
+        "blockers": [],
+        "idempotency_key": "redaction-smoke",
+        "endpoint": "https://api.brevo.com/v3/smtp/email",
+        "payload": {
+            "to": [{"email": "private-recipient@example.com"}],
+            "sender": {"email": "private-sender@example.com"},
+            "subject": "Private subject",
+            "textContent": "Private body",
+        },
+    })
+    assert redacted_brevo_plan["payload_present"] is True
+    assert redacted_brevo_plan["recipient_count"] == 1
+    assert redacted_brevo_plan["subject_present"] is True
+    assert redacted_brevo_plan["body_present"] is True
+    assert redacted_brevo_plan["sent"] is False
+    assert redacted_brevo_plan["network_io"] is False
+    assert redacted_brevo_plan["authorization_granted"] is False
+    assert "private-recipient@example.com" not in json.dumps(redacted_brevo_plan)
+    assert "private-sender@example.com" not in json.dumps(redacted_brevo_plan)
+    assert "Private subject" not in json.dumps(redacted_brevo_plan)
+    assert "Private body" not in json.dumps(redacted_brevo_plan)
 
     original_brevo_unsubscribe_ready_for_baseline = os.environ.get("BREVO_UNSUBSCRIBE_READY")
     try:
