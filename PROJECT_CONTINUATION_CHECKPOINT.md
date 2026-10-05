@@ -13,6 +13,7 @@ On that instruction:
 4. Preserve the original product scope and safety/compliance gates.
 5. Never request or expose API keys, signing secrets, deploy-hook secrets, recipient lists, or other credentials.
 6. Progress autonomously through all safe development steps available in the current turn; stop only for a genuine user-only action, credential/payment decision, or authorization boundary.
+7. The user explicitly asked development to continue as far as possible without waiting for repeated "go" messages.
 
 ## Project identity
 
@@ -28,68 +29,98 @@ This is the same continuous software project that began as "Crowdfunding Promoti
 
 Build a global crowdfunding discovery and promotion platform that analyzes campaigns; discovers legitimate assistance, funding, media and audience opportunities; ranks/verifies candidates; supports local-to-worldwide geographic expansion; tracks outreach and follow-ups; and automates outreach only where an official mechanism and applicable rules permit it. No fake identities/supporters/engagement, CAPTCHA/access-control bypass, deceptive duplicate campaigns, spam, or guaranteed outcomes.
 
-## Current production checkpoint
+## Production baseline and current HEAD
 
-Latest exact production-verified application commit before this checkpoint update: `fac632fa7060c8ef48c0d9d30b79c3eec19a4928`.
-Both Backend checks and Verify Production Deployment succeeded for that SHA.
+Production-verified baseline before the latest hardening series: `27289f3b4ba216c288d6a3c899b3e06d9a603e8f`.
+Backend checks and exact Render production verification both succeeded for that SHA.
 
-Current HEAD immediately before this checkpoint update includes additional Brevo durability hardening through `60d6943229b98d2043e6b70f5e9a509d643e1c0f`; inspect CI before assuming it is production-verified.
+A later backend-verified security milestone is `64cb9a97b0a5dc0b766b9494639bae008b723747`; its Render exact-commit verification was in progress when this checkpoint was written.
 
-Recent Brevo work now includes:
-- disabled Brevo connector foundation and non-sending readiness endpoint;
-- verified sender configuration support;
-- opaque, stateless Fernet-encrypted recipient-specific unsubscribe tokens;
-- canonical URL-safe Base64 validation so visibly modified/padded tokens cannot resolve to the same payload;
-- scanner-safe unsubscribe flow: GET displays confirmation only; POST records the opt-out;
+Current application code immediately before this checkpoint update is `f3e1a6258e3d388b4a2163c8daff25d8999412a3`. Inspect CI/production verification before calling it production-verified.
+
+## Major hardening completed
+
+Brevo/unsubscribe:
+- opaque stateless Fernet-encrypted recipient-specific unsubscribe tokens;
+- canonical URL-safe Base64 validation rejects visibly modified/padded token variants;
+- scanner-safe unsubscribe flow: GET displays confirmation only; POST records opt-out;
 - local SQLite suppression guard;
 - public HTTPS unsubscribe endpoint;
-- non-secret readiness signals for public base URL/signing secret;
-- non-sending Brevo provider-suppression capability and read-only verification helper;
-- incomplete provider pagination is never treated as a verified clear recipient;
-- regression protection that provider suppression checks cannot authorize sending;
-- Brevo readiness UI labels updated and the primary checklist now prefers Brevo over legacy SendGrid;
-- explicit separation between provider suppression READ readiness and durable unsubscribe WRITE persistence.
+- Brevo transactional blocked-contact lookup is read-only, paginated, bounded, and fail-closed;
+- multi-page match, exhaustive clear, incomplete lookup, malformed response, and no-credential cases covered;
+- provider suppression capability is now explicitly `read_only=true`, `write_supported=false`;
+- removed stale `contact_email_blacklist` provider-write claim;
+- provider suppression reads can never satisfy durable unsubscribe write persistence;
+- gated Brevo suppression-check endpoint exists but requires operational tools plus explicit read-check authorization and never grants send authorization;
+- Brevo production readiness explicitly reports `sent=false`, `network_io=false`, `authorization_granted=false`.
+
+Storage:
+- SQLite remains the supported automation ledger;
+- free Render filesystem is correctly treated as ephemeral;
+- `AUTOMATION_STORAGE_PERSISTENT=true` alone is no longer accepted as durability evidence;
+- readiness now requires `AUTOMATION_STORAGE_PERSISTENT_ROOT`, an explicitly configured ledger path, and proof that the ledger resolves inside that non-ephemeral root;
+- smoke tests cover missing root, outside-root rejection, and a correctly nested persistent path;
+- future Render persistent disk can therefore use the existing SQLite architecture rather than requiring a datastore rewrite.
+
+Brevo execution foundation:
+- fail-closed, non-sending `build_brevo_execution_candidate` now combines execution permission, separate live-send authorization, Brevo server preflight, local opt-out, provider suppression clearance, duplicate protection, durable storage, hourly quota, daily quota, and payload construction;
+- candidate reports `sent=false`, `network_io=false`, `authorization_granted=false`;
+- no Brevo live transport has been implemented;
+- Brevo connector registry `send_enabled` remains false;
+- operational readiness now reports Brevo (not SendGrid) hourly and daily quota state.
+
+Discovery/privacy/security:
+- discovery cache now binds to a SHA-256 digest of campaign URL + campaign summary, preventing cached responses for otherwise-identical searches from leaking another request's campaign metadata;
+- production CORS blueprint is restricted to `https://crowdfunding-deepsearch.onrender.com` instead of wildcard;
+- browser headers include nosniff, frame denial, no-referrer, restrictive camera/microphone/geolocation Permissions-Policy, cross-domain-policy denial, and HSTS when the configured public base URL is HTTPS;
+- production verifier now checks an untrusted Origin is not accepted and verifies HSTS/Permissions-Policy;
+- production verifier also fails if Brevo suppression stops being explicitly read-only.
 
 ## Known Render/Brevo configuration state
 
 Configured through Render based on user-completed deployment steps:
-- `BREVO_API_KEY` — configured; value must never be copied into this repository or chat.
+- `BREVO_API_KEY` — configured; value must never be copied into repository/chat.
 - `BREVO_FROM_EMAIL` — configured to the Brevo-verified sender.
 - `BREVO_SENDER_VERIFIED=true`.
 - `PUBLIC_BASE_URL=https://crowdfunding-deepsearch.onrender.com`.
-- `AUTOMATION_UNSUBSCRIBE_SECRET` — configured; value secret and never to be exposed.
+- `AUTOMATION_UNSUBSCRIBE_SECRET` — configured; secret and never to be exposed.
 - `BREVO_UNSUBSCRIBE_READY=true`.
 
 Still intentionally NOT activated:
 - `BREVO_COMPLIANCE_CONFIRMED`
 - `AUTOMATION_LIVE_SEND_ENABLED`
 - `AUTOMATION_BREVO_EMAIL_V3_ENABLED`
+- `AUTOMATION_OPERATIONAL_TOOLS_ENABLED`
 - Brevo registry `send_enabled` remains false.
+- Durable automation storage is not configured on the current free Render web-service filesystem.
 
-Do not enable live sending during development merely because readiness checks pass.
+Do not enable live sending merely because readiness checks pass.
 
-## Current architectural state
+## Durable-storage deployment boundary
 
-Render remains the application host. Its free web-service filesystem is not treated as durable suppression storage.
+Render persistent disks require a paid service. Render documents that only writes under the configured mount path survive deploys/restarts and recommends a standalone path such as `/var/data` when appropriate.
 
-Brevo `GET /v3/smtp/blockedContacts` is a verified read-only source for transactional blocked/unsubscribed contacts, but the documented endpoint is paginated and does not provide a direct email query parameter. A match can be treated as suppressed; absence can only be treated as clear after exhaustive pagination.
+The application is prepared for a future disk with:
+- `AUTOMATION_STORAGE_BACKEND=sqlite`
+- `AUTOMATION_STORAGE_PERSISTENT_ROOT=/var/data`
+- `AUTOMATION_LEDGER_PATH=/var/data/crowdfunding-deepsearch-automation.sqlite3`
+- `AUTOMATION_STORAGE_PERSISTENT=true`
 
-CRITICAL: read-only provider suppression does **not** make new unsubscribe requests durable. The public unsubscribe POST currently writes the opt-out to the local SQLite suppression table. Because Render free storage is not trusted as durable, `brevo_server_preflight()` now requires actual durable local storage for `durable_unsubscribe_ready`; `BREVO_PROVIDER_SUPPRESSION_VERIFIED=true` alone cannot satisfy that gate.
-
-Do not equate Brevo contact-level `emailBlacklisted` with the transactional blocked-contact list unless official API semantics establish that equivalence for this use. No documented transactional blockedContacts write endpoint has been established in this checkpoint.
-
-Brevo's transactional send request supports custom **non-standard** headers; standard email headers are not supported through that request field. Do not try to force standard `List-Unsubscribe` / `List-Unsubscribe-Post` headers into the Brevo payload without a provider-supported mechanism.
+These values must not be asserted as durable until a real persistent disk is attached. Upgrading Render/adding a disk is a user-controlled billing/account action and is a legitimate point to ask the user when development actually reaches that boundary.
 
 ## NEXT ACTION
 
-Continue without sending email:
-1. Confirm Backend checks and exact production verification for current HEAD after the read/write durability separation.
-2. Improve `verify_brevo_provider_suppression` to paginate the read-only blocked-contact endpoint safely until a recipient match is found or the provider result is demonstrably exhaustive; enforce a fail-closed bounded ceiling if needed.
-3. Add regression tests for multi-page match, exhaustive no-match, malformed responses, and bounded incomplete lookup. Every outcome must keep `sent=false` and `authorization_granted=false`.
-4. Keep provider read readiness separate from unsubscribe write durability. Do not weaken `durable_unsubscribe_storage_required` unless a genuinely durable opt-out write path is implemented and verified.
-5. Investigate a durable suppression store compatible with the deployment (for example a persistent database/storage service) before enabling broad live outreach.
-6. Update this checkpoint after the next production-verified milestone.
+Continue autonomously without sending email:
+1. Confirm backend and exact Render production verification for the latest hardening series/checkpoint.
+2. If production CORS verification fails because Render retains an account-level wildcard override, identify that as a user-only Render environment-variable action; do not weaken the verifier.
+3. Keep `AUTOMATION_OPERATIONAL_TOOLS_ENABLED=false` in production until durable storage exists.
+4. Continue building/testing Brevo execution diagnostics and redacted UI visibility without implementing a live transport.
+5. Ensure every future Brevo path checks local suppression plus verified/exhaustive provider suppression clearance before payload eligibility.
+6. Keep hourly and daily rate limits enforced by the same durable ledger that will later live on the persistent mount.
+7. When code-only work is exhausted, the next genuine infrastructure boundary is upgrading the Render web service from Free and attaching a persistent disk (or choosing another genuinely durable datastore). Only then ask the user for that account/billing action.
+8. After a real persistent store exists, verify an unsubscribe survives a redeploy/restart before considering any compliance/live-send activation.
+9. Compliance confirmation and any first live single-recipient test remain separate explicit user decisions after all infrastructure checks pass.
 
 ## Safety invariant
 
-Readiness is not authorization. Unsubscribe readiness, provider credentials, sender verification, compliance setup, provider suppression verification, or durable storage must never by themselves send a message. Live sending requires all independent policy gates plus explicit action-level user authorization.
+Readiness is not authorization. Credentials, sender verification, unsubscribe readiness, provider suppression verification, durable storage, compliance state, quotas, or a constructed payload must never by themselves send a message. Live sending requires all independent policy gates plus explicit action-level user authorization. No current Brevo code performs live transport.
