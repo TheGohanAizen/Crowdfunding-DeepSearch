@@ -826,6 +826,13 @@ try:
     build_automation_unsubscribe_token = crowdfunding_server.build_automation_unsubscribe_token
     email_from_automation_unsubscribe_token = crowdfunding_server.email_from_automation_unsubscribe_token
     assert "brevo_email_v3" in crowdfunding_server.SUPPORTED_AUTOMATION_MECHANISMS
+    suppression_capability = crowdfunding_server.brevo_provider_suppression_capability()
+    assert suppression_capability["supported"] is True
+    assert suppression_capability["write_supported"] is False
+    assert suppression_capability["read_only"] is True
+    assert suppression_capability["write_mode"] is None
+    assert suppression_capability["authorization_granted"] is False
+    assert suppression_capability["sending_enabled"] is False
     suppression_request = brevo_provider_suppression_request("OptOut@example.com")
     assert suppression_request["method"] == "GET"
     assert suppression_request["query"]["limit"] == 100
