@@ -860,7 +860,9 @@ try:
         provider_gate_preflight = brevo_server_preflight()
         assert provider_gate_preflight["provider_suppression_verified"] is False
         assert provider_gate_preflight["provider_suppression_ready"] is False
+        assert provider_gate_preflight["unsubscribe_token_storage_ready"] is False
         assert provider_gate_preflight["durable_unsubscribe_ready"] is False
+        assert "durable_unsubscribe_token_storage_required" in provider_gate_preflight["blockers"]
         assert "durable_unsubscribe_storage_required" in provider_gate_preflight["blockers"]
     finally:
         if original_provider_verified is not None:
