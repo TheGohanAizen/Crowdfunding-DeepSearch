@@ -3484,7 +3484,7 @@ def create_app():
                 "mechanism": daily_rate_limit.get("mechanism"),
                 "limit_per_day": daily_rate_limit.get("limit_per_day"),
                 "used_today": daily_rate_limit.get("used_today"),
-                "remaining": daily_rate_limit.get("remaining"),
+                "remaining": daily_rate_limit.get("remaining_today"),
                 "allowed": daily_rate_limit.get("allowed") is True,
                 "reason": daily_rate_limit.get("reason"),
             },
