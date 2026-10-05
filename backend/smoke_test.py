@@ -846,6 +846,9 @@ try:
         assert no_key_verification["network_io"] is False
         assert no_key_verification["sent"] is False
         assert no_key_verification["authorization_granted"] is False
+    finally:
+        if original_brevo_key_for_suppression is not None:
+            os.environ["BREVO_API_KEY"] = original_brevo_key_for_suppression
     original_provider_verified = os.environ.pop("BREVO_PROVIDER_SUPPRESSION_VERIFIED", None)
     original_storage_persistent = os.environ.get("AUTOMATION_STORAGE_PERSISTENT")
     original_storage_path = os.environ.get("AUTOMATION_LEDGER_PATH")
@@ -870,9 +873,6 @@ try:
             os.environ["AUTOMATION_LEDGER_PATH"] = original_storage_path
         else:
             os.environ.pop("AUTOMATION_LEDGER_PATH", None)
-    finally:
-        if original_brevo_key_for_suppression is not None:
-            os.environ["BREVO_API_KEY"] = original_brevo_key_for_suppression
     original_brevo_unsubscribe_ready_for_baseline = os.environ.get("BREVO_UNSUBSCRIBE_READY")
     try:
         os.environ.pop("BREVO_UNSUBSCRIBE_READY", None)
