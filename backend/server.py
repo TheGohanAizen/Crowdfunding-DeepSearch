@@ -2370,14 +2370,28 @@ def automation_storage_status():
     backend = str(AUTOMATION_STORAGE_BACKEND or "").strip().lower()
     path = str(AUTOMATION_LEDGER_PATH or "").strip()
     persistent_declared = env_flag("AUTOMATION_STORAGE_PERSISTENT")
+    persistent_root = str(os.environ.get("AUTOMATION_STORAGE_PERSISTENT_ROOT", "")).strip()
     memory_path = path == ":memory:"
     absolute_path = os.path.abspath(path) if path and not memory_path else path
+    absolute_persistent_root = os.path.abspath(persistent_root) if persistent_root else ""
     ephemeral_roots = ("/tmp", "/var/tmp", "/dev/shm")
     ephemeral_path = memory_path or any(
         absolute_path == root or absolute_path.startswith(root + os.sep)
         for root in ephemeral_roots
     )
+    persistent_root_is_ephemeral = bool(absolute_persistent_root) and any(
+        absolute_persistent_root == root or absolute_persistent_root.startswith(root + os.sep)
+        for root in ephemeral_roots
+    )
+    path_within_persistent_root = bool(
+        absolute_path
+        and absolute_persistent_root
+        and not memory_path
+        and not persistent_root_is_ephemeral
+        and os.path.commonpath([absolute_path, absolute_persistent_root]) == absolute_persistent_root
+    )
     explicit_path_configured = "AUTOMATION_LEDGER_PATH" in os.environ and bool(path)
+    persistent_root_configured = bool(persistent_root)
     path_prepared = False
     storage_error = None
     if path:
@@ -2391,10 +2405,30 @@ def automation_storage_status():
         supported_backend
         and explicit_path_configured
         and persistent_declared
+        and persistent_root_configured
+        and path_within_persistent_root
         and path_prepared
         and not ephemeral_path
     )
     live_ready = persistence_evidence
+    if live_ready:
+        reason = "persistent_storage_ready"
+    elif not supported_backend:
+        reason = "unsupported_automation_storage_backend"
+    elif not explicit_path_configured:
+        reason = "storage_path_not_explicitly_configured"
+    elif not persistent_declared:
+        reason = "storage_not_declared_persistent"
+    elif not persistent_root_configured:
+        reason = "persistent_storage_root_required"
+    elif persistent_root_is_ephemeral:
+        reason = "persistent_storage_root_is_ephemeral"
+    elif not path_within_persistent_root:
+        reason = "storage_path_outside_persistent_root"
+    elif not path_prepared:
+        reason = "storage_path_not_ready"
+    else:
+        reason = "durable_automation_storage_required"
     return {
         "backend": backend,
         "supported_backend": supported_backend,
@@ -2402,14 +2436,13 @@ def automation_storage_status():
         "explicit_path_configured": explicit_path_configured,
         "path_prepared": path_prepared,
         "persistent_declared": persistent_declared,
+        "persistent_root_configured": persistent_root_configured,
+        "path_within_persistent_root": path_within_persistent_root,
         "ephemeral_path": ephemeral_path,
+        "persistent_root_is_ephemeral": persistent_root_is_ephemeral,
         "persistence_evidence": persistence_evidence,
         "live_ready": live_ready,
-        "reason": (
-            "persistent_storage_ready"
-            if live_ready
-            else ("unsupported_automation_storage_backend" if not supported_backend else "durable_automation_storage_required")
-        ),
+        "reason": reason,
         "storage_error": storage_error,
     }
 
