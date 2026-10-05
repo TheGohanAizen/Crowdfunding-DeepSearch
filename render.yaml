@@ -12,7 +12,7 @@ services:
       - key: HOST
         value: 0.0.0.0
       - key: ALLOWED_ORIGIN
-        value: "*"
+        value: "https://crowdfunding-deepsearch.onrender.com"
       - key: MAX_SOURCE_CHECKS
         value: "8"
       - key: MAX_DISCOVERY_RESULTS
