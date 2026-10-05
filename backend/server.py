@@ -1863,6 +1863,13 @@ def automation_ledger_connection():
             suppressed_at TEXT NOT NULL
         )"""
     )
+    connection.execute(
+        """CREATE TABLE IF NOT EXISTS automation_unsubscribe_tokens (
+            token_hash TEXT PRIMARY KEY,
+            email TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        )"""
+    )
     # Schema setup/migrations may open an implicit SQLite transaction. Commit it
     # before callers begin their own explicit write transaction (BEGIN IMMEDIATE).
     connection.commit()
@@ -1873,36 +1880,42 @@ def automation_unsubscribe_secret():
 
 
 def build_automation_unsubscribe_token(email):
-    """Create an opaque signed token; the address is not exposed in the unsubscribe URL."""
+    """Create a random opaque unsubscribe token and persist only its hash."""
     normalized = normalize_automation_email(email)
     secret = automation_unsubscribe_secret()
     if "@" not in normalized:
         raise ValueError("A valid email address is required.")
     if len(secret) < 32:
         raise RuntimeError("A strong unsubscribe signing secret is required.")
-    encoded = base64.urlsafe_b64encode(normalized.encode("utf-8")).decode("ascii").rstrip("=")
-    signature = hmac.new(secret.encode("utf-8"), encoded.encode("ascii"), hashlib.sha256).hexdigest()
-    return encoded + "." + signature
+    import secrets
+    raw = secrets.token_urlsafe(32)
+    token_hash = hmac.new(secret.encode("utf-8"), raw.encode("ascii"), hashlib.sha256).hexdigest()
+    with automation_ledger_connection() as connection:
+        connection.execute(
+            """INSERT INTO automation_unsubscribe_tokens (token_hash, email, created_at)
+               VALUES (?, ?, ?)""",
+            (token_hash, normalized, datetime.now(timezone.utc).isoformat()),
+        )
+    return raw
 
 
 def email_from_automation_unsubscribe_token(token):
-    """Verify a signed unsubscribe token and recover its normalized address."""
+    """Resolve an opaque unsubscribe token without embedding the address in its URL."""
     raw = str(token or "").strip()
-    if "." not in raw:
-        raise ValueError("Invalid unsubscribe token.")
-    encoded, signature = raw.rsplit(".", 1)
     secret = automation_unsubscribe_secret()
     if len(secret) < 32:
         raise RuntimeError("A strong unsubscribe signing secret is required.")
-    expected = hmac.new(secret.encode("utf-8"), encoded.encode("ascii"), hashlib.sha256).hexdigest()
-    if not hmac.compare_digest(signature, expected):
+    if len(raw) < 32 or len(raw) > 128:
         raise ValueError("Invalid unsubscribe token.")
-    try:
-        padded = encoded + ("=" * (-len(encoded) % 4))
-        email = base64.urlsafe_b64decode(padded.encode("ascii")).decode("utf-8")
-    except Exception as error:
-        raise ValueError("Invalid unsubscribe token.") from error
-    normalized = normalize_automation_email(email)
+    token_hash = hmac.new(secret.encode("utf-8"), raw.encode("ascii"), hashlib.sha256).hexdigest()
+    with automation_ledger_connection() as connection:
+        row = connection.execute(
+            "SELECT email FROM automation_unsubscribe_tokens WHERE token_hash = ?",
+            (token_hash,),
+        ).fetchone()
+    if row is None:
+        raise ValueError("Invalid unsubscribe token.")
+    normalized = normalize_automation_email(row["email"])
     if "@" not in normalized:
         raise ValueError("Invalid unsubscribe token.")
     return normalized
