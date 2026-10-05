@@ -3423,6 +3423,42 @@ def create_app():
             "live_send_policy": result["live_send_policy"],
         })
 
+    @app.route("/api/automation/connectors/brevo/suppression-check", methods=["POST", "OPTIONS"])
+    def brevo_suppression_check():
+        if request.method == "OPTIONS":
+            return ("", 204)
+        if not automation_operational_tools_enabled():
+            return jsonify({"status": "disabled", "message": "Automation operational tools are disabled."}), 404
+        if request.content_length is not None and request.content_length > 4096:
+            return jsonify({"status": "error", "message": "Request body is too large."}), 413
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            return jsonify({"status": "error", "message": "A JSON request body is required."}), 400
+        if data.get("user_authorized_check") is not True:
+            return jsonify({
+                "status": "blocked",
+                "reason": "execution_check_authorization_required",
+                "verified": False,
+                "suppressed": False,
+                "clear": False,
+                "sent": False,
+                "network_io": False,
+                "authorization_granted": False,
+            }), 403
+        email = str(data.get("email") or "").strip()
+        if "@" not in email:
+            return jsonify({"status": "error", "message": "A valid email address is required."}), 400
+        result = verify_brevo_provider_suppression(email)
+        result["status"] = (
+            "suppressed" if result.get("suppressed") is True
+            else ("clear" if result.get("clear") is True else "incomplete")
+        )
+        # Authorization here is permission for this read-only check only. It is
+        # deliberately not live-send authorization.
+        result["authorization_granted"] = False
+        result["sent"] = False
+        return jsonify(result)
+
     @app.route("/api/automation/connectors/brevo/server-readiness", methods=["GET", "OPTIONS"])
     def brevo_server_readiness():
         if request.method == "OPTIONS":
