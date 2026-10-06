@@ -844,6 +844,8 @@ try:
     prepare_automation_storage_path = crowdfunding_server.prepare_automation_storage_path
     automation_storage_status = crowdfunding_server.automation_storage_status
     automation_storage_integrity_check = crowdfunding_server.automation_storage_integrity_check
+    write_automation_storage_probe = crowdfunding_server.write_automation_storage_probe
+    read_automation_storage_probe = crowdfunding_server.read_automation_storage_probe
     sendgrid_server_preflight = crowdfunding_server.sendgrid_server_preflight
     brevo_server_preflight = crowdfunding_server.brevo_server_preflight
     brevo_provider_suppression_request = crowdfunding_server.brevo_provider_suppression_request
@@ -1200,6 +1202,15 @@ try:
             os.environ["AUTOMATION_ADMIN_ENDPOINTS_ENABLED"] = original_admin_flag
     prepared_storage = prepare_automation_storage_path()
     assert prepared_storage["prepared"] is True
+    storage_probe = write_automation_storage_probe("smoke:durability-probe")
+    assert storage_probe["present"] is True
+    assert storage_probe["probe_id"] == "smoke:durability-probe"
+    assert storage_probe["network_io"] is False
+    assert storage_probe["sent"] is False
+    storage_probe_read = read_automation_storage_probe("smoke:durability-probe")
+    assert storage_probe_read["present"] is True
+    assert storage_probe_read["created_at"] == storage_probe["created_at"]
+
     default_integrity = automation_storage_integrity_check()
     assert default_integrity["healthy"] is True
     assert default_integrity["quick_check"] == "ok"
