@@ -3653,6 +3653,32 @@ def create_app():
                 "checked_email": normalize_automation_email(email),
         })
 
+    @app.route("/api/automation/storage-probe/<probe_id>", methods=["GET", "POST", "OPTIONS"])
+    def automation_storage_probe(probe_id):
+        if request.method == "OPTIONS":
+            return ("", 204)
+        if not automation_admin_endpoints_enabled():
+            return jsonify({"status": "disabled", "message": "Automation admin endpoints are disabled."}), 404
+        storage = automation_storage_status()
+        if storage.get("live_ready") is not True:
+            return jsonify({
+                "status": "blocked",
+                "reason": "durable_automation_storage_required",
+                "present": False,
+                "sent": False,
+                "network_io": False,
+            }), 409
+        try:
+            result = (
+                write_automation_storage_probe(probe_id)
+                if request.method == "POST"
+                else read_automation_storage_probe(probe_id)
+            )
+            result["status"] = "present" if result.get("present") else "missing"
+            return jsonify(result)
+        except ValueError as error:
+            return jsonify({"status": "error", "message": str(error)}), 400
+
     @app.route("/api/automation/operational-readiness", methods=["GET", "OPTIONS"])
     def automation_operational_readiness():
         if request.method == "OPTIONS":
