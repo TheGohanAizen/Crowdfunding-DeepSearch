@@ -1993,6 +1993,60 @@ def automation_storage_integrity_check():
         }
 
 
+def write_automation_storage_probe(probe_id):
+    """Persist a non-secret durability probe; never sends or performs network I/O."""
+    safe_id = re.sub(r"[^A-Za-z0-9_.:-]+", "-", str(probe_id or "").strip())[:120]
+    if not safe_id:
+        raise ValueError("A storage probe id is required.")
+    now = datetime.now(timezone.utc).isoformat()
+    with automation_ledger_connection() as connection:
+        connection.execute(
+            """CREATE TABLE IF NOT EXISTS automation_storage_probes (
+                probe_id TEXT PRIMARY KEY,
+                created_at TEXT NOT NULL
+            )"""
+        )
+        connection.execute(
+            "INSERT OR IGNORE INTO automation_storage_probes (probe_id, created_at) VALUES (?, ?)",
+            (safe_id, now),
+        )
+        row = connection.execute(
+            "SELECT probe_id, created_at FROM automation_storage_probes WHERE probe_id = ?",
+            (safe_id,),
+        ).fetchone()
+    return {
+        "probe_id": safe_id,
+        "present": row is not None,
+        "created_at": row["created_at"] if row else None,
+        "network_io": False,
+        "sent": False,
+    }
+
+
+def read_automation_storage_probe(probe_id):
+    """Read a non-secret durability probe without modifying it."""
+    safe_id = re.sub(r"[^A-Za-z0-9_.:-]+", "-", str(probe_id or "").strip())[:120]
+    if not safe_id:
+        raise ValueError("A storage probe id is required.")
+    with automation_ledger_connection() as connection:
+        table = connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='automation_storage_probes'"
+        ).fetchone()
+        row = None
+        if table:
+            row = connection.execute(
+                "SELECT probe_id, created_at FROM automation_storage_probes WHERE probe_id = ?",
+                (safe_id,),
+            ).fetchone()
+    return {
+        "probe_id": safe_id,
+        "present": row is not None,
+        "created_at": row["created_at"] if row else None,
+        "network_io": False,
+        "sent": False,
+    }
+
+
 def automation_unsubscribe_secret():
     return str(os.environ.get("AUTOMATION_UNSUBSCRIBE_SECRET", "")).strip()
 
