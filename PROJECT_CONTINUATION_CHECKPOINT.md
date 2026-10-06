@@ -31,8 +31,8 @@ Build a global crowdfunding discovery and promotion platform that analyzes campa
 
 ## Production baseline and current HEAD
 
-Production-verified baseline: `420997195d776438f24309cbebeb12556521e6e3`.
-Backend checks and exact Render production verification both succeeded for that SHA, including the untrusted-Origin CORS assertion, HSTS, Permissions-Policy, Brevo read-only suppression contract, and exact deployed commit check.
+Production-verified baseline: `f5911ac7217031c033119857f10b8173ca59cb58`.
+Backend checks and exact Render production verification both succeeded for that SHA, including the untrusted-Origin CORS assertion, HSTS, Permissions-Policy, Brevo read-only suppression contract, exact deployed commit check, storage integrity tooling, durability probes, recipient-bound suppression evidence, and redacted Brevo execution-candidate diagnostics.
 
 Development has continued beyond that baseline. Inspect current repository HEAD and CI before calling later commits production-verified.
 
@@ -104,7 +104,7 @@ The application is prepared for a future disk with:
 - `AUTOMATION_LEDGER_PATH=/var/data/crowdfunding-deepsearch-automation.sqlite3`
 - `AUTOMATION_STORAGE_PERSISTENT=true`
 
-These values must not be asserted as durable until a real persistent disk is attached. Upgrading Render/adding a disk is a user-controlled billing/account action and is a legitimate point to ask the user when development actually reaches that boundary.
+These values must not be asserted as durable until a real persistent disk is attached. The repository render.yaml now includes the persistent root/path variables in a deliberately disabled/blank state. Current Render documentation confirms persistent disks require a paid service instance; a 1 GB disk at /var/data is an appropriate conservative starting point and disk storage is currently listed at $0.25/GB/month in addition to paid compute. Upgrading Render/adding a disk is a user-controlled billing/account action and is now the next genuine infrastructure boundary.
 
 ## NEXT ACTION
 
