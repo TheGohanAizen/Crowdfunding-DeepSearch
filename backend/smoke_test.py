@@ -727,6 +727,12 @@ try:
     assert 'response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"' in server_source
     assert 'response.headers["X-Permitted-Cross-Domain-Policies"] = "none"' in server_source
     assert 'response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"' in server_source
+    assert '@app.route("/api/automation/storage-probe/<probe_id>", methods=["GET", "POST", "OPTIONS"])' in server_source
+    storage_probe_route = server_source.split('def automation_storage_probe(probe_id):', 1)[1].split('@app.route', 1)[0]
+    assert "automation_admin_endpoints_enabled()" in storage_probe_route
+    assert 'storage.get("live_ready") is not True' in storage_probe_route
+    assert "write_automation_storage_probe(probe_id)" in storage_probe_route
+    assert "read_automation_storage_probe(probe_id)" in storage_probe_route
     assert '@app.route("/api/automation/connectors/brevo/execution-candidate", methods=["POST", "OPTIONS"])' in server_source
     brevo_candidate_route = server_source.split('def brevo_execution_candidate():', 1)[1].split('@app.route', 1)[0]
     assert "automation_operational_tools_enabled()" in brevo_candidate_route
