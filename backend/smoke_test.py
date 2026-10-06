@@ -762,6 +762,10 @@ try:
     assert '"sent": False' in operational_readiness_route
     assert '"network_io": False' in operational_readiness_route
     assert '"authorization_granted": False' in operational_readiness_route
+    checked_email_occurrences = server_source.count('"checked_email": normalize_automation_email(email)')
+    verifier_source = server_source.split("def verify_brevo_provider_suppression", 1)[1].split("def brevo_server_preflight", 1)[0]
+    assert checked_email_occurrences == verifier_source.count('"checked_email": normalize_automation_email(email)')
+    assert checked_email_occurrences >= 1
     assert '"credit_usage_known": not retrieval.get("configured", False)' in server_source
     assert 'does not claim zero credits' in server_source
     assert 'MAX_AUDIENCE_RULE_CHECKS = env_int("MAX_AUDIENCE_RULE_CHECKS", 4, 0, 12)' in server_source
