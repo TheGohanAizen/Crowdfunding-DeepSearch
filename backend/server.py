@@ -2000,7 +2000,7 @@ def automation_storage_integrity_check():
                 "network_io": False,
                 "sent": False,
             }
-    except (sqlite3.Error, RuntimeError, OSError) as error:
+    except (sqlite3.Error, RuntimeError, OSError, Exception) as error:
         return {
             "healthy": False,
             "quick_check": None,
