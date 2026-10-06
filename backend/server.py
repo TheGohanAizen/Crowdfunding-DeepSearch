@@ -1997,7 +1997,7 @@ def automation_storage_integrity_check():
                 "quick_check": result or None,
                 "required_tables_present": not missing_tables,
                 "missing_tables": missing_tables,
-                "network_io": False,
+                "network_io": str(AUTOMATION_STORAGE_BACKEND or "").strip().lower() == "turso",
                 "sent": False,
             }
     except Exception as error:
@@ -2008,7 +2008,7 @@ def automation_storage_integrity_check():
             "missing_tables": [],
             "reason": "automation_storage_integrity_check_failed",
             "error_type": type(error).__name__,
-            "network_io": False,
+            "network_io": str(AUTOMATION_STORAGE_BACKEND or "").strip().lower() == "turso",
             "sent": False,
         }
 
