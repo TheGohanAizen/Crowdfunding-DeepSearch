@@ -94,30 +94,34 @@ Still intentionally NOT activated:
 
 Do not enable live sending merely because readiness checks pass.
 
-## Durable-storage deployment boundary
+## Durable-storage deployment boundary — free Turso route selected
 
-Render persistent disks require a paid service. Render documents that only writes under the configured mount path survive deploys/restarts and recommends a standalone path such as `/var/data` when appropriate.
+The paid Render-disk route is deferred. The user selected a free durable-storage route using Turso/libSQL.
 
-The application is prepared for a future disk with:
-- `AUTOMATION_STORAGE_BACKEND=sqlite`
-- `AUTOMATION_STORAGE_PERSISTENT_ROOT=/var/data`
-- `AUTOMATION_LEDGER_PATH=/var/data/crowdfunding-deepsearch-automation.sqlite3`
-- `AUTOMATION_STORAGE_PERSISTENT=true`
+Current Turso state:
+- Turso database `crowdfunding-deepsearch` exists in AWS us-east-2 (Ohio).
+- Render has `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN`; the token is secret and must never be copied into repository/chat/logs.
+- Render has `AUTOMATION_STORAGE_BACKEND=turso`.
+- `requirements.txt` includes the official Python `libsql` driver.
+- `automation_ledger_connection()` supports local SQLite and remote Turso.
+- local SQLite remains the default/test fallback.
+- Turso credentials/readiness must never authorize sending.
+- Backend CI #595 for commit `caac9fb3a0dfe42c316dfab7014f53b82ec97571` passed.
+- Production verification #522 is the first verifier revision that requires the exact commit plus Turso backend, live-ready durable storage, healthy integrity, and all required tables.
 
-These values must not be asserted as durable until a real persistent disk is attached. The repository render.yaml now includes the persistent root/path variables in a deliberately disabled/blank state. Current Render documentation confirms persistent disks require a paid service instance; a 1 GB disk at /var/data is an appropriate conservative starting point and disk storage is currently listed at $0.25/GB/month in addition to paid compute. Upgrading Render/adding a disk is a user-controlled billing/account action and is now the next genuine infrastructure boundary.
+The broad admin endpoints remain disabled. Do not enable them merely to prove persistence.
 
 ## NEXT ACTION
 
 Continue autonomously without sending email:
-1. Confirm backend and exact Render production verification for the latest hardening series/checkpoint.
-2. If production CORS verification fails because Render retains an account-level wildcard override, identify that as a user-only Render environment-variable action; do not weaken the verifier.
-3. Keep `AUTOMATION_OPERATIONAL_TOOLS_ENABLED=false` in production until durable storage exists.
-4. Continue building/testing Brevo execution diagnostics and redacted UI visibility without implementing a live transport. A gated execution-candidate diagnostic now performs a recipient-bound read-only provider suppression check before building a redacted non-sending candidate.
-5. Ensure every future Brevo path checks local suppression plus verified/exhaustive provider suppression clearance before payload eligibility.
-6. Keep hourly and daily rate limits enforced by the same durable ledger that will later live on the persistent mount.
-7. Storage integrity checking and admin-gated durability probe primitives are now implemented so persistence can be objectively tested across a future redeploy/restart. When code-only work is exhausted, the next genuine infrastructure boundary is upgrading the Render web service from Free and attaching a persistent disk (or choosing another genuinely durable datastore). Only then ask the user for that account/billing action.
-8. After a real persistent store exists, verify an unsubscribe survives a redeploy/restart before considering any compliance/live-send activation.
-9. Compliance confirmation and any first live single-recipient test remain separate explicit user decisions after all infrastructure checks pass.
+1. Wait for production verification #522 for `caac9fb3...`.
+2. If #522 fails, inspect its logs. Treat Turso connection/schema failure as fail-closed and fix code/config without weakening the verifier.
+3. If #522 succeeds, Turso connection plus required schema is production-verified. Then add a narrowly scoped, non-secret durability probe mechanism that does not require enabling all admin endpoints, or use another safe deployment-time probe.
+4. Write a harmless probe marker, redeploy/restart, and verify the same marker remains. This is the final proof that persistence survives application lifecycle changes.
+5. After persistence is proven, verify unsubscribe suppression, idempotency, and quota records use Turso and survive a redeploy using synthetic/non-real test data.
+6. Keep `AUTOMATION_OPERATIONAL_TOOLS_ENABLED=false`, `AUTOMATION_LIVE_SEND_ENABLED=false`, `AUTOMATION_BREVO_EMAIL_V3_ENABLED=false`, Brevo registry `send_enabled=false`, and compliance confirmation separate.
+7. Do not implement or activate bulk/live transport merely because storage becomes ready.
+8. Compliance confirmation and any first live single-recipient test remain separate explicit user decisions after all infrastructure checks pass.
 
 ## Safety invariant
 
