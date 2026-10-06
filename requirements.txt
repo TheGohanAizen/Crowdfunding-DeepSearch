@@ -1,3 +1,4 @@
 Flask>=3.0,<4.0
 gunicorn>=23.0,<24.0
 cryptography>=46.0,<47.0
+libsql
