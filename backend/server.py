@@ -3604,6 +3604,7 @@ def create_app():
         if request.method == "OPTIONS":
             return ("", 204)
         storage = automation_storage_status()
+        integrity = automation_storage_integrity_check()
         rate_limit = automation_rate_limit_status("brevo_email_v3")
         daily_rate_limit = automation_daily_rate_limit_status("brevo_email_v3")
         return jsonify({
@@ -3620,6 +3621,12 @@ def create_app():
                 "persistence_evidence": storage.get("persistence_evidence") is True,
                 "live_ready": storage.get("live_ready") is True,
                 "reason": storage.get("reason"),
+            },
+            "storage_integrity": {
+                "healthy": integrity.get("healthy") is True,
+                "quick_check": integrity.get("quick_check"),
+                "required_tables_present": integrity.get("required_tables_present") is True,
+                "missing_tables": list(integrity.get("missing_tables") or []),
             },
             "rate_limit": {
                 "mechanism": rate_limit.get("mechanism"),
