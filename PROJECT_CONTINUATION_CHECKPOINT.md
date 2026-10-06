@@ -31,12 +31,10 @@ Build a global crowdfunding discovery and promotion platform that analyzes campa
 
 ## Production baseline and current HEAD
 
-Production-verified baseline before the latest hardening series: `27289f3b4ba216c288d6a3c899b3e06d9a603e8f`.
-Backend checks and exact Render production verification both succeeded for that SHA.
+Production-verified baseline: `420997195d776438f24309cbebeb12556521e6e3`.
+Backend checks and exact Render production verification both succeeded for that SHA, including the untrusted-Origin CORS assertion, HSTS, Permissions-Policy, Brevo read-only suppression contract, and exact deployed commit check.
 
-A later backend-verified security milestone is `64cb9a97b0a5dc0b766b9494639bae008b723747`; its Render exact-commit verification was in progress when this checkpoint was written.
-
-Current application code immediately before this checkpoint update is `f3e1a6258e3d388b4a2163c8daff25d8999412a3`. Inspect CI/production verification before calling it production-verified.
+Development has continued beyond that baseline. Inspect current repository HEAD and CI before calling later commits production-verified.
 
 ## Major hardening completed
 
@@ -114,10 +112,10 @@ Continue autonomously without sending email:
 1. Confirm backend and exact Render production verification for the latest hardening series/checkpoint.
 2. If production CORS verification fails because Render retains an account-level wildcard override, identify that as a user-only Render environment-variable action; do not weaken the verifier.
 3. Keep `AUTOMATION_OPERATIONAL_TOOLS_ENABLED=false` in production until durable storage exists.
-4. Continue building/testing Brevo execution diagnostics and redacted UI visibility without implementing a live transport.
+4. Continue building/testing Brevo execution diagnostics and redacted UI visibility without implementing a live transport. A gated execution-candidate diagnostic now performs a recipient-bound read-only provider suppression check before building a redacted non-sending candidate.
 5. Ensure every future Brevo path checks local suppression plus verified/exhaustive provider suppression clearance before payload eligibility.
 6. Keep hourly and daily rate limits enforced by the same durable ledger that will later live on the persistent mount.
-7. When code-only work is exhausted, the next genuine infrastructure boundary is upgrading the Render web service from Free and attaching a persistent disk (or choosing another genuinely durable datastore). Only then ask the user for that account/billing action.
+7. Storage integrity checking and admin-gated durability probe primitives are now implemented so persistence can be objectively tested across a future redeploy/restart. When code-only work is exhausted, the next genuine infrastructure boundary is upgrading the Render web service from Free and attaching a persistent disk (or choosing another genuinely durable datastore). Only then ask the user for that account/billing action.
 8. After a real persistent store exists, verify an unsubscribe survives a redeploy/restart before considering any compliance/live-send activation.
 9. Compliance confirmation and any first live single-recipient test remain separate explicit user decisions after all infrastructure checks pass.
 
