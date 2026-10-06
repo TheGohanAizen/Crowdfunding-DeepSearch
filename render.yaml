@@ -31,9 +31,17 @@ services:
         sync: false
       - key: AUTOMATION_ADMIN_ENDPOINTS_ENABLED
         value: "false"
-      - key: AUTOMATION_STORAGE_PERSISTENT
-        value: "false"
       - key: AUTOMATION_OPERATIONAL_TOOLS_ENABLED
         value: "false"
       - key: AUTOMATION_STORAGE_BACKEND
         value: "sqlite"
+      # Persistent-disk activation is intentionally disabled on Free.
+      # After a real Render disk is attached at /var/data, set the three
+      # values below to /var/data, /var/data/crowdfunding-deepsearch-automation.sqlite3,
+      # and true respectively.
+      - key: AUTOMATION_STORAGE_PERSISTENT_ROOT
+        value: ""
+      - key: AUTOMATION_LEDGER_PATH
+        value: ""
+      - key: AUTOMATION_STORAGE_PERSISTENT
+        value: "false"
