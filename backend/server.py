@@ -2951,7 +2951,6 @@ def automation_execution_receipt(candidate, prerequisite_result):
         "sent": False,
         "network_io": False,
         "authorization_granted": False,
-                "checked_email": normalize_automation_email(email),
         "blockers": blockers,
         "blocker_count": len(blockers),
         "checked_at": datetime.now(timezone.utc).isoformat(),
@@ -3530,7 +3529,6 @@ def create_app():
                 "sent": False,
                 "network_io": False,
                 "authorization_granted": False,
-                "checked_email": normalize_automation_email(email),
                 "blockers": ["execution_check_authorization_required"],
             }), 403
         to_email = str(data.get("to_email") or "").strip()
@@ -3609,7 +3607,6 @@ def create_app():
                 "sent": False,
                 "network_io": False,
                 "authorization_granted": False,
-                "checked_email": normalize_automation_email(email),
             }), 403
         email = str(data.get("email") or "").strip()
         if "@" not in email:
@@ -3649,7 +3646,6 @@ def create_app():
             "sent": False,
             "network_io": False,
             "authorization_granted": False,
-                "checked_email": normalize_automation_email(email),
         })
 
     @app.route("/api/automation/storage-probe/<probe_id>", methods=["GET", "POST", "OPTIONS"])
@@ -3727,7 +3723,6 @@ def create_app():
             "sent": False,
             "network_io": False,
             "authorization_granted": False,
-                "checked_email": normalize_automation_email(email),
         })
 
     @app.route("/api/automation/connectors/sendgrid/preflight", methods=["POST", "OPTIONS"])
