@@ -245,6 +245,14 @@ try:
     server_path = os.path.join(ROOT, "backend", "server.py")
     with open(server_path, "r", encoding="utf-8") as handle:
         server_source = handle.read()
+    render_path = os.path.join(ROOT, "render.yaml")
+    with open(render_path, "r", encoding="utf-8") as handle:
+        render_yaml = handle.read()
+    assert "AUTOMATION_STORAGE_PERSISTENT_ROOT" in render_yaml
+    assert "AUTOMATION_LEDGER_PATH" in render_yaml
+    assert 'AUTOMATION_STORAGE_PERSISTENT\n        value: "false"' in render_yaml
+    assert 'AUTOMATION_STORAGE_PERSISTENT_ROOT\n        value: ""' in render_yaml
+    assert 'AUTOMATION_LEDGER_PATH\n        value: ""' in render_yaml
     analyzer_path = os.path.join(ROOT, "analyzer.html")
     with open(analyzer_path, "r", encoding="utf-8") as handle:
         analyzer_html = handle.read()
