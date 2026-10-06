@@ -1617,7 +1617,7 @@ def verify_brevo_provider_suppression(email, timeout=8, max_pages=100):
                     "network_io": True,
                     "sent": False,
                     "authorization_granted": False,
-                "checked_email": normalize_automation_email(email),
+                    "checked_email": normalize_automation_email(email),
                 }
 
             if inspected["suppressed"] is True:
@@ -1631,7 +1631,7 @@ def verify_brevo_provider_suppression(email, timeout=8, max_pages=100):
                     "network_io": True,
                     "sent": False,
                     "authorization_granted": False,
-                "checked_email": normalize_automation_email(email),
+                    "checked_email": normalize_automation_email(email),
                 }
 
             total_count = inspected.get("count")
@@ -1646,7 +1646,7 @@ def verify_brevo_provider_suppression(email, timeout=8, max_pages=100):
                     "network_io": True,
                     "sent": False,
                     "authorization_granted": False,
-                "checked_email": normalize_automation_email(email),
+                    "checked_email": normalize_automation_email(email),
                 }
 
             page_size = int(inspected.get("page_size") or 0)
@@ -1669,7 +1669,7 @@ def verify_brevo_provider_suppression(email, timeout=8, max_pages=100):
             "network_io": True,
             "sent": False,
             "authorization_granted": False,
-                "checked_email": normalize_automation_email(email),
+            "checked_email": normalize_automation_email(email),
         }
     except (HTTPError, URLError, TimeoutError, ValueError, json.JSONDecodeError) as error:
         return {
@@ -1683,7 +1683,7 @@ def verify_brevo_provider_suppression(email, timeout=8, max_pages=100):
             "network_io": True,
             "sent": False,
             "authorization_granted": False,
-                "checked_email": normalize_automation_email(email),
+            "checked_email": normalize_automation_email(email),
         }
 
 def brevo_server_preflight():
