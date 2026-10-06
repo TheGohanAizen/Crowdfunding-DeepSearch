@@ -62,12 +62,24 @@ jobs:
                   print(f"Attempt {attempt}/{attempts}: live={live or 'unknown'} expected={expected}")
                   if live == expected:
                       health = read_json("/api/health")
-                      if health.get("status") == "ok":
-                          print("Exact commit is live and healthy.")
+                      readiness = read_json("/api/automation/operational-readiness")
+                      storage = readiness.get("storage") or {}
+                      integrity = readiness.get("storage_integrity") or {}
+                      turso_ok = (
+                          storage.get("backend") == "turso"
+                          and storage.get("supported_backend") is True
+                          and storage.get("live_ready") is True
+                          and integrity.get("healthy") is True
+                          and integrity.get("required_tables_present") is True
+                      )
+                      if health.get("status") == "ok" and turso_ok:
+                          print("Exact commit is live, healthy, and Turso durable storage is verified.")
                           with open(os.environ["GITHUB_OUTPUT"], "a") as out:
-                              out.write("verified=true\n")
-                              out.write(f"live_commit={live}\n")
+                              out.write("verified=true\\n")
+                              out.write(f"live_commit={live}\\n")
+                              out.write("turso_verified=true\\n")
                           raise SystemExit(0)
+                      print("Exact commit is live but Turso durable storage is not yet verified.")
               except Exception as exc:
                   print(f"Attempt {attempt}/{attempts}: {exc}")
               if attempt < attempts:
