@@ -2494,7 +2494,6 @@ def build_brevo_execution_candidate(data, provider_suppression=None):
         "sent": False,
         "network_io": False,
         "authorization_granted": False,
-                "checked_email": normalize_automation_email(email),
         "mechanism": "brevo_email_v3",
         "blockers": blockers,
         "idempotency_key": execution.get("idempotency_key"),
