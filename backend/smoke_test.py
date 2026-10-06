@@ -750,6 +750,8 @@ try:
     operational_readiness_route = server_source.split('def automation_operational_readiness():', 1)[1].split('@app.route', 1)[0]
     assert 'automation_rate_limit_status("brevo_email_v3")' in operational_readiness_route
     assert 'automation_daily_rate_limit_status("brevo_email_v3")' in operational_readiness_route
+    assert '"storage_integrity"' in operational_readiness_route
+    assert "automation_storage_integrity_check()" in operational_readiness_route
     assert '"daily_rate_limit"' in operational_readiness_route
     assert '"sent": False' in operational_readiness_route
     assert '"network_io": False' in operational_readiness_route
@@ -841,6 +843,7 @@ try:
     automation_operational_tools_enabled = crowdfunding_server.automation_operational_tools_enabled
     prepare_automation_storage_path = crowdfunding_server.prepare_automation_storage_path
     automation_storage_status = crowdfunding_server.automation_storage_status
+    automation_storage_integrity_check = crowdfunding_server.automation_storage_integrity_check
     sendgrid_server_preflight = crowdfunding_server.sendgrid_server_preflight
     brevo_server_preflight = crowdfunding_server.brevo_server_preflight
     brevo_provider_suppression_request = crowdfunding_server.brevo_provider_suppression_request
@@ -1197,6 +1200,14 @@ try:
             os.environ["AUTOMATION_ADMIN_ENDPOINTS_ENABLED"] = original_admin_flag
     prepared_storage = prepare_automation_storage_path()
     assert prepared_storage["prepared"] is True
+    default_integrity = automation_storage_integrity_check()
+    assert default_integrity["healthy"] is True
+    assert default_integrity["quick_check"] == "ok"
+    assert default_integrity["required_tables_present"] is True
+    assert default_integrity["missing_tables"] == []
+    assert default_integrity["network_io"] is False
+    assert default_integrity["sent"] is False
+
     default_storage = automation_storage_status()
     assert default_storage["backend"] == "sqlite"
     assert default_storage["live_ready"] is False
