@@ -2066,7 +2066,7 @@ def write_automation_storage_probe(probe_id):
     return {
         "probe_id": safe_id,
         "present": row is not None,
-        "created_at": row["created_at"] if row else None,
+        "created_at": automation_row_value(row, "created_at", 1) if row else None,
         "network_io": False,
         "sent": False,
     }
@@ -2090,7 +2090,7 @@ def read_automation_storage_probe(probe_id):
     return {
         "probe_id": safe_id,
         "present": row is not None,
-        "created_at": row["created_at"] if row else None,
+        "created_at": automation_row_value(row, "created_at", 1) if row else None,
         "network_io": False,
         "sent": False,
     }
@@ -2217,11 +2217,11 @@ def prune_automation_execution_ledger(retention_days=None):
         expired = []
         for row in rows:
             try:
-                recorded = datetime.fromisoformat(str(row["recorded_at"]).replace("Z", "+00:00"))
+                recorded = datetime.fromisoformat(str(automation_row_value(row, "recorded_at", 1)).replace("Z", "+00:00"))
                 if recorded.tzinfo is None:
                     recorded = recorded.replace(tzinfo=timezone.utc)
                 if recorded.timestamp() < cutoff:
-                    expired.append(row["idempotency_key"])
+                    expired.append(automation_row_value(row, "idempotency_key", 0))
             except (TypeError, ValueError):
                 continue
         if expired:
@@ -2275,7 +2275,7 @@ def transition_automation_execution(idempotency_key, new_outcome, provider_messa
         ).fetchone()
         if not row:
             raise ValueError("Live execution record was not found.")
-        current = str(row["outcome"] or "").lower()
+        current = str(automation_row_value(row, "outcome", 5) or "").lower()
         if target not in AUTOMATION_EXECUTION_TRANSITIONS.get(current, set()):
             raise ValueError("Invalid execution transition from %s to %s." % (current, target))
         connection.execute(
@@ -2735,7 +2735,7 @@ def automation_rate_limit_status(mechanism, now=None):
     used = 0
     for row in rows:
         try:
-            consumed = datetime.fromisoformat(str(row["consumed_at"]).replace("Z", "+00:00"))
+            consumed = datetime.fromisoformat(str(automation_row_value(row, "consumed_at", 0)).replace("Z", "+00:00"))
             if consumed.tzinfo is None:
                 consumed = consumed.replace(tzinfo=timezone.utc)
             if consumed.timestamp() > cutoff:
@@ -2766,7 +2766,7 @@ def automation_daily_rate_limit_status(mechanism, now=None):
     used = 0
     for row in rows:
         try:
-            consumed = datetime.fromisoformat(str(row["consumed_at"]).replace("Z", "+00:00"))
+            consumed = datetime.fromisoformat(str(automation_row_value(row, "consumed_at", 0)).replace("Z", "+00:00"))
             if consumed.tzinfo is None:
                 consumed = consumed.replace(tzinfo=timezone.utc)
             if consumed.astimezone(timezone.utc) >= day_start:
@@ -2795,11 +2795,11 @@ def prune_automation_rate_events(retention_hours=48):
         expired = []
         for row in rows:
             try:
-                consumed = datetime.fromisoformat(str(row["consumed_at"]).replace("Z", "+00:00"))
+                consumed = datetime.fromisoformat(str(automation_row_value(row, "consumed_at", 0)).replace("Z", "+00:00"))
                 if consumed.tzinfo is None:
                     consumed = consumed.replace(tzinfo=timezone.utc)
                 if consumed.timestamp() < cutoff:
-                    expired.append(row["event_id"])
+                    expired.append(automation_row_value(row, "event_id", 0))
             except (TypeError, ValueError):
                 continue
         if expired:
@@ -2952,7 +2952,7 @@ def automation_retry_decision(base_idempotency_key):
     attempt = 2
     while attempt <= 100:
         candidate = automation_attempt_idempotency_key(base_idempotency_key, attempt)
-        if not any(str(row["idempotency_key"]) == candidate for row in rows):
+        if not any(str(automation_row_value(row, "idempotency_key", 0)) == candidate for row in rows):
             return {
                 "retry_allowed": True,
                 "reason": "explicit_retry_available",
