@@ -995,6 +995,8 @@ try:
     original_provider_verified = os.environ.pop("BREVO_PROVIDER_SUPPRESSION_VERIFIED", None)
     original_brevo_key_for_provider_gate = os.environ.get("BREVO_API_KEY")
     original_storage_backend_for_provider_gate = os.environ.get("AUTOMATION_STORAGE_BACKEND")
+    original_server_storage_backend_for_provider_gate = crowdfunding_server.AUTOMATION_STORAGE_BACKEND
+    original_server_storage_path_for_provider_gate = crowdfunding_server.AUTOMATION_LEDGER_PATH
     original_storage_persistent = os.environ.get("AUTOMATION_STORAGE_PERSISTENT")
     original_storage_path = os.environ.get("AUTOMATION_LEDGER_PATH")
     try:
@@ -1005,6 +1007,8 @@ try:
         os.environ["AUTOMATION_STORAGE_BACKEND"] = "sqlite"
         os.environ["AUTOMATION_STORAGE_PERSISTENT"] = "false"
         os.environ["AUTOMATION_LEDGER_PATH"] = "/tmp/crowdfunding-deepsearch-provider-gate.sqlite3"
+        crowdfunding_server.AUTOMATION_STORAGE_BACKEND = "sqlite"
+        crowdfunding_server.AUTOMATION_LEDGER_PATH = "/tmp/crowdfunding-deepsearch-provider-gate.sqlite3"
         original_unsubscribe_ready_for_provider_gate = os.environ.get("BREVO_UNSUBSCRIBE_READY")
         os.environ["BREVO_UNSUBSCRIBE_READY"] = "true"
         provider_gate_preflight = brevo_server_preflight()
@@ -1025,6 +1029,8 @@ try:
         assert provider_read_only_preflight["durable_unsubscribe_ready"] is False
         assert "durable_unsubscribe_storage_required" in provider_read_only_preflight["blockers"]
     finally:
+        crowdfunding_server.AUTOMATION_STORAGE_BACKEND = original_server_storage_backend_for_provider_gate
+        crowdfunding_server.AUTOMATION_LEDGER_PATH = original_server_storage_path_for_provider_gate
         if original_provider_verified is not None:
             os.environ["BREVO_PROVIDER_SUPPRESSION_VERIFIED"] = original_provider_verified
         else:
