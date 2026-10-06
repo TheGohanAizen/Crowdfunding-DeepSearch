@@ -994,10 +994,15 @@ try:
 
     original_provider_verified = os.environ.pop("BREVO_PROVIDER_SUPPRESSION_VERIFIED", None)
     original_brevo_key_for_provider_gate = os.environ.get("BREVO_API_KEY")
+    original_storage_backend_for_provider_gate = os.environ.get("AUTOMATION_STORAGE_BACKEND")
     original_storage_persistent = os.environ.get("AUTOMATION_STORAGE_PERSISTENT")
     original_storage_path = os.environ.get("AUTOMATION_LEDGER_PATH")
     try:
         os.environ["BREVO_API_KEY"] = "smoke-test-read-only-key"
+        # Isolate this regression from production Turso configuration. The invariant
+        # under test is that provider suppression reads cannot manufacture a durable
+        # unsubscribe write path when storage itself is non-durable.
+        os.environ["AUTOMATION_STORAGE_BACKEND"] = "sqlite"
         os.environ["AUTOMATION_STORAGE_PERSISTENT"] = "false"
         os.environ["AUTOMATION_LEDGER_PATH"] = "/tmp/crowdfunding-deepsearch-provider-gate.sqlite3"
         original_unsubscribe_ready_for_provider_gate = os.environ.get("BREVO_UNSUBSCRIBE_READY")
@@ -1028,6 +1033,10 @@ try:
             os.environ["BREVO_API_KEY"] = original_brevo_key_for_provider_gate
         else:
             os.environ.pop("BREVO_API_KEY", None)
+        if original_storage_backend_for_provider_gate is not None:
+            os.environ["AUTOMATION_STORAGE_BACKEND"] = original_storage_backend_for_provider_gate
+        else:
+            os.environ.pop("AUTOMATION_STORAGE_BACKEND", None)
         if original_storage_persistent is not None:
             os.environ["AUTOMATION_STORAGE_PERSISTENT"] = original_storage_persistent
         else:
