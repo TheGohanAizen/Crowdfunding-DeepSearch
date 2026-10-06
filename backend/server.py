@@ -1832,6 +1832,35 @@ def prepare_automation_storage_path():
     return {"path": absolute, "parent": parent, "prepared": True}
 
 
+def automation_row_value(row, name, index=None, default=None):
+    """Read a column from sqlite3.Row, mapping-like rows, or libSQL tuples."""
+    if row is None:
+        return default
+    try:
+        return row[name]
+    except (TypeError, KeyError, IndexError):
+        if index is not None:
+            try:
+                return row[index]
+            except (TypeError, IndexError):
+                pass
+    return default
+
+
+def automation_row_dict(cursor, row):
+    """Normalize SQLite/libSQL result rows without depending on row_factory."""
+    if row is None:
+        return None
+    if isinstance(row, sqlite3.Row):
+        return dict(row)
+    if isinstance(row, dict):
+        return dict(row)
+    names = [str(item[0]) for item in (getattr(cursor, "description", None) or [])]
+    if names:
+        return {name: row[index] for index, name in enumerate(names) if index < len(row)}
+    raise TypeError("Automation storage row metadata is unavailable.")
+
+
 def automation_ledger_connection():
     backend = str(AUTOMATION_STORAGE_BACKEND or "").strip().lower()
     if backend == "sqlite":
@@ -1874,9 +1903,9 @@ def automation_ledger_connection():
         )"""
     )
     table_info = connection.execute("PRAGMA table_info(automation_execution_ledger)").fetchall()
-    columns = {row["name"] for row in table_info}
+    columns = {automation_row_value(row, "name", 1) for row in table_info}
     idempotency_is_primary = any(
-        row["name"] == "idempotency_key" and int(row["pk"] or 0) > 0 for row in table_info
+        automation_row_value(row, "name", 1) == "idempotency_key" and int(automation_row_value(row, "pk", 5, 0) or 0) > 0 for row in table_info
     )
     if idempotency_is_primary:
         connection.execute("BEGIN IMMEDIATE")
@@ -1919,7 +1948,7 @@ def automation_ledger_connection():
         connection.execute("DROP TABLE automation_execution_ledger")
         connection.execute("ALTER TABLE automation_execution_ledger_v2 RENAME TO automation_execution_ledger")
         connection.commit()
-        columns = {row["name"] for row in connection.execute("PRAGMA table_info(automation_execution_ledger)").fetchall()}
+        columns = {automation_row_value(row, "name", 1) for row in connection.execute("PRAGMA table_info(automation_execution_ledger)").fetchall()}
     if "ledger_key" not in columns:
         connection.execute("ALTER TABLE automation_execution_ledger ADD COLUMN ledger_key TEXT")
     if "execution_mode" not in columns:
