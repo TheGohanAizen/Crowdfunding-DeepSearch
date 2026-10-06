@@ -7,6 +7,10 @@ import base64
 import ipaddress
 import socket
 import sqlite3
+try:
+    import libsql
+except ImportError:  # Local/test SQLite remains available without Turso.
+    libsql = None
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from html.parser import HTMLParser
 from datetime import datetime, timezone
@@ -1829,11 +1833,27 @@ def prepare_automation_storage_path():
 
 
 def automation_ledger_connection():
-    if str(AUTOMATION_STORAGE_BACKEND or "").strip().lower() != "sqlite":
+    backend = str(AUTOMATION_STORAGE_BACKEND or "").strip().lower()
+    if backend == "sqlite":
+        storage = prepare_automation_storage_path()
+        connection = sqlite3.connect(storage["path"], timeout=5)
+        connection.row_factory = sqlite3.Row
+    elif backend == "turso":
+        database_url = str(os.environ.get("TURSO_DATABASE_URL", "")).strip()
+        auth_token = str(os.environ.get("TURSO_AUTH_TOKEN", "")).strip()
+        if not database_url.startswith("libsql://") or not auth_token:
+            raise RuntimeError("Turso database credentials are not configured.")
+        if libsql is None:
+            raise RuntimeError("Turso libSQL driver is not installed.")
+        connection = libsql.connect(database=database_url, auth_token=auth_token)
+        # libsql rows support positional access; normalize mapping access below
+        # through its sqlite-compatible row factory when available.
+        try:
+            connection.row_factory = sqlite3.Row
+        except (AttributeError, TypeError):
+            pass
+    else:
         raise RuntimeError("Configured automation storage backend is not supported.")
-    storage = prepare_automation_storage_path()
-    connection = sqlite3.connect(storage["path"], timeout=5)
-    connection.row_factory = sqlite3.Row
     connection.execute(
         """CREATE TABLE IF NOT EXISTS automation_execution_ledger (
             ledger_key TEXT PRIMARY KEY,
