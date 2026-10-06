@@ -2591,6 +2591,23 @@ def automation_admin_endpoints_enabled():
 def automation_storage_status():
     """Describe whether the configured execution store is suitable for live automation."""
     backend = str(AUTOMATION_STORAGE_BACKEND or "").strip().lower()
+    if backend == "turso":
+        database_url = str(os.environ.get("TURSO_DATABASE_URL", "")).strip()
+        auth_token = str(os.environ.get("TURSO_AUTH_TOKEN", "")).strip()
+        credentials_configured = database_url.startswith("libsql://") and bool(auth_token)
+        driver_ready = libsql is not None
+        return {
+            "backend": backend,
+            "supported_backend": True,
+            "remote_durable_store": True,
+            "credentials_configured": credentials_configured,
+            "driver_ready": driver_ready,
+            "persistence_evidence": credentials_configured and driver_ready,
+            "live_ready": credentials_configured and driver_ready,
+            "reason": "remote_persistent_storage_ready" if credentials_configured and driver_ready else "turso_storage_not_ready",
+            "storage_error": None,
+        }
+
     path = str(AUTOMATION_LEDGER_PATH or "").strip()
     persistent_declared = env_flag("AUTOMATION_STORAGE_PERSISTENT")
     persistent_root = str(os.environ.get("AUTOMATION_STORAGE_PERSISTENT_ROOT", "")).strip()
@@ -2607,9 +2624,7 @@ def automation_storage_status():
         for root in ephemeral_roots
     )
     path_within_persistent_root = bool(
-        absolute_path
-        and absolute_persistent_root
-        and not memory_path
+        absolute_path and absolute_persistent_root and not memory_path
         and not persistent_root_is_ephemeral
         and os.path.commonpath([absolute_path, absolute_persistent_root]) == absolute_persistent_root
     )
@@ -2625,13 +2640,9 @@ def automation_storage_status():
             storage_error = str(error)
     supported_backend = backend == "sqlite"
     persistence_evidence = bool(
-        supported_backend
-        and explicit_path_configured
-        and persistent_declared
-        and persistent_root_configured
-        and path_within_persistent_root
-        and path_prepared
-        and not ephemeral_path
+        supported_backend and explicit_path_configured and persistent_declared
+        and persistent_root_configured and path_within_persistent_root
+        and path_prepared and not ephemeral_path
     )
     live_ready = persistence_evidence
     if live_ready:
@@ -2653,20 +2664,14 @@ def automation_storage_status():
     else:
         reason = "durable_automation_storage_required"
     return {
-        "backend": backend,
-        "supported_backend": supported_backend,
-        "path_configured": bool(path),
-        "explicit_path_configured": explicit_path_configured,
-        "path_prepared": path_prepared,
-        "persistent_declared": persistent_declared,
+        "backend": backend, "supported_backend": supported_backend,
+        "path_configured": bool(path), "explicit_path_configured": explicit_path_configured,
+        "path_prepared": path_prepared, "persistent_declared": persistent_declared,
         "persistent_root_configured": persistent_root_configured,
         "path_within_persistent_root": path_within_persistent_root,
-        "ephemeral_path": ephemeral_path,
-        "persistent_root_is_ephemeral": persistent_root_is_ephemeral,
-        "persistence_evidence": persistence_evidence,
-        "live_ready": live_ready,
-        "reason": reason,
-        "storage_error": storage_error,
+        "ephemeral_path": ephemeral_path, "persistent_root_is_ephemeral": persistent_root_is_ephemeral,
+        "persistence_evidence": persistence_evidence, "live_ready": live_ready,
+        "reason": reason, "storage_error": storage_error,
     }
 
 def automation_rate_limit_contract(mechanism):
