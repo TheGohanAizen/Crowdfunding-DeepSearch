@@ -1955,6 +1955,44 @@ def automation_ledger_connection():
     connection.commit()
     return connection
 
+def automation_storage_integrity_check():
+    """Run a non-destructive SQLite integrity check for the configured automation store."""
+    try:
+        with automation_ledger_connection() as connection:
+            row = connection.execute("PRAGMA quick_check").fetchone()
+            result = str(row[0] if row else "").strip().lower()
+            required_tables = {
+                "automation_execution_ledger",
+                "automation_rate_events",
+                "automation_email_suppressions",
+                "automation_unsubscribe_tokens",
+            }
+            rows = connection.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table'"
+            ).fetchall()
+            tables = {str(item["name"]) for item in rows}
+            missing_tables = sorted(required_tables - tables)
+            return {
+                "healthy": result == "ok" and not missing_tables,
+                "quick_check": result or None,
+                "required_tables_present": not missing_tables,
+                "missing_tables": missing_tables,
+                "network_io": False,
+                "sent": False,
+            }
+    except (sqlite3.Error, RuntimeError, OSError) as error:
+        return {
+            "healthy": False,
+            "quick_check": None,
+            "required_tables_present": False,
+            "missing_tables": [],
+            "reason": "automation_storage_integrity_check_failed",
+            "error_type": type(error).__name__,
+            "network_io": False,
+            "sent": False,
+        }
+
+
 def automation_unsubscribe_secret():
     return str(os.environ.get("AUTOMATION_UNSUBSCRIBE_SECRET", "")).strip()
 
