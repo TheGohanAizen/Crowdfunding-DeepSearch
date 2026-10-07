@@ -1,3 +1,4 @@
+import uuid
 import json
 import os
 import subprocess
@@ -1183,9 +1184,10 @@ try:
         raise AssertionError("Insecure unsubscribe URL should be rejected")
     except ValueError:
         pass
-    assert automation_email_suppression_status("optout@example.com")["suppressed"] is False
-    assert suppress_automation_email("OptOut@example.com")["suppressed"] is True
-    assert automation_email_suppression_status("optout@example.com")["suppressed"] is True
+    smoke_optout_email = f"smoke-optout-{uuid.uuid4().hex}@example.com"
+    assert automation_email_suppression_status(smoke_optout_email)["suppressed"] is False
+    assert suppress_automation_email(smoke_optout_email.upper())["suppressed"] is True
+    assert automation_email_suppression_status(smoke_optout_email)["suppressed"] is True
     original_unsubscribe_secret = os.environ.get("AUTOMATION_UNSUBSCRIBE_SECRET")
     try:
         os.environ["AUTOMATION_UNSUBSCRIBE_SECRET"] = "smoke-test-secret-that-is-longer-than-32-characters"
