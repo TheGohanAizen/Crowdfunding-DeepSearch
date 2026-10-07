@@ -1543,11 +1543,23 @@ try:
         legacy_connection.close()
         migrated = automation_ledger_connection()
         migrated_info = migrated.execute("PRAGMA table_info(automation_execution_ledger)").fetchall()
-        assert any(row["name"] == "ledger_key" and int(row["pk"]) == 1 for row in migrated_info)
-        assert not any(row["name"] == "idempotency_key" and int(row["pk"]) > 0 for row in migrated_info)
-        preserved = migrated.execute(
+        assert any(
+            crowdfunding_server.automation_row_value(row, "name", 1) == "ledger_key"
+            and int(crowdfunding_server.automation_row_value(row, "pk", 5, 0)) == 1
+            for row in migrated_info
+        )
+        assert not any(
+            crowdfunding_server.automation_row_value(row, "name", 1) == "idempotency_key"
+            and int(crowdfunding_server.automation_row_value(row, "pk", 5, 0)) > 0
+            for row in migrated_info
+        )
+        preserved_cursor = migrated.execute(
             "SELECT * FROM automation_execution_ledger WHERE idempotency_key = 'legacy-key'"
-        ).fetchone()
+        )
+        preserved = crowdfunding_server.automation_row_dict(
+            preserved_cursor,
+            preserved_cursor.fetchone(),
+        )
         assert preserved["execution_mode"] == "live"
         assert preserved["updated_at"] == preserved["recorded_at"]
         assert preserved["resolved_at"] is None
