@@ -1236,6 +1236,8 @@ try:
     finally:
         if original_admin_flag is not None:
             os.environ["AUTOMATION_ADMIN_ENDPOINTS_ENABLED"] = original_admin_flag
+    original_storage_backend_value = crowdfunding_server.AUTOMATION_STORAGE_BACKEND
+    crowdfunding_server.AUTOMATION_STORAGE_BACKEND = "sqlite"
     prepared_storage = prepare_automation_storage_path()
     assert prepared_storage["prepared"] is True
     storage_probe = write_automation_storage_probe("smoke:durability-probe")
@@ -1307,6 +1309,8 @@ try:
             os.environ.pop("AUTOMATION_LEDGER_PATH", None)
         else:
             os.environ["AUTOMATION_LEDGER_PATH"] = original_explicit_ledger_path
+
+    crowdfunding_server.AUTOMATION_STORAGE_BACKEND = original_storage_backend_value
 
     original_env = dict(os.environ)
     try:

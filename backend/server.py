@@ -2019,7 +2019,7 @@ def automation_storage_integrity_check():
             rows = connection.execute(
                 "SELECT name FROM sqlite_master WHERE type = 'table'"
             ).fetchall()
-            tables = {str(item["name"]) for item in rows}
+            tables = {str(automation_row_value(item, "name", 0)) for item in rows}
             missing_tables = sorted(required_tables - tables)
             return {
                 "healthy": result == "ok" and not missing_tables,
