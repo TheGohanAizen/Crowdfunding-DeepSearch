@@ -2198,11 +2198,12 @@ def persist_automation_execution_record(record):
                 int(record.get("attempt_number") or 1),
             ),
         )
-        stored = connection.execute(
+        stored_cursor = connection.execute(
             "SELECT * FROM automation_execution_ledger WHERE ledger_key = ?",
             (record.get("ledger_key") or record["idempotency_key"],),
-        ).fetchone()
-        return {"created": cursor.rowcount == 1, "record": dict(stored) if stored else record}
+        )
+        stored = stored_cursor.fetchone()
+        return {"created": cursor.rowcount == 1, "record": automation_row_dict(stored_cursor, stored) if stored else record}
 
 
 def prune_automation_execution_ledger(retention_days=None):
@@ -2238,11 +2239,12 @@ def find_automation_execution_record(idempotency_key, execution_mode="live"):
     if not key or mode not in {"live", "simulation"}:
         return None
     with automation_ledger_connection() as connection:
-        row = connection.execute(
+        cursor = connection.execute(
             "SELECT * FROM automation_execution_ledger WHERE idempotency_key = ? AND execution_mode = ?",
             (key, mode),
-        ).fetchone()
-        return dict(row) if row else None
+        )
+        row = cursor.fetchone()
+        return automation_row_dict(cursor, row) if row else None
 
 
 AUTOMATION_EXECUTION_TRANSITIONS = {
@@ -2288,11 +2290,12 @@ def transition_automation_execution(idempotency_key, new_outcome, provider_messa
              datetime.now(timezone.utc).isoformat() if target in {"sent", "failed", "cancelled"} else None,
              key),
         )
-        updated = connection.execute(
+        updated_cursor = connection.execute(
             "SELECT * FROM automation_execution_ledger WHERE idempotency_key = ? AND execution_mode = 'live'",
             (key,),
-        ).fetchone()
-        return dict(updated)
+        )
+        updated = updated_cursor.fetchone()
+        return automation_row_dict(updated_cursor, updated)
 
 
 def automation_execution_duplicate_status(idempotency_key):
