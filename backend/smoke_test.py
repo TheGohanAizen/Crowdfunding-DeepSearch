@@ -1514,6 +1514,8 @@ try:
     assert "connector_live_send_disabled" in disabled_plan["blockers"]
     assert "recipient_email_required" in disabled_plan["blockers"]
     original_ledger_path = crowdfunding_server.AUTOMATION_LEDGER_PATH
+    original_ledger_backend = crowdfunding_server.AUTOMATION_STORAGE_BACKEND
+    crowdfunding_server.AUTOMATION_STORAGE_BACKEND = "sqlite"
     crowdfunding_server.AUTOMATION_LEDGER_PATH = "/tmp/crowdfunding-deepsearch-smoke-ledger.sqlite3"
     try:
         if os.path.exists(crowdfunding_server.AUTOMATION_LEDGER_PATH):
@@ -1679,6 +1681,7 @@ try:
         assert automation_execution_duplicate_status("never-recorded")["duplicate"] is False
     finally:
         crowdfunding_server.AUTOMATION_LEDGER_PATH = original_ledger_path
+        crowdfunding_server.AUTOMATION_STORAGE_BACKEND = original_ledger_backend
     simulated_transport = execute_sendgrid_transport(disabled_plan, simulate=True)
     assert simulated_transport["status"] == "simulated"
     assert simulated_transport["sent"] is False
