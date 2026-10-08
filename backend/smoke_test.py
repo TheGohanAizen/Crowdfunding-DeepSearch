@@ -9,6 +9,20 @@ from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# Isolate smoke tests from the production Turso database.
+import tempfile
+import atexit
+
+_smoke_storage = tempfile.TemporaryDirectory(prefix="crowdfunding-smoke-")
+atexit.register(_smoke_storage.cleanup)
+_smoke_database = os.path.join(_smoke_storage.name, "automation-ledger.sqlite3")
+
+os.environ["AUTOMATION_STORAGE_BACKEND"] = "sqlite"
+os.environ["AUTOMATION_LEDGER_PATH"] = _smoke_database
+os.environ.pop("TURSO_DATABASE_URL", None)
+os.environ.pop("TURSO_AUTH_TOKEN", None)
+
 env = os.environ.copy()
 env["HOST"] = "127.0.0.1"
 env["PORT"] = "8099"
@@ -1257,7 +1271,15 @@ try:
     assert default_integrity["network_io"] is False
     assert default_integrity["sent"] is False
 
-    default_storage = automation_storage_status()
+    saved_explicit_path = os.environ.pop("AUTOMATION_LEDGER_PATH", None)
+    saved_server_path = crowdfunding_server.AUTOMATION_LEDGER_PATH
+    try:
+        default_storage = automation_storage_status()
+    finally:
+        crowdfunding_server.AUTOMATION_LEDGER_PATH = saved_server_path
+        if saved_explicit_path is not None:
+            os.environ["AUTOMATION_LEDGER_PATH"] = saved_explicit_path
+
     assert default_storage["backend"] == "sqlite"
     assert default_storage["live_ready"] is False
     assert default_storage["path_prepared"] is True
