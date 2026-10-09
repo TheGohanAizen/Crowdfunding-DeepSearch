@@ -23,6 +23,49 @@ os.environ["AUTOMATION_LEDGER_PATH"] = _smoke_database
 os.environ.pop("TURSO_DATABASE_URL", None)
 os.environ.pop("TURSO_AUTH_TOKEN", None)
 
+# Regression test: competing conditional updates must not both succeed.
+def test_concurrent_execution_transitions():
+    import sqlite3
+    from concurrent.futures import ThreadPoolExecutor
+
+    database = os.path.join(_smoke_storage.name, "concurrency-test.sqlite3")
+
+    with sqlite3.connect(database) as connection:
+        connection.execute(
+            "CREATE TABLE executions (id TEXT PRIMARY KEY, outcome TEXT)"
+        )
+        connection.execute(
+            "INSERT INTO executions VALUES (?, ?)",
+            ("concurrency-test", "reserved"),
+        )
+
+    def attempt_transition(outcome):
+        with sqlite3.connect(database, timeout=10) as connection:
+            cursor = connection.execute(
+                """UPDATE executions SET outcome = ?
+                   WHERE id = ? AND outcome = ?""",
+                (outcome, "concurrency-test", "reserved"),
+            )
+            return cursor.rowcount
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        results = list(
+            executor.map(attempt_transition, ("sent", "failed"))
+        )
+
+    with sqlite3.connect(database) as connection:
+        final = connection.execute(
+            "SELECT outcome FROM executions WHERE id = ?",
+            ("concurrency-test",),
+        ).fetchone()[0]
+
+    assert sum(results) == 1, "Both competing transitions succeeded"
+    assert final in {"sent", "failed"}
+    print("Execution concurrency regression test passed.")
+
+
+test_concurrent_execution_transitions()
+
 env = os.environ.copy()
 env["HOST"] = "127.0.0.1"
 env["PORT"] = "8099"
@@ -1653,6 +1696,51 @@ try:
         })
         assert retry_with_consent["allowed"] is True
 
+
+        # Regression: confirmed sends must remain immutable.
+        sent_plan = {
+            "idempotency_key": "smoke-confirmed-send",
+            "mechanism": "brevo_email_v3",
+            "endpoint": "https://api.brevo.com/v3/smtp/email",
+            "blockers": [],
+        }
+        sent_reservation = reserve_live_automation_execution(sent_plan)
+        assert sent_reservation["reserved"] is True
+
+        confirmed = transition_automation_execution(
+            "smoke-confirmed-send",
+            "sent",
+            provider_message_id="smoke-provider-message-123",
+        )
+        assert confirmed["outcome"] == "sent"
+        assert confirmed["sent"] == 1
+        assert confirmed["provider_message_id"] == "smoke-provider-message-123"
+
+        for conflicting_outcome in ("failed", "cancelled", "unknown"):
+            try:
+                transition_automation_execution(
+                    "smoke-confirmed-send",
+                    conflicting_outcome,
+                    resolution_reason="conflicting transition test",
+                )
+                raise AssertionError("Confirmed execution was overwritten")
+            except ValueError:
+                pass
+
+        try:
+            transition_automation_execution(
+                "smoke-confirmed-send",
+                "sent",
+                provider_message_id="different-provider-message",
+            )
+            raise AssertionError("Duplicate confirmation was accepted")
+        except ValueError:
+            pass
+
+        preserved_send = find_automation_execution_record("smoke-confirmed-send")
+        assert preserved_send["outcome"] == "sent"
+        assert preserved_send["provider_message_id"] == "smoke-provider-message-123"
+        assert reserve_live_automation_execution(sent_plan)["duplicate"] is True
 
         old_record = dict(ledger_record)
         old_record["idempotency_key"] = "smoke-old-key"

@@ -2280,16 +2280,18 @@ def transition_automation_execution(idempotency_key, new_outcome, provider_messa
         current = str(automation_row_value(row, "outcome", 5) or "").lower()
         if target not in AUTOMATION_EXECUTION_TRANSITIONS.get(current, set()):
             raise ValueError("Invalid execution transition from %s to %s." % (current, target))
-        connection.execute(
+        transition_cursor = connection.execute(
             """UPDATE automation_execution_ledger
                SET outcome = ?, sent = ?, provider_message_id = ?, resolution_reason = ?,
                    updated_at = ?, resolved_at = ?
-               WHERE idempotency_key = ? AND execution_mode = 'live'""",
+               WHERE idempotency_key = ? AND execution_mode = 'live' AND outcome = ?""",
             (target, 1 if target == "sent" else 0, provider_id, reason,
              datetime.now(timezone.utc).isoformat(),
              datetime.now(timezone.utc).isoformat() if target in {"sent", "failed", "cancelled"} else None,
-             key),
+             key, current),
         )
+        if transition_cursor.rowcount != 1:
+            raise RuntimeError("Execution status changed concurrently; transition rejected.")
         updated_cursor = connection.execute(
             "SELECT * FROM automation_execution_ledger WHERE idempotency_key = ? AND execution_mode = 'live'",
             (key,),
