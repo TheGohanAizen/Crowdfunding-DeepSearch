@@ -109,6 +109,126 @@ def test_atomic_reservation_regressions():
         server.AUTOMATION_LEDGER_PATH = original_path
 
 
+
+
+
+
+def test_atomic_daily_quota_boundary():
+    """The 300th daily event succeeds; the 301st is rejected."""
+    import server
+
+    original_backend = server.AUTOMATION_STORAGE_BACKEND
+    original_path = server.AUTOMATION_LEDGER_PATH
+
+    try:
+        with tempfile.TemporaryDirectory(prefix="atomic-daily-") as directory:
+            server.AUTOMATION_STORAGE_BACKEND = "sqlite"
+            server.AUTOMATION_LEDGER_PATH = os.path.join(directory, "daily.sqlite3")
+
+            now = datetime(2026, 10, 8, 12, 0, tzinfo=timezone.utc)
+            earlier = now - timedelta(hours=2)
+
+            with server.automation_ledger_connection() as connection:
+                for i in range(299):
+                    connection.execute(
+                        """INSERT INTO automation_rate_events
+                           (mechanism, idempotency_key, consumed_at)
+                           VALUES (?, ?, ?)""",
+                        ("brevo_email_v3", f"daily-existing-{i}", earlier.isoformat()),
+                    )
+                connection.commit()
+
+            def plan(key):
+                return {
+                    "idempotency_key": key,
+                    "mechanism": "brevo_email_v3",
+                    "endpoint": "https://api.brevo.com/v3/smtp/email",
+                    "blockers": [],
+                }
+
+            final_allowed = server.reserve_automation_execution_with_quota(
+                plan("daily-300"), now=now
+            )
+            assert final_allowed["reserved"] is True, final_allowed
+
+            rejected = server.reserve_automation_execution_with_quota(
+                plan("daily-301"), now=now
+            )
+            assert rejected["reserved"] is False, rejected
+            assert rejected["reason"] == "rate_limit_exhausted", rejected
+
+            with server.automation_ledger_connection() as connection:
+                count = connection.execute(
+                    """SELECT COUNT(*) FROM automation_rate_events
+                       WHERE mechanism = ?""",
+                    ("brevo_email_v3",),
+                ).fetchone()[0]
+
+            assert count == 300, count
+            assert server.find_automation_execution_record("daily-301") is None
+
+        print("Atomic daily quota boundary regression test passed.")
+    finally:
+        server.AUTOMATION_STORAGE_BACKEND = original_backend
+        server.AUTOMATION_LEDGER_PATH = original_path
+
+
+def test_concurrent_atomic_reservations():
+    """Two competing requests must create one reservation and quota event."""
+    from concurrent.futures import ThreadPoolExecutor
+    import server
+
+    original_backend = server.AUTOMATION_STORAGE_BACKEND
+    original_path = server.AUTOMATION_LEDGER_PATH
+
+    try:
+        with tempfile.TemporaryDirectory(prefix="atomic-concurrency-") as directory:
+            server.AUTOMATION_STORAGE_BACKEND = "sqlite"
+            server.AUTOMATION_LEDGER_PATH = os.path.join(directory, "concurrency.sqlite3")
+
+            with server.automation_ledger_connection():
+                pass
+
+            plan = {
+                "idempotency_key": "concurrent-atomic-test",
+                "mechanism": "brevo_email_v3",
+                "endpoint": "https://api.brevo.com/v3/smtp/email",
+                "blockers": [],
+            }
+
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                results = list(executor.map(
+                    server.reserve_automation_execution_with_quota,
+                    [plan, plan],
+                ))
+
+            assert sum(r["reserved"] is True for r in results) == 1, results
+            assert sum(
+                r.get("reason") == "duplicate_execution" for r in results
+            ) == 1, results
+
+            with server.automation_ledger_connection() as connection:
+                ledger_count = connection.execute(
+                    """SELECT COUNT(*) FROM automation_execution_ledger
+                       WHERE idempotency_key = ? AND execution_mode = 'live'""",
+                    ("concurrent-atomic-test",),
+                ).fetchone()[0]
+
+                quota_count = connection.execute(
+                    """SELECT COUNT(*) FROM automation_rate_events
+                       WHERE mechanism = ? AND idempotency_key = ?""",
+                    ("brevo_email_v3", "concurrent-atomic-test"),
+                ).fetchone()[0]
+
+            assert ledger_count == 1, ledger_count
+            assert quota_count == 1, quota_count
+
+        print("Concurrent atomic reservation regression test passed.")
+    finally:
+        server.AUTOMATION_STORAGE_BACKEND = original_backend
+        server.AUTOMATION_LEDGER_PATH = original_path
+
+
 def test_concurrent_execution_transitions():
     import sqlite3
     from concurrent.futures import ThreadPoolExecutor
@@ -150,6 +270,8 @@ def test_concurrent_execution_transitions():
 
 
 test_atomic_reservation_regressions()
+test_concurrent_atomic_reservations()
+test_atomic_daily_quota_boundary()
 
 test_concurrent_execution_transitions()
 
