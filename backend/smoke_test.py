@@ -4,7 +4,7 @@ import os
 import subprocess
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
@@ -24,6 +24,91 @@ os.environ.pop("TURSO_DATABASE_URL", None)
 os.environ.pop("TURSO_AUTH_TOKEN", None)
 
 # Regression test: competing conditional updates must not both succeed.
+
+
+def test_atomic_reservation_regressions():
+    """Verify atomic reservation, duplicate prevention, quotas and rollback."""
+    import tempfile
+    import server
+
+    original_backend = server.AUTOMATION_STORAGE_BACKEND
+    original_path = server.AUTOMATION_LEDGER_PATH
+
+    try:
+        with tempfile.TemporaryDirectory(prefix="atomic-regression-") as directory:
+            server.AUTOMATION_STORAGE_BACKEND = "sqlite"
+            server.AUTOMATION_LEDGER_PATH = os.path.join(directory, "atomic.sqlite3")
+
+            def plan(key):
+                return {
+                    "idempotency_key": key,
+                    "mechanism": "brevo_email_v3",
+                    "endpoint": "https://api.brevo.com/v3/smtp/email",
+                    "blockers": [],
+                }
+
+            first = server.reserve_automation_execution_with_quota(plan("atomic-one"))
+            assert first["reserved"] is True, first
+
+            duplicate = server.reserve_automation_execution_with_quota(plan("atomic-one"))
+            assert duplicate["reserved"] is False, duplicate
+            assert duplicate["reason"] == "duplicate_execution", duplicate
+
+            with server.automation_ledger_connection() as connection:
+                count = connection.execute(
+                    "SELECT COUNT(*) FROM automation_rate_events WHERE idempotency_key = ?",
+                    ("atomic-one",),
+                ).fetchone()[0]
+            assert count == 1, count
+
+            now = datetime.now(timezone.utc)
+
+            with server.automation_ledger_connection() as connection:
+                for i in range(11):
+                    connection.execute(
+                        """INSERT INTO automation_rate_events
+                           (mechanism, idempotency_key, consumed_at)
+                           VALUES (?, ?, ?)""",
+                        ("brevo_email_v3", f"quota-fill-{i}", now.isoformat()),
+                    )
+                connection.commit()
+
+            rejected = server.reserve_automation_execution_with_quota(
+                plan("atomic-over-limit"), now=now
+            )
+            assert rejected["reserved"] is False, rejected
+            assert rejected["reason"] == "rate_limit_exhausted", rejected
+            assert server.find_automation_execution_record("atomic-over-limit") is None
+
+            # Use a fresh database so quota exhaustion cannot mask rollback.
+            server.AUTOMATION_LEDGER_PATH = os.path.join(
+                directory, "rollback.sqlite3"
+            )
+
+            # A quota uniqueness conflict must roll back the ledger insertion.
+            with server.automation_ledger_connection() as connection:
+                connection.execute(
+                    """INSERT INTO automation_rate_events
+                       (mechanism, idempotency_key, consumed_at)
+                       VALUES (?, ?, ?)""",
+                    ("brevo_email_v3", "atomic-rollback", datetime.now(timezone.utc).isoformat()),
+                )
+                connection.commit()
+
+            try:
+                server.reserve_automation_execution_with_quota(plan("atomic-rollback"))
+                raise AssertionError("Expected uniqueness conflict")
+            except Exception as error:
+                assert not isinstance(error, AssertionError), str(error)
+
+            assert server.find_automation_execution_record("atomic-rollback") is None
+
+        print("Atomic reservation regression tests passed.")
+    finally:
+        server.AUTOMATION_STORAGE_BACKEND = original_backend
+        server.AUTOMATION_LEDGER_PATH = original_path
+
+
 def test_concurrent_execution_transitions():
     import sqlite3
     from concurrent.futures import ThreadPoolExecutor
@@ -64,7 +149,45 @@ def test_concurrent_execution_transitions():
     print("Execution concurrency regression test passed.")
 
 
+test_atomic_reservation_regressions()
+
 test_concurrent_execution_transitions()
+
+# Verify unresolved execution records survive retention cleanup.
+def test_unresolved_execution_retention():
+    import sqlite3
+    from datetime import timedelta
+
+    if ROOT not in sys.path:
+        sys.path.insert(0, ROOT)
+    import backend.server as server
+
+    old_time = (datetime.now(timezone.utc) - timedelta(days=40)).isoformat()
+
+    with server.automation_ledger_connection() as connection:
+        for outcome in ("reserved", "unknown", "sent"):
+            key = "smoke-retention-" + outcome
+            connection.execute(
+                """INSERT INTO automation_execution_ledger
+                   (ledger_key, idempotency_key, execution_mode, mechanism,
+                    outcome, recorded_at, blockers_json)
+                   VALUES (?, ?, 'live', 'brevo_email_v3', ?, ?, '[]')""",
+                (key + ":live", key, outcome, old_time),
+            )
+        connection.commit()
+
+    server.prune_automation_execution_ledger(retention_days=30)
+
+    for outcome in ("reserved", "unknown", "sent"):
+        record = server.find_automation_execution_record(
+            "smoke-retention-" + outcome
+        )
+        assert record is not None, outcome
+
+    print("Unresolved execution retention regression test passed.")
+
+
+test_unresolved_execution_retention()
 
 env = os.environ.copy()
 env["HOST"] = "127.0.0.1"
@@ -1769,6 +1892,8 @@ try:
             ).fetchone() is None
         quota_duplicate = consume_automation_rate_limit("sendgrid_mail_v3", "quota-smoke-1")
         assert quota_duplicate["consumed"] is False
+        assert quota_consumed["allowed"] is True
+        assert quota_duplicate["allowed"] is False
         assert automation_rate_limit_status("sendgrid_mail_v3")["used_last_hour"] == 1
         assert quota_consumed["reason"] == "quota_consumed"
         assert quota_duplicate["reason"] == "quota_already_consumed_for_execution"
@@ -1777,13 +1902,41 @@ try:
             connection.executemany(
                 """INSERT INTO automation_rate_events
                    (mechanism, idempotency_key, consumed_at) VALUES (?, ?, ?)""",
-                [("sendgrid_mail_v3", "quota-fill-" + str(i), now_iso) for i in range(2, 21)],
+                [("sendgrid_mail_v3", "quota-fill-" + str(i), now_iso) for i in range(2, 20)],
             )
+        final_quota = consume_automation_rate_limit("sendgrid_mail_v3", "quota-final-slot")
+        assert final_quota["allowed"] is True
+        assert final_quota["consumed"] is True
+        assert final_quota["used_last_hour"] == 20
         quota_exhausted = consume_automation_rate_limit("sendgrid_mail_v3", "quota-over-limit")
         assert quota_exhausted["consumed"] is False
         assert quota_exhausted["allowed"] is False
         assert quota_exhausted["reason"] == "hourly_rate_limit_exhausted"
         assert automation_rate_limit_status("sendgrid_mail_v3")["used_last_hour"] == 20
+        brevo_contract = crowdfunding_server.automation_rate_limit_contract("brevo_email_v3")
+        assert brevo_contract["limit_per_hour"] == 12
+        assert brevo_contract["limit_per_day"] == 300
+        test_now = datetime(2026, 10, 8, 12, 0, tzinfo=timezone.utc)
+        earlier = test_now - timedelta(hours=2)
+        with automation_ledger_connection() as connection:
+            connection.executemany(
+                """INSERT INTO automation_rate_events
+                   (mechanism, idempotency_key, consumed_at) VALUES (?, ?, ?)""",
+                [("brevo_email_v3", "brevo-daily-" + str(i), earlier.isoformat())
+                 for i in range(299)],
+            )
+        daily_final = consume_automation_rate_limit(
+            "brevo_email_v3", "brevo-daily-final-slot", now=test_now
+        )
+        assert daily_final["allowed"] is True
+        assert daily_final["consumed"] is True
+        assert daily_final["used_today"] == 300 if "used_today" in daily_final else daily_final["consumed"] is True
+        daily_exhausted = consume_automation_rate_limit(
+            "brevo_email_v3", "brevo-daily-over-limit", now=test_now
+        )
+        assert daily_exhausted["allowed"] is False
+        assert daily_exhausted["consumed"] is False
+        assert daily_exhausted["reason"] == "daily_rate_limit_exhausted"
         duplicate_status = automation_execution_duplicate_status("smoke-key-1")
         assert duplicate_status["duplicate"] is True
         assert duplicate_status["previous_outcome"] == "failed"

@@ -2213,7 +2213,8 @@ def prune_automation_execution_ledger(retention_days=None):
     cutoff = datetime.now(timezone.utc).timestamp() - (days * 86400)
     with automation_ledger_connection() as connection:
         rows = connection.execute(
-            "SELECT idempotency_key, recorded_at FROM automation_execution_ledger"
+            """SELECT idempotency_key, recorded_at FROM automation_execution_ledger
+            WHERE execution_mode = 'simulation' AND outcome NOT IN ('reserved', 'unknown')"""
         ).fetchall()
         expired = []
         for row in rows:
@@ -2325,6 +2326,90 @@ def reserve_live_automation_execution(plan):
         "reconciliation_required": stored.get("outcome") in {"reserved", "unknown"},
     }
 
+
+
+def reserve_automation_execution_with_quota(plan, now=None):
+    """Atomically reserve a live execution and consume quota; no provider calls."""
+    if not isinstance(plan, dict):
+        raise ValueError("Execution plan must be an object.")
+    if str(AUTOMATION_STORAGE_BACKEND).strip().lower() != "sqlite":
+        return {"reserved": False, "allowed": False,
+                "reason": "atomic_backend_not_verified", "network_io": False}
+
+    record = automation_execution_record(plan, "reserved", execution_mode="live")
+    key = str(record.get("idempotency_key") or "").strip()
+    mechanism = str(record.get("mechanism") or "").strip()
+    contract = automation_rate_limit_contract(mechanism)
+    hourly = contract.get("limit_per_hour")
+    daily = contract.get("limit_per_day")
+
+    if not key or not mechanism or plan.get("blockers"):
+        return {"reserved": False, "allowed": False,
+                "reason": "invalid_or_blocked_execution", "network_io": False}
+    if not contract.get("registered") or not isinstance(hourly, int) or hourly < 1:
+        return {"reserved": False, "allowed": False,
+                "reason": "rate_limit_contract_unavailable", "network_io": False}
+    if mechanism == "brevo_email_v3" and (
+        not isinstance(daily, int) or daily < 1
+    ):
+        return {"reserved": False, "allowed": False,
+                "reason": "daily_rate_limit_contract_unavailable", "network_io": False}
+
+    current = now if isinstance(now, datetime) else datetime.now(timezone.utc)
+    if current.tzinfo is None:
+        current = current.replace(tzinfo=timezone.utc)
+    current = current.astimezone(timezone.utc)
+    hour_start = datetime.fromtimestamp(current.timestamp() - 3600, timezone.utc).isoformat()
+    day_start = current.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+
+    with automation_ledger_connection() as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        try:
+            existing = connection.execute(
+                "SELECT 1 FROM automation_execution_ledger WHERE ledger_key = ?",
+                (key + ":live",),
+            ).fetchone()
+            if existing:
+                connection.rollback()
+                return {"reserved": False, "allowed": False,
+                        "reason": "duplicate_execution", "network_io": False}
+
+            used_hour = connection.execute(
+                "SELECT COUNT(*) FROM automation_rate_events WHERE mechanism = ? AND consumed_at > ?",
+                (mechanism, hour_start),
+            ).fetchone()[0]
+            used_day = connection.execute(
+                "SELECT COUNT(*) FROM automation_rate_events WHERE mechanism = ? AND consumed_at >= ?",
+                (mechanism, day_start),
+            ).fetchone()[0] if isinstance(daily, int) else 0
+
+            if used_hour >= hourly or (isinstance(daily, int) and used_day >= daily):
+                connection.rollback()
+                return {"reserved": False, "allowed": False,
+                        "reason": "rate_limit_exhausted", "network_io": False}
+
+            connection.execute(
+                """INSERT INTO automation_execution_ledger
+                   (ledger_key, idempotency_key, execution_mode, mechanism,
+                    endpoint, outcome, sent, blockers_json, recorded_at,
+                    updated_at, attempt_number)
+                   VALUES (?, ?, 'live', ?, ?, 'reserved', 0, '[]', ?, ?, ?)""",
+                (key + ":live", key, mechanism, record.get("endpoint"),
+                 current.isoformat(), current.isoformat(), record["attempt_number"]),
+            )
+            connection.execute(
+                """INSERT INTO automation_rate_events
+                   (mechanism, idempotency_key, consumed_at) VALUES (?, ?, ?)""",
+                (mechanism, key, current.isoformat()),
+            )
+            connection.commit()
+        except Exception:
+            connection.rollback()
+            raise
+
+    return {"reserved": True, "allowed": True,
+            "reason": "reservation_and_quota_committed",
+            "idempotency_key": key, "network_io": False}
 
 def automation_execution_record(plan, outcome="blocked", provider_message_id=None, execution_mode="live"):
 
@@ -2815,17 +2900,26 @@ def prune_automation_rate_events(retention_hours=48):
         return {"retention_hours": hours, "deleted": len(expired)}
 
 
-def consume_automation_rate_limit(mechanism, idempotency_key):
+def consume_automation_rate_limit(mechanism, idempotency_key, now=None):
     """Atomically check and consume hourly quota under a SQLite write lock."""
     contract = automation_rate_limit_contract(mechanism)
     limit = contract.get("limit_per_hour")
     if not contract.get("enforcement_required") or not isinstance(limit, int):
         return {"allowed": False, "reason": "rate_limit_contract_unavailable", **contract, "consumed": False}
     mechanism_key = str(mechanism or "").strip()
+    connector = AUTOMATION_CONNECTOR_REGISTRY.get(mechanism_key) or {}
+    if "rate_limit_per_day" in connector:
+        daily_limit = contract.get("limit_per_day")
+        if not isinstance(daily_limit, int) or isinstance(daily_limit, bool) or daily_limit < 1:
+            return {**contract, "allowed": False, "consumed": False,
+                    "reason": "daily_rate_limit_contract_unavailable"}
     key = str(idempotency_key or "").strip()
     if not key:
         raise ValueError("Idempotency key is required to consume automation quota.")
-    now = datetime.now(timezone.utc)
+    now = now if isinstance(now, datetime) else datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    now = now.astimezone(timezone.utc)
     cutoff_iso = datetime.fromtimestamp(now.timestamp() - 3600, tz=timezone.utc).isoformat()
     with automation_ledger_connection() as connection:
         connection.execute("BEGIN IMMEDIATE")
@@ -2843,19 +2937,19 @@ def consume_automation_rate_limit(mechanism, idempotency_key):
             """SELECT COUNT(*) AS count FROM automation_rate_events
                WHERE mechanism = ? AND consumed_at > ?""",
             (mechanism_key, cutoff_iso),
-        ).fetchone()["count"]
+        ).fetchone()[0]
         daily_limit = contract.get("limit_per_day")
         day_start_iso = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
         used_today = connection.execute(
             """SELECT COUNT(*) AS count FROM automation_rate_events
                WHERE mechanism = ? AND consumed_at >= ?""",
             (mechanism_key, day_start_iso),
-        ).fetchone()["count"] if isinstance(daily_limit, int) else 0
+        ).fetchone()[0] if isinstance(daily_limit, int) else 0
         if existing:
             connection.commit()
             return {
                 **contract,
-                "allowed": used < limit,
+                "allowed": False,
                 "used_last_hour": used,
                 "remaining": max(0, limit - used),
                 "consumed": False,
@@ -2884,7 +2978,7 @@ def consume_automation_rate_limit(mechanism, idempotency_key):
         used += 1
     return {
         **contract,
-        "allowed": used < limit,
+        "allowed": True,
         "used_last_hour": used,
         "remaining": max(0, limit - used),
         "consumed": True,
