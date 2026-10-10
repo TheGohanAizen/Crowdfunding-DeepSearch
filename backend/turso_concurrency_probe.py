@@ -8,6 +8,7 @@ This is a capability probe, not production authorization.
 import os
 import sys
 import uuid
+import time
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
 
@@ -78,7 +79,28 @@ def main():
                         pass
                     raise
             except Exception as error:
-                return label, "error:" + type(error).__name__ + ":" + classify_error(error)
+                category = classify_error(error)
+                if category == "lock_or_conflict":
+                    # Read-only reconciliation, never a second reservation attempt.
+                    # A conflict never authorizes a provider send.
+                    for _ in range(5):
+                        time.sleep(0.2)
+                        check = None
+                        try:
+                            check = libsql.connect(database=url, auth_token=token)
+                            occupied = check.execute(
+                                "SELECT COUNT(*) FROM " + table + " WHERE batch_id = ?",
+                                (batch,),
+                            ).fetchone()[0]
+                            if occupied:
+                                return label, "conflict_reconciled_quota_exhausted"
+                        except Exception:
+                            pass
+                        finally:
+                            if check is not None:
+                                check.close()
+                    return label, "conflict_unresolved"
+                return label, "error:" + type(error).__name__ + ":" + category
             finally:
                 conn.close()
 
@@ -95,8 +117,11 @@ def main():
         print("Worker outcomes:", ", ".join(label + "=" + result for label, result in outcomes))
         print("Persisted reservations for one-slot quota:", count)
         statuses = sorted(result for _, result in outcomes)
-        if statuses == ["committed", "quota_rejected"] and count == 1:
-            print("PASS: two remote connections respected a one-slot serialized quota.")
+        if statuses in (
+            ["committed", "quota_rejected"],
+            ["committed", "conflict_reconciled_quota_exhausted"],
+        ) and count == 1:
+            print("PASS: one reservation committed; the other rejected or reconciled without retry.")
             print("NOT VERIFIED: process-level concurrency, crash ambiguity, production quota logic.")
             return 0
         print("INCONCLUSIVE: concurrent reservation behavior needs investigation; live sending remains blocked.")
