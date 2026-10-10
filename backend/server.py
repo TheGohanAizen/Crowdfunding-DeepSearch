@@ -2379,8 +2379,8 @@ def reserve_automation_execution_with_quota(plan, now=None):
     day_start = current.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
 
     with automation_ledger_connection() as connection:
-        connection.execute("BEGIN IMMEDIATE")
         try:
+            connection.execute("BEGIN IMMEDIATE")
             existing = connection.execute(
                 "SELECT 1 FROM automation_execution_ledger WHERE ledger_key = ?",
                 (key + ":live",),
