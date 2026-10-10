@@ -8,11 +8,18 @@ Uses an isolated temporary SQLite database. No Turso credentials, external
 provider calls, or public administration endpoints are required.
 """
 import os
+import sys
 import tempfile
 from unittest.mock import patch
 
-from backend import recovery_report
-from backend import server
+try:
+    from backend import recovery_report
+    from backend import server
+except ModuleNotFoundError as error:
+    if error.name != "backend":
+        raise
+    import recovery_report
+    import server
 
 
 def run():
