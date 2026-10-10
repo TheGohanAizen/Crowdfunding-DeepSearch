@@ -2332,7 +2332,23 @@ def reserve_automation_execution_with_quota(plan, now=None):
     """Atomically reserve a live execution and consume quota; no provider calls."""
     if not isinstance(plan, dict):
         raise ValueError("Execution plan must be an object.")
-    if str(AUTOMATION_STORAGE_BACKEND).strip().lower() != "sqlite":
+    backend = str(AUTOMATION_STORAGE_BACKEND).strip().lower()
+    # Turso reservations require explicit test-only opt-in. Production remains
+    # blocked unless a future separately reviewed release changes this gate.
+    turso_test_enabled = (
+        backend == "turso"
+        and os.environ.get("AUTOMATION_TURSO_RESERVATION_TEST_ONLY") == "yes"
+        and os.environ.get("I_ACKNOWLEDGE_DISPOSABLE_TEST_DATABASE") == "yes"
+        and os.environ.get("TURSO_DATABASE_URL", "").strip()
+            == os.environ.get("TEST_TURSO_DATABASE_URL", "").strip()
+        and os.environ.get("TURSO_AUTH_TOKEN", "").strip()
+            == os.environ.get("TEST_TURSO_AUTH_TOKEN", "").strip()
+        and os.environ.get("TURSO_DATABASE_URL", "").strip().startswith("libsql://")
+        and bool(os.environ.get("TURSO_AUTH_TOKEN", "").strip())
+        and os.environ.get("AUTOMATION_LIVE_SEND_ENABLED", "").strip().lower()
+            not in {"1", "true", "yes", "on"}
+    )
+    if backend != "sqlite" and not turso_test_enabled:
         return {"reserved": False, "allowed": False,
                 "reason": "atomic_backend_not_verified", "network_io": False}
 
@@ -2404,7 +2420,15 @@ def reserve_automation_execution_with_quota(plan, now=None):
             )
             connection.commit()
         except Exception:
-            connection.rollback()
+            try:
+                connection.rollback()
+            except Exception:
+                pass
+            if backend == "turso":
+                # A failed/ambiguous commit must never authorize sending.
+                return {"reserved": False, "allowed": False,
+                        "reason": "turso_reservation_uncertain",
+                        "network_io": False}
             raise
 
     return {"reserved": True, "allowed": True,
