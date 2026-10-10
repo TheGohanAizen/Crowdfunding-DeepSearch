@@ -12,6 +12,20 @@ from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
 
 
+def classify_error(error):
+    """Classify known driver failures without printing URLs or tokens."""
+    message = str(error).lower()
+    if any(word in message for word in ("busy", "locked", "conflict", "concurrent")):
+        return "lock_or_conflict"
+    if any(word in message for word in ("transaction", "begin", "commit")):
+        return "transaction_state"
+    if any(word in message for word in ("timeout", "timed out", "deadline")):
+        return "timeout"
+    if any(word in message for word in ("closed", "connection", "transport")):
+        return "connection"
+    return "unclassified"
+
+
 def main():
     url = os.environ.get("TEST_TURSO_DATABASE_URL", "").strip()
     token = os.environ.get("TEST_TURSO_AUTH_TOKEN", "").strip()
@@ -64,7 +78,7 @@ def main():
                         pass
                     raise
             except Exception as error:
-                return label, "error:" + type(error).__name__
+                return label, "error:" + type(error).__name__ + ":" + classify_error(error)
             finally:
                 conn.close()
 
