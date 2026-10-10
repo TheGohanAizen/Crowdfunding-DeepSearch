@@ -3348,6 +3348,13 @@ def finalize_audience_actions(candidates):
     for candidate in candidates:
         item = dict(candidate)
         item["recommended_next_action"] = audience_next_action(item)
+        # Discovery snippets are unverified evidence, never contact permission.
+        # Attach a non-sending review report to each real discovered lead.
+        try:
+            from .recipient_eligibility import assess_recipient
+        except ImportError:
+            from recipient_eligibility import assess_recipient
+        item["recipient_review"] = assess_recipient(item)
         item["outreach_readiness"] = {
             "status": item["recommended_next_action"]["type"],
             "rules_reviewed": False,
