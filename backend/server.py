@@ -1454,9 +1454,18 @@ def automation_distribution_decision(candidate):
         blockers.append("connector_not_configured")
     elif not connector["send_enabled"]:
         blockers.append("connector_send_disabled")
-    allowed = not blockers
+    # Candidate metadata is not trusted authorization. Discovery may classify
+    # leads for review but must never grant permission to contact them.
+    try:
+        from .recipient_eligibility import assess_recipient
+    except ImportError:
+        from recipient_eligibility import assess_recipient
+    recipient = assess_recipient(candidate if isinstance(candidate, dict) else {})
+    blockers.extend(recipient["blockers"])
+    allowed = False
     return {
         "allowed": allowed,
+        "recipient_review": recipient,
         "mechanism": mechanism or None,
         "eligible": eligible,
         "send_enabled": send_enabled,
