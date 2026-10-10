@@ -19,8 +19,7 @@ def run():
     with tempfile.TemporaryDirectory(prefix="crowdfunding-recovery-test-") as directory:
         ledger = os.path.join(directory, "recovery.sqlite3")
         with patch.object(server, "AUTOMATION_STORAGE_BACKEND", "sqlite"), \
-             patch.object(server, "AUTOMATION_LEDGER_PATH", ledger), \
-             patch.object(server, "AUTOMATION_STORAGE_PERSISTENT_ROOT", ""):
+             patch.object(server, "AUTOMATION_LEDGER_PATH", ledger):
             empty = recovery_report.build_report()
             assert empty["unresolved_total"] == 0
             assert empty["sent"] is False
