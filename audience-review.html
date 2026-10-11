@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Audience Review — Crowdfunding DeepSearch</title>
+<style>
+body{font:16px system-ui,sans-serif;background:#f4f7fb;color:#172033;max-width:950px;margin:0 auto;padding:28px 18px}
+a{color:#1555a0}header{margin-bottom:24px}h1{margin-bottom:6px}
+.panel,.lead{background:white;border:1px solid #dbe3ee;border-radius:14px;padding:20px;margin:16px 0}
+label{display:block;font-weight:600;margin:12px 0 5px}
+input,select,button{font:inherit;padding:12px;border-radius:8px;border:1px solid #b8c7d9}
+input{width:100%;box-sizing:border-box}button{background:#183f7b;color:white;cursor:pointer;margin-top:16px}
+small,.muted{color:#52647c}.blocked{font-weight:700;color:#8b2727}
+code{white-space:normal}ul{padding-left:22px}li{margin:5px 0}
+</style></head>
+<body>
+<header><a href="/">← Campaign homepage</a><h1>Audience opportunity review</h1>
+<p>Find potential audiences and see what evidence is missing before outreach. Discovery results are unverified; automatic sending is disabled.</p></header>
+<section class="panel"><form id="searchForm">
+<label for="need">Campaign need</label><select id="need">
+<option>Transportation</option><option>Medical Assistance</option><option>Housing Assistance</option><option>Education Assistance</option><option>Community / Nonprofit Funding</option><option>General Financial Assistance</option></select>
+<label for="location">Location</label><input id="location" value="Austin, Texas" required maxlength="150">
+<button type="submit" id="searchBtn">Search audience opportunities</button>
+</form><p class="muted">This search may use your configured discovery provider and consume search credits. It does not send outreach.</p></section>
+<p id="status" role="status" aria-live="polite"></p><section id="results" aria-label="Discovered audience opportunities"></section>
+<script>
+const form=document.getElementById('searchForm'),results=document.getElementById('results'),status=document.getElementById('status'),btn=document.getElementById('searchBtn');
+function el(tag,text,cls){const n=document.createElement(tag);if(text!==undefined)n.textContent=String(text);if(cls)n.className=cls;return n}
+function render(items){results.replaceChildren();if(!items.length){results.append(el('p','No audience opportunities returned.'));return}
+for(const item of items){const card=el('article',undefined,'lead');card.append(el('h2',item.name||'Unnamed opportunity'));
+const url=String(item.url||'');if(/^https:\/\//i.test(url)){const a=el('a','View source');a.href=url;a.target='_blank';a.rel='noopener noreferrer';card.append(a)}
+card.append(el('p',item.snippet||'No description supplied.','muted'));
+card.append(el('p','Automatic outreach: blocked','blocked'));
+const review=item.recipient_review||{},blockers=Array.isArray(review.blockers)?review.blockers:['recipient_review_unavailable'];
+card.append(el('h3','Review requirements'));const list=el('ul');
+for(const b of blockers)list.append(el('li',String(b).replaceAll('_',' ')));card.append(list);
+const action=item.recommended_next_action||{};card.append(el('p','Next action: '+(action.label||'Manual review required')));
+results.append(card)}}
+form.addEventListener('submit',async e=>{e.preventDefault();btn.disabled=true;results.replaceChildren();status.textContent='Searching…';
+try{const response=await fetch('/api/audience/discover',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({need:document.getElementById('need').value,location:document.getElementById('location').value})});
+const data=await response.json();if(!response.ok)throw Error(data.message||'Search request failed');render(Array.isArray(data.results)?data.results:[]);status.textContent='Results: '+(Array.isArray(data.results)?data.results.length:0)+' · Provider: '+(data.provider_status?.provider||'unknown')+' · No messages sent.'}
+catch(err){status.textContent='Search failed: '+err.message}finally{btn.disabled=false}});
+</script></body></html>
