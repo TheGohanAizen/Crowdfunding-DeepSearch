@@ -41,7 +41,7 @@ const campaignLabel=el('label','Campaign label (optional; no private details)');
 const notesLabel=el('label','Review notes / submission instructions');const notes=el('textarea');notes.value=item.notes||'';notes.maxLength=1500;notes.placeholder='Record public submission instructions, restrictions or next steps';notes.setAttribute('aria-label','Review notes for '+(item.name||'opportunity'));notes.addEventListener('change',()=>{item.notes=notes.value.slice(0,1500);persistSaved()});card.append(notesLabel,notes);
 area.append(card)}}
 document.getElementById('exportSaved').addEventListener('click',()=>{const blob=new Blob([JSON.stringify(saved,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='crowdfunding-opportunities.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)});
-function normalizedUrl(value){const url=safeUrl(value);if(!url)return null;const u=new URL(url);u.hash='';u.hostname=u.hostname.toLowerCase();if(u.pathname.length>1)u.pathname=u.pathname.replace(/\\/+$/,'');return u.href}
+function normalizedUrl(value){const url=safeUrl(value);if(!url)return null;const u=new URL(url);u.hash='';u.hostname=u.hostname.toLowerCase();while(u.pathname.length>1&&u.pathname.endsWith('/'))u.pathname=u.pathname.slice(0,-1);return u.href}
 const VALID_STATES=new Set(['needs_review','researching','submission_route_found','not_suitable','manually_contacted']);
 document.getElementById('importSaved').addEventListener('change',async event=>{
 const field=event.target,notice=document.getElementById('importStatus'),file=field.files&&field.files[0];if(!file)return;
