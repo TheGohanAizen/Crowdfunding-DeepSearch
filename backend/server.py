@@ -1108,6 +1108,37 @@ def audience_relevance_signals(candidate, need, location):
     if crowdfunding_hits:
         score += min(15, len(crowdfunding_hits) * 5)
         signals.append("fundraising_context:" + ",".join(crowdfunding_hits[:3]))
+    # A topical match is not necessarily a useful campaign-promotion route.
+    # Evaluate title and snippet independently of the channel label so a
+    # broad channel classification cannot inflate unrelated informational pages.
+    evidence_text = " ".join([
+        candidate.get("name", ""), candidate.get("snippet", "")
+    ]).lower()
+    actionable_phrases = (
+        "submit your story", "submit a story", "share your story",
+        "story tip", "send us your story", "pitch us", "submit an event",
+        "community calendar", "submit a fundraiser", "submit your fundraiser",
+        "fundraising submissions", "request assistance", "apply for assistance",
+        "submit a request", "community submissions", "contact the newsroom",
+    )
+    informational_phrases = (
+        "research", "report", "study", "transportation improvement program",
+        "archive", "logistics", "infrastructure plan", "policy brief",
+        "project update", "press release", "technical paper",
+    )
+    actionable = [term for term in actionable_phrases if term in evidence_text]
+    informational = [term for term in informational_phrases if term in evidence_text]
+    if actionable:
+        score += min(20, 10 * len(actionable))
+        signals.append("possible_submission_route:" + ",".join(actionable[:2]))
+    elif informational:
+        score = min(score, 45)
+        signals.append("informational_not_outreach_route:" + ",".join(informational[:2]))
+    else:
+        # A relevant page without a visible submission route is worth reviewing,
+        # but must not appear as a near-certain promotion opportunity.
+        score = min(score, 70)
+        signals.append("submission_route_unverified")
     checked = dict(candidate)
     checked["audience_relevance_score"] = min(score, 100)
     checked["audience_relevance_signals"] = signals
