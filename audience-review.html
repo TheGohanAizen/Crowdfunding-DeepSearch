@@ -10,7 +10,7 @@ a{color:#1555a0}header{margin-bottom:24px}h1{margin-bottom:6px}
 label{display:block;font-weight:600;margin:12px 0 5px}
 input,select,button{font:inherit;padding:12px;border-radius:8px;border:1px solid #b8c7d9}
 input{width:100%;box-sizing:border-box}button{background:#183f7b;color:white;cursor:pointer;margin-top:16px}
-small,.muted{color:#52647c}.blocked{font-weight:700;color:#8b2727}
+small,.muted{color:#52647c}.triage{font-weight:650;color:#294c70}.filters{display:flex;gap:14px;align-items:center;flex-wrap:wrap}.filters label{margin:0;font-weight:500}.blocked{font-weight:700;color:#8b2727}
 code{white-space:normal}ul{padding-left:22px}li{margin:5px 0}
 </style></head>
 <body>
@@ -22,14 +22,18 @@ code{white-space:normal}ul{padding-left:22px}li{margin:5px 0}
 <label for="location">Location</label><input id="location" value="Austin, Texas" required maxlength="150">
 <button type="submit" id="searchBtn">Search audience opportunities</button>
 </form><p class="muted">This search may use your configured discovery provider and consume search credits. It does not send outreach.</p></section>
-<p id="status" role="status" aria-live="polite"></p><section id="results" aria-label="Discovered audience opportunities"></section>
+<p id="status" role="status" aria-live="polite"></p><div class="filters"><label><input type="checkbox" id="hideBackground" checked> Hide background resources</label><span id="filterStatus" class="muted"></span></div><section id="results" aria-label="Discovered audience opportunities"></section>
 <script>
 const form=document.getElementById('searchForm'),results=document.getElementById('results'),status=document.getElementById('status'),btn=document.getElementById('searchBtn');
+let lastItems=[];const hideBackground=document.getElementById('hideBackground'),filterStatus=document.getElementById('filterStatus');
+hideBackground.addEventListener('change',()=>render(lastItems));
 function el(tag,text,cls){const n=document.createElement(tag);if(text!==undefined)n.textContent=String(text);if(cls)n.className=cls;return n}
-function render(items){results.replaceChildren();if(!items.length){results.append(el('p','No audience opportunities returned.'));return}
-for(const item of items){const card=el('article',undefined,'lead');card.append(el('h2',item.name||'Unnamed opportunity'));
+function render(items){lastItems=items;results.replaceChildren();const visible=items.filter(item=>!hideBackground.checked||item.lead_type!=='background_resource');filterStatus.textContent='Showing '+visible.length+' of '+items.length+' results';if(!visible.length){results.append(el('p','No results match this view. Uncheck the background filter to see all results.'));return}
+for(const item of visible){const card=el('article',undefined,'lead');card.append(el('h2',item.name||'Unnamed opportunity'));
 const url=String(item.url||'');if(/^https:\/\//i.test(url)){const a=el('a','View source');a.href=url;a.target='_blank';a.rel='noopener noreferrer';card.append(a)}
 card.append(el('p',item.snippet||'No description supplied.','muted'));
+const leadLabels={possible_submission_page:'Possible submission page — verify instructions',possible_submission_mention:'Submission mentioned — verify destination',background_resource:'Background resource — not a submission lead',unverified_general_result:'General result — submission route not found'};
+card.append(el('p','Lead type: '+(leadLabels[item.lead_type]||'Unclassified — manual review needed'),'triage'));
 const score=Number(item.audience_relevance_score);
 if(Number.isFinite(score))card.append(el('p','Discovery relevance: '+Math.max(0,Math.min(100,Math.round(score)))+'/100 (not a permission score)'));
 card.append(el('p','Category: '+(item.channel_type||item.type||'Unclassified')+' · Verification: '+(item.verification||'unverified')));
