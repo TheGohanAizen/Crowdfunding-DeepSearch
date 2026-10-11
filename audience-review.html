@@ -30,6 +30,11 @@ function render(items){results.replaceChildren();if(!items.length){results.appen
 for(const item of items){const card=el('article',undefined,'lead');card.append(el('h2',item.name||'Unnamed opportunity'));
 const url=String(item.url||'');if(/^https:\/\//i.test(url)){const a=el('a','View source');a.href=url;a.target='_blank';a.rel='noopener noreferrer';card.append(a)}
 card.append(el('p',item.snippet||'No description supplied.','muted'));
+const score=Number(item.audience_relevance_score);
+if(Number.isFinite(score))card.append(el('p','Discovery relevance: '+Math.max(0,Math.min(100,Math.round(score)))+'/100 (not a permission score)'));
+card.append(el('p','Category: '+(item.channel_type||item.type||'Unclassified')+' · Verification: '+(item.verification||'unverified')));
+const rules=item.channel_rules||{};
+card.append(el('p','Source rules: '+(rules.status||'not checked')+' · Permission: '+(rules.permission_verified===true?'reported verified (manual confirmation still required)':'not verified')));
 card.append(el('p','Automatic outreach: blocked','blocked'));
 const review=item.recipient_review||{},blockers=Array.isArray(review.blockers)?review.blockers:['recipient_review_unavailable'];
 card.append(el('h3','Review requirements'));const list=el('ul');
