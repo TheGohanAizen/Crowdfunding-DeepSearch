@@ -3494,6 +3494,16 @@ def create_app():
     from flask import Flask, jsonify, request
     app = Flask(__name__)
 
+    @app.get("/audience-review.html")
+    def audience_review_page():
+        """Serve the read-only audience review UI from the repository root."""
+        from flask import send_from_directory
+        from pathlib import Path
+        return send_from_directory(
+            str(Path(__file__).resolve().parent.parent),
+            "audience-review.html",
+        )
+
     @app.after_request
     def security_headers(response):
         origin = request.headers.get("Origin")
