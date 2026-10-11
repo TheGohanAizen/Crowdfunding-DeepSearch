@@ -11,7 +11,7 @@ label{display:block;font-weight:600;margin:12px 0 5px}
 input,select,button{font:inherit;padding:12px;border-radius:8px;border:1px solid #b8c7d9}
 input{width:100%;box-sizing:border-box}button{background:#183f7b;color:white;cursor:pointer;margin-top:16px}
 small,.muted{color:#52647c}.triage{font-weight:650;color:#294c70}.filters{display:flex;gap:14px;align-items:center;flex-wrap:wrap}.filters label{margin:0;font-weight:500}.blocked{font-weight:700;color:#8b2727}
-code{white-space:normal}ul{padding-left:22px}li{margin:5px 0}
+button.secondary{background:#fff;color:#183f7b}.manager-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.manager-row select{max-width:230px}.manager-row button{margin-top:0}.saved-card{border-top:1px solid #dbe3ee;padding:14px 0}code{white-space:normal}ul{padding-left:22px}li{margin:5px 0}
 </style></head>
 <body>
 <header><a href="/">← Campaign homepage</a><h1>Audience opportunity review</h1>
@@ -22,15 +22,27 @@ code{white-space:normal}ul{padding-left:22px}li{margin:5px 0}
 <label for="location">Location</label><input id="location" value="Austin, Texas" required maxlength="150">
 <button type="submit" id="searchBtn">Search audience opportunities</button>
 </form><p class="muted">This search may use your configured discovery provider and consume search credits. It does not send outreach.</p></section>
+<section class="panel" aria-label="Saved opportunities"><h2>Saved opportunity manager</h2><p class="muted">Saved only in this browser on this device. Not synced to Render or other devices. Avoid storing private personal details on a shared Chromebook. No outreach is sent.</p><p id="savedCount"></p><button type="button" id="exportSaved" class="secondary">Export saved opportunities (JSON)</button><div id="savedResults"></div></section>
 <p id="status" role="status" aria-live="polite"></p><div class="filters"><label><input type="checkbox" id="hideBackground" checked> Hide background resources</label><span id="filterStatus" class="muted"></span></div><section id="results" aria-label="Discovered audience opportunities"></section>
 <script>
 const form=document.getElementById('searchForm'),results=document.getElementById('results'),status=document.getElementById('status'),btn=document.getElementById('searchBtn');
 let lastItems=[];const hideBackground=document.getElementById('hideBackground'),filterStatus=document.getElementById('filterStatus');
 hideBackground.addEventListener('change',()=>render(lastItems));
+const STORAGE_KEY='crowdfunding_deepsearch_saved_opportunities_v1';
+function loadSaved(){try{const value=JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]');return Array.isArray(value)?value.filter(x=>x&&typeof x.url==='string').slice(0,250):[]}catch{return []}}
+let saved=loadSaved();
+function persistSaved(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(saved));renderSaved();return true}catch{status.textContent='Could not save to browser storage. Export your existing leads for backup.';return false}}
+function safeUrl(url){try{const u=new URL(url);return u.protocol==='https:'?u.href:null}catch{return null}}
+function renderSaved(){const area=document.getElementById('savedResults');area.replaceChildren();document.getElementById('savedCount').textContent=saved.length+' saved (maximum 250)';
+for(const item of saved){const card=el('div',undefined,'saved-card');card.append(el('strong',item.name||item.url));const link=safeUrl(item.url);if(link){const a=el('a',' Open source');a.href=link;a.target='_blank';a.rel='noopener noreferrer';card.append(a)}
+const controls=el('div',undefined,'manager-row');const state=el('select');for(const [value,label] of [['needs_review','Needs review'],['researching','Researching'],['submission_route_found','Submission route found'],['not_suitable','Not suitable'],['manually_contacted','Manually contacted']]){const opt=el('option',label);opt.value=value;state.append(opt)}state.value=item.status||'needs_review';state.setAttribute('aria-label','Review status for '+(item.name||'opportunity'));state.addEventListener('change',()=>{item.status=state.value;persistSaved()});controls.append(state);
+const remove=el('button','Remove','secondary');remove.type='button';remove.addEventListener('click',()=>{saved=saved.filter(x=>x.url!==item.url);persistSaved();if(lastItems.length)render(lastItems)});controls.append(remove);card.append(controls);area.append(card)}}
+document.getElementById('exportSaved').addEventListener('click',()=>{const blob=new Blob([JSON.stringify(saved,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='crowdfunding-opportunities.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)});
+renderSaved();
 function el(tag,text,cls){const n=document.createElement(tag);if(text!==undefined)n.textContent=String(text);if(cls)n.className=cls;return n}
 function render(items){lastItems=items;results.replaceChildren();const visible=items.filter(item=>!hideBackground.checked||item.lead_type!=='background_resource');filterStatus.textContent='Showing '+visible.length+' of '+items.length+' results';if(!visible.length){results.append(el('p','No results match this view. Uncheck the background filter to see all results.'));return}
 for(const item of visible){const card=el('article',undefined,'lead');card.append(el('h2',item.name||'Unnamed opportunity'));
-const url=String(item.url||'');if(/^https:\/\//i.test(url)){const a=el('a','View source');a.href=url;a.target='_blank';a.rel='noopener noreferrer';card.append(a)}
+const url=String(item.url||'');if(safeUrl(url)){const a=el('a','View source');a.href=url;a.target='_blank';a.rel='noopener noreferrer';card.append(a)}
 card.append(el('p',item.snippet||'No description supplied.','muted'));
 const leadLabels={possible_submission_page:'Possible submission page — verify instructions',possible_submission_mention:'Submission mentioned — verify destination',background_resource:'Background resource — not a submission lead',unverified_general_result:'General result — submission route not found'};
 card.append(el('p','Lead type: '+(leadLabels[item.lead_type]||'Unclassified — manual review needed'),'triage'));
@@ -40,6 +52,7 @@ card.append(el('p','Category: '+(item.channel_type||item.type||'Unclassified')+'
 const rules=item.channel_rules||{};
 card.append(el('p','Source rules: '+(rules.status||'not checked')+' · Permission: '+(rules.permission_verified===true?'reported verified (manual confirmation still required)':'not verified')));
 card.append(el('p','Automatic outreach: blocked','blocked'));
+if(safeUrl(url)){const save=el('button',saved.some(x=>x.url===url)?'Saved':'Save for review','secondary');save.type='button';save.disabled=saved.some(x=>x.url===url)||saved.length>=250;save.addEventListener('click',()=>{if(saved.some(x=>x.url===url))return;saved.push({url,name:String(item.name||'Unnamed opportunity').slice(0,250),lead_type:String(item.lead_type||'unverified'),status:'needs_review'});if(persistSaved()){save.textContent='Saved';save.disabled=true}});card.append(save)}
 const review=item.recipient_review||{},blockers=Array.isArray(review.blockers)?review.blockers:['recipient_review_unavailable'];
 card.append(el('h3','Review requirements'));const list=el('ul');
 for(const b of blockers)list.append(el('li',String(b).replaceAll('_',' ')));card.append(list);
