@@ -1140,7 +1140,30 @@ def audience_relevance_signals(candidate, need, location):
         # but must not appear as a near-certain promotion opportunity.
         score = min(score, 70)
         signals.append("submission_route_unverified")
+    # Distinguish a direct submission lead from educational/editorial content.
+    # This is only a triage label, never evidence of contact permission.
+    title = str(candidate.get("name") or "").lower()
+    educational_titles = (
+        "tips for", "how to", "examples for", "best podcasts", "podcasts to listen",
+        "what is", "guide to", "guides to", "newsletter: an essential",
+    )
+    direct_title_terms = (
+        "submit your story", "submit a story", "send us a tip", "submit a tip",
+        "submit an event", "submit a fundraiser", "pitch a story",
+        "contact the newsroom", "share your story", "guest application",
+    )
+    if any(term in title for term in educational_titles):
+        score = min(score, 30)
+        signals.append("educational_or_listicle_page")
+        lead_type = "background_resource"
+    elif any(term in title for term in direct_title_terms):
+        lead_type = "possible_submission_page"
+    elif actionable:
+        lead_type = "possible_submission_mention"
+    else:
+        lead_type = "unverified_general_result"
     checked = dict(candidate)
+    checked["lead_type"] = lead_type
     checked["audience_relevance_score"] = min(score, 100)
     checked["audience_relevance_signals"] = signals
     checked["permission_verified"] = False
