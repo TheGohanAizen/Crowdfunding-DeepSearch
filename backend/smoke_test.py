@@ -1086,7 +1086,9 @@ try:
     assert 'discovered_in_lanes' in server_source
     assert 'discovered_in_stages' in server_source
     assert '"transport" in topic_lower or "vehicle" in topic_lower' in server_source
-    assert 'transportation vehicle assistance resources' in server_source
+    assert 'community groups nonprofit mutual aid submit fundraiser share personal hardship story' in server_source
+    assert 'local news newsroom submit human interest story tip community fundraiser' in server_source
+    assert 'community newsletter submit fundraiser charity event announcement submission' in server_source
     assert '"medical" in topic_lower or "health" in topic_lower' in server_source
     assert '"housing" in topic_lower or "rent" in topic_lower' in server_source
     assert 'commercial_or_irrelevant_noise:' in server_source
