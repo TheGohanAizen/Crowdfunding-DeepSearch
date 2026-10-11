@@ -174,10 +174,10 @@ def build_audience_queries(need, location, scope="automatic"):
     topic_lower = topic.lower()
     if "transport" in topic_lower or "vehicle" in topic_lower:
         lanes = [
-            ("Community Forums", "public community forum transportation vehicle assistance resources"),
-            ("Local Media", "local news transportation hardship human interest story tips"),
-            ("Creators & Podcasts", "podcast creator transportation hardship community assistance interview"),
-            ("Directories & Newsletters", "transportation assistance community newsletter resource directory submissions"),
+            ("Community Forums", "community groups nonprofit mutual aid submit fundraiser share personal hardship story"),
+            ("Local Media", "local news newsroom submit human interest story tip community fundraiser"),
+            ("Creators & Podcasts", "community podcast guest application submit story interview fundraising hardship"),
+            ("Directories & Newsletters", "community newsletter submit fundraiser charity event announcement submission"),
         ]
     elif "medical" in topic_lower or "health" in topic_lower:
         lanes = [
