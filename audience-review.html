@@ -22,7 +22,7 @@ button.secondary{background:#fff;color:#183f7b}.manager-row{display:flex;gap:10p
 <label for="location">Location</label><input id="location" value="Austin, Texas" required maxlength="150">
 <button type="submit" id="searchBtn">Search audience opportunities</button>
 </form><p class="muted">This search may use your configured discovery provider and consume search credits. It does not send outreach.</p></section>
-<section class="panel" aria-label="Saved opportunities"><h2>Saved opportunity manager</h2><p class="muted">Saved only in this browser on this device. Not synced to Render or other devices. Avoid storing private personal details on a shared Chromebook. No outreach is sent.</p><p id="savedCount"></p><button type="button" id="exportSaved" class="secondary">Export saved opportunities (JSON)</button><div id="savedResults"></div></section>
+<section class="panel" aria-label="Saved opportunities"><h2>Saved opportunity manager</h2><p class="muted">Saved only in this browser on this device. Not synced to Render or other devices. Avoid storing private personal details on a shared Chromebook. No outreach is sent.</p><p id="savedCount"></p><button type="button" id="exportSaved" class="secondary">Export saved opportunities (JSON)</button><label for="importSaved">Import saved opportunities (JSON backup)</label><input type="file" id="importSaved" accept=".json,application/json"><p class="muted">Import merges new source URLs without replacing existing notes or statuses. Maximum 250 entries. Export a fresh backup before importing.</p><p id="importStatus" role="status" aria-live="polite"></p><div id="savedResults"></div></section>
 <p id="status" role="status" aria-live="polite"></p><div class="filters"><label><input type="checkbox" id="hideBackground" checked> Hide background resources</label><span id="filterStatus" class="muted"></span></div><section id="results" aria-label="Discovered audience opportunities"></section>
 <script>
 const form=document.getElementById('searchForm'),results=document.getElementById('results'),status=document.getElementById('status'),btn=document.getElementById('searchBtn');
@@ -41,6 +41,27 @@ const campaignLabel=el('label','Campaign label (optional; no private details)');
 const notesLabel=el('label','Review notes / submission instructions');const notes=el('textarea');notes.value=item.notes||'';notes.maxLength=1500;notes.placeholder='Record public submission instructions, restrictions or next steps';notes.setAttribute('aria-label','Review notes for '+(item.name||'opportunity'));notes.addEventListener('change',()=>{item.notes=notes.value.slice(0,1500);persistSaved()});card.append(notesLabel,notes);
 area.append(card)}}
 document.getElementById('exportSaved').addEventListener('click',()=>{const blob=new Blob([JSON.stringify(saved,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='crowdfunding-opportunities.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)});
+function normalizedUrl(value){const url=safeUrl(value);if(!url)return null;const u=new URL(url);u.hash='';u.hostname=u.hostname.toLowerCase();if(u.pathname.length>1)u.pathname=u.pathname.replace(/\\/+$/,'');return u.href}
+const VALID_STATES=new Set(['needs_review','researching','submission_route_found','not_suitable','manually_contacted']);
+document.getElementById('importSaved').addEventListener('change',async event=>{
+const field=event.target,notice=document.getElementById('importStatus'),file=field.files&&field.files[0];if(!file)return;
+try{
+ if(file.size>1024*1024)throw Error('Backup exceeds the 1 MB import limit.');
+ const data=JSON.parse(await file.text());if(!Array.isArray(data))throw Error('Expected a JSON array of saved opportunities.');
+ if(data.length>250)throw Error('Backup has more than 250 entries.');
+ const known=new Set(saved.map(x=>normalizedUrl(x.url)).filter(Boolean));const additions=[];let duplicates=0,invalid=0;
+ for(const item of data){
+  if(!item||typeof item!=='object'||Array.isArray(item)||typeof item.url!=='string'||!normalizedUrl(item.url)){invalid++;continue}
+  const key=normalizedUrl(item.url);if(known.has(key)){duplicates++;continue}
+  known.add(key);
+  additions.push({url:key,name:typeof item.name==='string'?item.name.slice(0,250):'Imported opportunity',lead_type:typeof item.lead_type==='string'?item.lead_type.slice(0,100):'unverified',status:VALID_STATES.has(item.status)?item.status:'needs_review',campaign_label:typeof item.campaign_label==='string'?item.campaign_label.slice(0,100):'',notes:typeof item.notes==='string'?item.notes.slice(0,1500):''});
+ }
+ const available=Math.max(0,250-saved.length);const accepted=additions.slice(0,available);const oldSaved=saved;saved=saved.concat(accepted);
+ if(!persistSaved()){saved=oldSaved;throw Error('Browser storage unavailable. No import saved.')}
+ notice.textContent='Imported '+accepted.length+' new opportunities; '+duplicates+' duplicates skipped; '+invalid+' invalid skipped; '+(additions.length-accepted.length)+' beyond capacity skipped. Existing entries unchanged.';
+ if(lastItems.length)render(lastItems);
+}catch(err){notice.textContent='Import failed: '+err.message}finally{field.value=''}
+});
 renderSaved();
 function el(tag,text,cls){const n=document.createElement(tag);if(text!==undefined)n.textContent=String(text);if(cls)n.className=cls;return n}
 function render(items){lastItems=items;results.replaceChildren();const visible=items.filter(item=>!hideBackground.checked||item.lead_type!=='background_resource');filterStatus.textContent='Showing '+visible.length+' of '+items.length+' results';if(!visible.length){results.append(el('p','No results match this view. Uncheck the background filter to see all results.'));return}
