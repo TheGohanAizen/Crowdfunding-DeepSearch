@@ -215,7 +215,8 @@ def build_audience_queries(need, location, scope="automatic"):
     queries = []
     for geo_stage, geography in selected_stages:
         for lane, terms in lanes:
-            query = " ".join(part for part in [geography, topic, terms] if part).strip()
+            query_topic = "" if ("transport" in topic_lower or "vehicle" in topic_lower) else topic
+            query = " ".join(part for part in [geography, query_topic, terms] if part).strip()
             queries.append({
                 "lane": lane,
                 "query": query,
