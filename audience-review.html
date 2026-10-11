@@ -8,8 +8,8 @@ body{font:16px system-ui,sans-serif;background:#f4f7fb;color:#172033;max-width:9
 a{color:#1555a0}header{margin-bottom:24px}h1{margin-bottom:6px}
 .panel,.lead{background:white;border:1px solid #dbe3ee;border-radius:14px;padding:20px;margin:16px 0}
 label{display:block;font-weight:600;margin:12px 0 5px}
-input,select,button{font:inherit;padding:12px;border-radius:8px;border:1px solid #b8c7d9}
-input{width:100%;box-sizing:border-box}button{background:#183f7b;color:white;cursor:pointer;margin-top:16px}
+input,select,button,textarea{font:inherit;padding:12px;border-radius:8px;border:1px solid #b8c7d9}
+input,textarea{width:100%;box-sizing:border-box}textarea{min-height:74px;resize:vertical}button{background:#183f7b;color:white;cursor:pointer;margin-top:16px}
 small,.muted{color:#52647c}.triage{font-weight:650;color:#294c70}.filters{display:flex;gap:14px;align-items:center;flex-wrap:wrap}.filters label{margin:0;font-weight:500}.blocked{font-weight:700;color:#8b2727}
 button.secondary{background:#fff;color:#183f7b}.manager-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.manager-row select{max-width:230px}.manager-row button{margin-top:0}.saved-card{border-top:1px solid #dbe3ee;padding:14px 0}code{white-space:normal}ul{padding-left:22px}li{margin:5px 0}
 </style></head>
@@ -36,7 +36,10 @@ function safeUrl(url){try{const u=new URL(url);return u.protocol==='https:'?u.hr
 function renderSaved(){const area=document.getElementById('savedResults');area.replaceChildren();document.getElementById('savedCount').textContent=saved.length+' saved (maximum 250)';
 for(const item of saved){const card=el('div',undefined,'saved-card');card.append(el('strong',item.name||item.url));const link=safeUrl(item.url);if(link){const a=el('a',' Open source');a.href=link;a.target='_blank';a.rel='noopener noreferrer';card.append(a)}
 const controls=el('div',undefined,'manager-row');const state=el('select');for(const [value,label] of [['needs_review','Needs review'],['researching','Researching'],['submission_route_found','Submission route found'],['not_suitable','Not suitable'],['manually_contacted','Manually contacted']]){const opt=el('option',label);opt.value=value;state.append(opt)}state.value=item.status||'needs_review';state.setAttribute('aria-label','Review status for '+(item.name||'opportunity'));state.addEventListener('change',()=>{item.status=state.value;persistSaved()});controls.append(state);
-const remove=el('button','Remove','secondary');remove.type='button';remove.addEventListener('click',()=>{saved=saved.filter(x=>x.url!==item.url);persistSaved();if(lastItems.length)render(lastItems)});controls.append(remove);card.append(controls);area.append(card)}}
+const remove=el('button','Remove','secondary');remove.type='button';remove.addEventListener('click',()=>{saved=saved.filter(x=>x.url!==item.url);persistSaved();if(lastItems.length)render(lastItems)});controls.append(remove);card.append(controls);
+const campaignLabel=el('label','Campaign label (optional; no private details)');const campaign=el('input');campaign.value=item.campaign_label||'';campaign.maxLength=100;campaign.placeholder='e.g. Transportation fundraiser';campaign.setAttribute('aria-label','Campaign label for '+(item.name||'opportunity'));campaign.addEventListener('change',()=>{item.campaign_label=campaign.value.trim().slice(0,100);persistSaved()});card.append(campaignLabel,campaign);
+const notesLabel=el('label','Review notes / submission instructions');const notes=el('textarea');notes.value=item.notes||'';notes.maxLength=1500;notes.placeholder='Record public submission instructions, restrictions or next steps';notes.setAttribute('aria-label','Review notes for '+(item.name||'opportunity'));notes.addEventListener('change',()=>{item.notes=notes.value.slice(0,1500);persistSaved()});card.append(notesLabel,notes);
+area.append(card)}}
 document.getElementById('exportSaved').addEventListener('click',()=>{const blob=new Blob([JSON.stringify(saved,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='crowdfunding-opportunities.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)});
 renderSaved();
 function el(tag,text,cls){const n=document.createElement(tag);if(text!==undefined)n.textContent=String(text);if(cls)n.className=cls;return n}
