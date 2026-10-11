@@ -1753,7 +1753,9 @@ try:
     assert automation_decision["allowed"] is False
     assert automation_decision["supported"] is False
     assert automation_decision["reason"] == "mechanism_not_registered"
-    assert automation_decision["blockers"] == ["mechanism_not_registered"]
+    assert "mechanism_not_registered" in automation_decision["blockers"]
+    assert "trusted_authorization_not_implemented" in automation_decision["blockers"]
+    assert automation_decision["recipient_review"]["send_allowed"] is False
     assert crowdfunding_server.SUPPORTED_AUTOMATION_MECHANISMS == frozenset({"sendgrid_mail_v3", "brevo_email_v3"})
     connector_status = automation_connector_status("untrusted-generic-form")
     assert connector_status["registered"] is False
