@@ -16,6 +16,7 @@ def initialize(connection):
         attempts INTEGER NOT NULL,
         window_start INTEGER NOT NULL
     )""")
+    connection.execute("CREATE INDEX IF NOT EXISTS idx_opportunity_login_limits_window ON opportunity_login_limits(window_start)")
     connection.commit()
 
 
@@ -107,6 +108,34 @@ def record_attempts(connection, buckets, now=None):
                 )
         connection.commit()
         return True
+    except Exception:
+        connection.rollback()
+        raise
+
+
+def prune_expired_buckets(connection, now=None, batch_size=500):
+    """Delete a bounded batch of expired throttle rows; call from trusted maintenance.
+
+    This does not run on the login request path. Never accept a client-supplied
+    clock or expose this operation as an unauthenticated endpoint.
+    """
+    if type(batch_size) is not int or not 1 <= batch_size <= 5000:
+        raise ValueError("invalid cleanup batch size")
+    timestamp = int(time.time() if now is None else now)
+    cutoff = timestamp - WINDOW_SECONDS
+    connection.execute("BEGIN IMMEDIATE")
+    try:
+        rows = connection.execute(
+            "SELECT bucket FROM opportunity_login_limits WHERE window_start <= ? ORDER BY window_start LIMIT ?",
+            (cutoff, batch_size),
+        ).fetchall()
+        if rows:
+            connection.executemany(
+                "DELETE FROM opportunity_login_limits WHERE bucket=? AND window_start <= ?",
+                ((row[0], cutoff) for row in rows),
+            )
+        connection.commit()
+        return len(rows)
     except Exception:
         connection.rollback()
         raise
