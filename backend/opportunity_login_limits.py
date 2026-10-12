@@ -57,3 +57,50 @@ def record_attempt(connection, bucket, now=None):
     except Exception:
         connection.rollback()
         raise
+
+
+def record_attempts(connection, buckets, now=None):
+    """Atomically enforce all buckets (e.g. per-IP and per-account/IP).
+
+    No bucket is charged when any bucket is already blocked.
+    """
+    if not isinstance(buckets, (tuple, list)) or not buckets:
+        raise ValueError("login buckets required")
+    unique = list(dict.fromkeys(buckets))
+    for bucket in unique:
+        if not isinstance(bucket, str) or len(bucket) != 64 or any(
+            c not in "0123456789abcdef" for c in bucket
+        ):
+            raise ValueError("invalid login bucket")
+    timestamp = int(time.time() if now is None else now)
+    connection.execute("BEGIN IMMEDIATE")
+    try:
+        states = []
+        for bucket in unique:
+            row = connection.execute(
+                "SELECT attempts,window_start FROM opportunity_login_limits WHERE bucket=?",
+                (bucket,),
+            ).fetchone()
+            fresh = row is None or timestamp - row[1] >= WINDOW_SECONDS or timestamp < row[1]
+            if not fresh and row[0] >= MAX_ATTEMPTS:
+                connection.commit()
+                return False
+            states.append((bucket, fresh))
+        for bucket, fresh in states:
+            if fresh:
+                connection.execute(
+                    """INSERT INTO opportunity_login_limits(bucket,attempts,window_start)
+                    VALUES (?,1,?) ON CONFLICT(bucket)
+                    DO UPDATE SET attempts=1,window_start=excluded.window_start""",
+                    (bucket, timestamp),
+                )
+            else:
+                connection.execute(
+                    "UPDATE opportunity_login_limits SET attempts=attempts+1 WHERE bucket=?",
+                    (bucket,),
+                )
+        connection.commit()
+        return True
+    except Exception:
+        connection.rollback()
+        raise
