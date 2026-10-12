@@ -25,15 +25,16 @@ def issue_challenge(connection, owner_id, now=None):
     if not isinstance(owner_id, str) or not owner_id.strip() or len(owner_id) > 200:
         raise ValueError("invalid account")
     current = int(time.time() if now is None else now)
-    row = connection.execute(
-        "SELECT email_verified,disabled_at FROM opportunity_accounts WHERE owner_id=?",
-        (owner_id,),
-    ).fetchone()
-    if row is None or row[0] != 0 or row[1] is not None:
-        raise ValueError("account not eligible for verification")
     token = secrets.token_urlsafe(32)
     token_hash = hashlib.sha256(token.encode("ascii")).hexdigest()
-    with connection:
+    connection.execute("BEGIN IMMEDIATE")
+    try:
+        row = connection.execute(
+            "SELECT email_verified,disabled_at FROM opportunity_accounts WHERE owner_id=?",
+            (owner_id,),
+        ).fetchone()
+        if row is None or row[0] != 0 or row[1] is not None:
+            raise ValueError("account not eligible for verification")
         connection.execute(
             """INSERT INTO opportunity_email_challenges
             (owner_id,token_hash,expires_at,consumed_at) VALUES (?,?,?,NULL)
@@ -41,6 +42,10 @@ def issue_challenge(connection, owner_id, now=None):
             token_hash=excluded.token_hash,expires_at=excluded.expires_at,consumed_at=NULL""",
             (owner_id, token_hash, current + TOKEN_LIFETIME),
         )
+        connection.commit()
+    except Exception:
+        connection.rollback()
+        raise
     return token
 
 
