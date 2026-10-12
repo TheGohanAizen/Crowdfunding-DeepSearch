@@ -123,6 +123,8 @@ class OpportunityStoreTests(unittest.TestCase):
             "https://example.org/%01",
             "https://example.org/?q=%1f",
             "https://example.org/%7F",
+            "https://example.org/%5cadmin",
+            "https://example.org/?next=%5Cprivate",
         ):
             with self.subTest(url=url), self.assertRaises(ValueError):
                 normalize_url(url)
