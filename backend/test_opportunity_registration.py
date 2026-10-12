@@ -73,6 +73,14 @@ class RegistrationTests(unittest.TestCase):
     def test_malformed_unicode_email_fails_closed(self):
         self.assertIsNone(self.register("\ud800@example.org"))
 
+    def test_invalid_password_does_not_create_account(self):
+        for password in ("short", None, "x" * 1025):
+            with self.subTest(password=repr(password)[:20]):
+                self.assertIsNone(attempt_registration(
+                    self.db, "invalid-password@example.org", password, "192.0.2.1", now=1000
+                ))
+        self.assertEqual(self.db.execute("SELECT COUNT(*) FROM opportunity_accounts").fetchone()[0], 0)
+
     def test_registration_budget_resets_after_window(self):
         for i in range(5):
             self.assertIsNotNone(self.register("early%d@example.org" % i, now=1000))
