@@ -102,12 +102,11 @@ def _text(item, key, limit, default=""):
     value = item.get(key, default)
     if not isinstance(value, str):
         raise ValueError("invalid " + key)
-    value = value[:limit]
     try:
         value.encode("utf-8")
     except UnicodeError as exc:
         raise ValueError("invalid " + key) from exc
-    return value
+    return value[:limit]
 
 
 def add(connection, owner_id, item):
