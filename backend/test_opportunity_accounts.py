@@ -3,7 +3,7 @@ import sqlite3
 import unittest
 
 from opportunity_accounts import (
-    initialize, normalize_email, register_unverified, verify_credentials,
+    initialize, normalize_email, register_unverified, verify_credentials, disable_account,
 )
 
 
@@ -39,6 +39,15 @@ class AccountTests(unittest.TestCase):
         self.db.execute("UPDATE opportunity_accounts SET disabled_at='2026-10-11' WHERE owner_id=?", (owner,))
         self.db.commit()
         self.assertIsNone(verify_credentials(self.db, "person@example.org", "strong unique password 2026"))
+
+    def test_disable_requires_session_registry_and_rolls_back(self):
+        owner = register_unverified(self.db, "disabled@example.org", "strong unique password 2026")
+        with self.assertRaises(sqlite3.OperationalError):
+            disable_account(self.db, owner)
+        disabled = self.db.execute(
+            "SELECT disabled_at FROM opportunity_accounts WHERE owner_id=?", (owner,)
+        ).fetchone()[0]
+        self.assertIsNone(disabled)
 
     def test_bad_email(self):
         for email in ("", "missing-at-sign", "@example.org", "person@localhost", None):
