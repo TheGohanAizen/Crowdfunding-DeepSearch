@@ -77,6 +77,10 @@ def initialize(connection):
 def require_owner(owner_id):
     if not isinstance(owner_id, str) or not owner_id.strip() or len(owner_id) > 200:
         raise ValueError("verified owner required")
+    try:
+        owner_id.encode("utf-8")
+    except UnicodeError as exc:
+        raise ValueError("verified owner required") from exc
     return owner_id
 
 
