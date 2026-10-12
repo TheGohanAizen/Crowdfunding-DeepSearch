@@ -50,7 +50,11 @@ def verify_session(token, secret, now=None, max_age=MAX_AGE_SECONDS):
     if not isinstance(token, str) or len(token) > 4096 or token.count(".") != 1:
         raise ValueError("invalid session token")
     payload_part, signature_part = token.split(".")
-    expected = hmac.new(key, payload_part.encode("ascii"), hashlib.sha256).digest()
+    try:
+        payload_bytes = payload_part.encode("ascii")
+    except UnicodeEncodeError as exc:
+        raise ValueError("invalid session token") from exc
+    expected = hmac.new(key, payload_bytes, hashlib.sha256).digest()
     supplied = _decode(signature_part)
     if not hmac.compare_digest(expected, supplied):
         raise ValueError("invalid session signature")
