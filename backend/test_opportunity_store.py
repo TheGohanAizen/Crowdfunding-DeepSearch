@@ -134,6 +134,21 @@ class OpportunityStoreTests(unittest.TestCase):
                          "https://example.org/%80")
         self.assertEqual(list_for_owner(self.db, "verified-user-A"), [])
 
+    def test_percent_escape_case_normalizes_for_duplicate_merge(self):
+        first = add(self.db, "verified-user-A", {
+            "url": "https://example.org/a%2fb?q=%3d", "notes": "Keep",
+        })
+        second = add(self.db, "verified-user-A", {
+            "url": "https://example.org/a%2Fb?q=%3D", "notes": "Do not replace",
+        })
+        self.assertTrue(first["created"])
+        self.assertFalse(second["created"])
+        self.assertEqual(first["record_id"], second["record_id"])
+        rows = list_for_owner(self.db, "verified-user-A")
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["url"], "https://example.org/a%2Fb?q=%3D")
+        self.assertEqual(rows[0]["notes"], "Keep")
+
     def test_malformed_unicode_urls_rejected_before_storage(self):
         for url in ("https://example.org/\ud800", "https://example.org/?q=\ud800"):
             with self.subTest(url=repr(url)), self.assertRaises(ValueError):
