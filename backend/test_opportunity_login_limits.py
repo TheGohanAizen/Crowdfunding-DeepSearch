@@ -39,6 +39,10 @@ class LoginThrottleTests(unittest.TestCase):
         self.assertFalse(record_attempts(self.db, keys, now=1000))
         self.assertTrue(record_attempts(self.db, keys, now=1900))
 
+    def test_bucket_fields_cannot_collide_via_delimiters(self):
+        self.assertNotEqual(bucket_key("a|b", "c"), bucket_key("a", "b|c"))
+        self.assertNotEqual(bucket_key("ab", "c"), bucket_key("a", "bc"))
+
     def test_invalid_bucket(self):
         with self.assertRaises(ValueError):
             record_attempt(self.db, "untrusted", now=1000)
