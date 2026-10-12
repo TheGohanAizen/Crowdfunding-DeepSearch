@@ -1,0 +1,147 @@
+"""Isolated, offline-only opportunity repository prototype.
+
+Not wired to Flask routes or production Turso. The caller MUST supply an
+owner ID derived from independently verified authentication, never request JSON.
+"""
+import sqlite3
+import uuid
+from datetime import datetime, timezone
+from urllib.parse import urlsplit, urlunsplit
+
+VALID_STATUSES = frozenset({
+    "needs_review", "researching", "submission_route_found",
+    "not_suitable", "manually_contacted",
+})
+MAX_RECORDS = 250
+
+
+def normalize_url(value):
+    if not isinstance(value, str) or len(value) > 2048:
+        raise ValueError("invalid URL")
+    parts = urlsplit(value.strip())
+    if parts.scheme.lower() != "https" or not parts.hostname or parts.username or parts.password:
+        raise ValueError("HTTPS source URL required")
+    host = parts.hostname.lower()
+    if parts.port is not None and parts.port != 443:
+        raise ValueError("nonstandard port not supported")
+    netloc = host if ":" not in host else "[" + host + "]"
+    path = parts.path.rstrip("/") or "/"
+    return urlunsplit(("https", netloc, path, parts.query, ""))
+
+
+def initialize(connection):
+    connection.execute("""CREATE TABLE IF NOT EXISTS opportunity_records (
+        owner_id TEXT NOT NULL,
+        record_id TEXT NOT NULL,
+        source_url TEXT NOT NULL,
+        normalized_url TEXT NOT NULL,
+        name TEXT NOT NULL,
+        lead_type TEXT NOT NULL,
+        review_status TEXT NOT NULL,
+        campaign_label TEXT NOT NULL,
+        notes TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (owner_id, record_id),
+        UNIQUE (owner_id, normalized_url)
+    )""")
+    connection.execute("""CREATE INDEX IF NOT EXISTS idx_opportunity_owner_updated
+        ON opportunity_records(owner_id, updated_at)""")
+    connection.commit()
+
+
+def require_owner(owner_id):
+    if not isinstance(owner_id, str) or not owner_id.strip() or len(owner_id) > 200:
+        raise ValueError("verified owner required")
+    return owner_id
+
+
+def _text(item, key, limit, default=""):
+    value = item.get(key, default)
+    if not isinstance(value, str):
+        raise ValueError("invalid " + key)
+    return value[:limit]
+
+
+def add(connection, owner_id, item):
+    """Merge-only insert. Caller must authenticate owner_id first."""
+    owner_id = require_owner(owner_id)
+    if not isinstance(item, dict):
+        raise ValueError("invalid opportunity")
+    url = normalize_url(item.get("url"))
+    name = _text(item, "name", 250, "Imported opportunity")
+    lead_type = _text(item, "lead_type", 100, "unverified")
+    status = item.get("status", "needs_review")
+    if status not in VALID_STATUSES:
+        raise ValueError("invalid status")
+    campaign = _text(item, "campaign_label", 100)
+    notes = _text(item, "notes", 1500)
+    now = datetime.now(timezone.utc).isoformat()
+    with connection:
+        existing = connection.execute(
+            "SELECT record_id FROM opportunity_records WHERE owner_id=? AND normalized_url=?",
+            (owner_id, url),
+        ).fetchone()
+        if existing:
+            return {"created": False, "record_id": existing[0]}
+        count = connection.execute(
+            "SELECT COUNT(*) FROM opportunity_records WHERE owner_id=?", (owner_id,)
+        ).fetchone()[0]
+        if count >= MAX_RECORDS:
+            raise ValueError("opportunity quota exceeded")
+        record_id = uuid.uuid4().hex
+        connection.execute(
+            """INSERT INTO opportunity_records
+            (owner_id,record_id,source_url,normalized_url,name,lead_type,
+             review_status,campaign_label,notes,created_at,updated_at)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+            (owner_id,record_id,url,url,name,lead_type,status,campaign,notes,now,now),
+        )
+    return {"created": True, "record_id": record_id}
+
+
+def list_for_owner(connection, owner_id, limit=100):
+    owner_id = require_owner(owner_id)
+    if not isinstance(limit, int) or not 1 <= limit <= MAX_RECORDS:
+        raise ValueError("invalid limit")
+    rows = connection.execute(
+        """SELECT record_id,source_url,name,lead_type,review_status,
+                  campaign_label,notes,updated_at
+           FROM opportunity_records WHERE owner_id=?
+           ORDER BY updated_at DESC,record_id LIMIT ?""",
+        (owner_id, limit),
+    ).fetchall()
+    keys = ("record_id","url","name","lead_type","status","campaign_label","notes","updated_at")
+    return [dict(zip(keys, row)) for row in rows]
+
+
+def update_for_owner(connection, owner_id, record_id, changes):
+    owner_id = require_owner(owner_id)
+    if not isinstance(changes, dict) or not changes or set(changes) - {"status","campaign_label","notes"}:
+        raise ValueError("invalid update")
+    columns = {"status":"review_status","campaign_label":"campaign_label","notes":"notes"}
+    limits = {"campaign_label":100,"notes":1500}
+    updates = {}
+    for key, value in changes.items():
+        if key == "status":
+            if value not in VALID_STATUSES:
+                raise ValueError("invalid status")
+        else:
+            if not isinstance(value,str) or len(value)>limits[key]:
+                raise ValueError("invalid "+key)
+        updates[columns[key]] = value
+    updates["updated_at"] = datetime.now(timezone.utc).isoformat()
+    sql = "UPDATE opportunity_records SET "+", ".join(k+"=?" for k in updates)+" WHERE owner_id=? AND record_id=?"
+    with connection:
+        result = connection.execute(sql, (*updates.values(),owner_id,record_id))
+    return result.rowcount == 1
+
+
+def delete_for_owner(connection, owner_id, record_id):
+    owner_id = require_owner(owner_id)
+    with connection:
+        result = connection.execute(
+            "DELETE FROM opportunity_records WHERE owner_id=? AND record_id=?",
+            (owner_id,record_id),
+        )
+    return result.rowcount == 1
