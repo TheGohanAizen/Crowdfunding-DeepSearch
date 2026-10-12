@@ -46,7 +46,9 @@ jobs:
               py_compile.compile(path, doraise=True)
           PY
       - name: Run all offline opportunity security tests
+        shell: bash
         run: |
+          set -o pipefail
           python - <<'PY' 2>&1 | tee opportunity-test-results.txt
           import sys
           import unittest
