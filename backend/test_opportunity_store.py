@@ -114,6 +114,21 @@ class OpportunityStoreTests(unittest.TestCase):
                          "https://example.org/?q=%2F")
         self.assertEqual(list_for_owner(self.db, "verified-user-A"), [])
 
+    def test_encoded_control_bytes_are_rejected(self):
+        for url in (
+            "https://example.org/%0d",
+            "https://example.org/path%0Aheader",
+            "https://example.org/?q=%00",
+            "https://example.org/?q=%0D%0A",
+        ):
+            with self.subTest(url=url), self.assertRaises(ValueError):
+                normalize_url(url)
+            with self.assertRaises(ValueError):
+                add(self.db, "verified-user-A", {"url": url})
+        self.assertEqual(normalize_url("https://example.org/%20"),
+                         "https://example.org/%20")
+        self.assertEqual(list_for_owner(self.db, "verified-user-A"), [])
+
     def test_malformed_unicode_urls_rejected_before_storage(self):
         for url in ("https://example.org/\ud800", "https://example.org/?q=\ud800"):
             with self.subTest(url=repr(url)), self.assertRaises(ValueError):
