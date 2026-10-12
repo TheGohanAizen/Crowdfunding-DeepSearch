@@ -88,7 +88,7 @@ class RegistrationTests(unittest.TestCase):
         self.assertIsNotNone(self.register("later@example.org", now=1900))
 
     def test_invalid_client_ip_rejected_before_registration(self):
-        for ip in ("", " " * 3, None, "x" * 65):
+        for ip in ("", " " * 3, None, "x" * 65, "\ud800"):
             with self.subTest(ip=ip), self.assertRaises(ValueError):
                 self.register("new@example.org", ip=ip)
         self.assertEqual(self.db.execute("SELECT COUNT(*) FROM opportunity_accounts").fetchone()[0], 0)
