@@ -41,7 +41,8 @@ jobs:
           python - <<'PY'
           import glob, py_compile
           paths = glob.glob("opportunity_*.py") + glob.glob("test_opportunity_*.py")
-          assert paths, "No opportunity modules found"
+          assert glob.glob("opportunity_*.py"), "No opportunity modules found"
+          assert glob.glob("test_opportunity_*.py"), "No opportunity tests found"
           for path in paths:
               py_compile.compile(path, doraise=True)
           PY
