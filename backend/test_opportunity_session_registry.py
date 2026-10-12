@@ -35,7 +35,7 @@ class RegistryTests(unittest.TestCase):
 
     def test_malformed_unicode_token_is_rejected(self):
         with self.assertRaises(ValueError):
-            revoke_session(self.db, "\\ud800" * 30)
+            revoke_session(self.db, "\ud800" * 30)
 
     def test_expiration_and_invalid_signature(self):
         token = issue_session("owner-A", self.secret, now=1000)
