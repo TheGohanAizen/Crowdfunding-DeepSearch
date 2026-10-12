@@ -115,6 +115,13 @@ class OpportunityStoreTests(unittest.TestCase):
                 })
         self.assertEqual(list_for_owner(self.db, "verified-user-A"), [])
 
+    def test_boolean_pagination_limits_rejected(self):
+        add(self.db, "verified-user-A", {"url": "https://example.org/item"})
+        for limit in (True, False, 0, MAX_RECORDS + 1, 1.0, "1"):
+            with self.subTest(limit=repr(limit)), self.assertRaises(ValueError):
+                list_for_owner(self.db, "verified-user-A", limit=limit)
+        self.assertEqual(len(list_for_owner(self.db, "verified-user-A", limit=1)), 1)
+
     def test_duplicate_and_quota_paths_release_write_transaction(self):
         first = add(self.db, "verified-user-A", {"url": "https://example.org/first"})
         duplicate = add(self.db, "verified-user-A", {"url": "https://example.org/first"})
