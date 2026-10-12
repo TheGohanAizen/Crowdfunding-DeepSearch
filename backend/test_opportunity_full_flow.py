@@ -61,6 +61,12 @@ class FullAccountFlowTests(unittest.TestCase):
                                             record["record_id"], {"notes": "tampered"}, now=1000))
         with self.assertRaises(PermissionError):
             delete_opportunity(self.db, session_a, csrf_b, self.secret, record["record_id"], now=1000)
+        self.assertTrue(update_opportunity(self.db, session_a, csrf_a, self.secret,
+                                           record["record_id"], {"notes": "Alice revised"}, now=1000))
+        self.assertEqual(list_opportunities(self.db, session_a, self.secret, now=1000)[0]["notes"], "Alice revised")
+        self.assertTrue(delete_opportunity(self.db, session_a, csrf_a, self.secret,
+                                           record["record_id"], now=1000))
+        self.assertEqual(list_opportunities(self.db, session_a, self.secret, now=1000), [])
         self.assertTrue(revoke_session(self.db, session_a))
         with self.assertRaises(PermissionError):
             list_opportunities(self.db, session_a, self.secret, now=1000)
