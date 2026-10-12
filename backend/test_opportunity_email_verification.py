@@ -35,6 +35,18 @@ class VerificationTests(unittest.TestCase):
         self.assertFalse(consume_challenge(self.db, second, token, now=1000))
         self.assertTrue(consume_challenge(self.db, self.owner, token, now=1000))
 
+    def test_resend_cooldown_does_not_invalidate_original_token(self):
+        first = issue_challenge(self.db, self.owner, now=1000)
+        with self.assertRaises(ValueError):
+            issue_challenge(self.db, self.owner, now=1059)
+        self.assertTrue(consume_challenge(self.db, self.owner, first, now=1059))
+
+    def test_resend_after_cooldown_invalidates_old_token(self):
+        first = issue_challenge(self.db, self.owner, now=1000)
+        second = issue_challenge(self.db, self.owner, now=1060)
+        self.assertFalse(consume_challenge(self.db, self.owner, first, now=1060))
+        self.assertTrue(consume_challenge(self.db, self.owner, second, now=1060))
+
     def test_expiry_and_replacement(self):
         first = issue_challenge(self.db, self.owner, now=1000)
         self.assertFalse(consume_challenge(self.db, self.owner, first, now=2800))
