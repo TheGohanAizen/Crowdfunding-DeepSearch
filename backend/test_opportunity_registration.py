@@ -73,6 +73,18 @@ class RegistrationTests(unittest.TestCase):
     def test_malformed_unicode_email_fails_closed(self):
         self.assertIsNone(self.register("\ud800@example.org"))
 
+    def test_registration_budget_resets_after_window(self):
+        for i in range(5):
+            self.assertIsNotNone(self.register("early%d@example.org" % i, now=1000))
+        self.assertIsNone(self.register("later@example.org", now=1899))
+        self.assertIsNotNone(self.register("later@example.org", now=1900))
+
+    def test_invalid_client_ip_rejected_before_registration(self):
+        for ip in ("", " " * 3, None, "x" * 65):
+            with self.subTest(ip=ip), self.assertRaises(ValueError):
+                self.register("new@example.org", ip=ip)
+        self.assertEqual(self.db.execute("SELECT COUNT(*) FROM opportunity_accounts").fetchone()[0], 0)
+
     def test_invalid_email_is_charged_to_ip_budget(self):
         for _ in range(5):
             self.assertIsNone(self.register("not-an-email"))
