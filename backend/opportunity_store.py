@@ -3,10 +3,10 @@
 Not wired to Flask routes or production Turso. The caller MUST supply an
 owner ID derived from independently verified authentication, never request JSON.
 """
-import sqlite3
 import uuid
 from datetime import datetime, timezone
 from urllib.parse import urlsplit, urlunsplit
+import ipaddress
 
 VALID_STATUSES = frozenset({
     "needs_review", "researching", "submission_route_found",
@@ -21,10 +21,23 @@ def normalize_url(value):
     parts = urlsplit(value.strip())
     if parts.scheme.lower() != "https" or not parts.hostname or parts.username or parts.password:
         raise ValueError("HTTPS source URL required")
-    host = parts.hostname.lower()
-    if parts.port is not None and parts.port != 443:
+    host = parts.hostname.lower().rstrip(".")
+    if not host or any(c.isspace() or ord(c) < 33 for c in host):
+        raise ValueError("invalid hostname")
+    try:
+        ipaddress.ip_address(host)
+    except ValueError:
+        if "." not in host or any(not label or len(label) > 63 for label in host.split(".")):
+            raise ValueError("public DNS hostname required")
+    else:
+        raise ValueError("IP addresses are not supported")
+    try:
+        port = parts.port
+    except ValueError as exc:
+        raise ValueError("invalid port") from exc
+    if port is not None and port != 443:
         raise ValueError("nonstandard port not supported")
-    netloc = host if ":" not in host else "[" + host + "]"
+    netloc = host
     path = parts.path.rstrip("/") or "/"
     return urlunsplit(("https", netloc, path, parts.query, ""))
 
