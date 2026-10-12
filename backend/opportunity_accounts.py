@@ -77,3 +77,31 @@ def verify_credentials(connection, email, password):
     if not verify_password(password, password_hash):
         return None
     return owner_id
+
+
+def disable_account(connection, owner_id):
+    """Disable an account and revoke all its sessions atomically.
+
+    Requires a trusted administrative caller and initialized session registry.
+    Never expose this function as an unauthenticated public route.
+    """
+    if not isinstance(owner_id, str) or not owner_id.strip() or len(owner_id) > 200:
+        raise ValueError("invalid account")
+    timestamp = datetime.now(timezone.utc).isoformat()
+    connection.execute("BEGIN IMMEDIATE")
+    try:
+        result = connection.execute(
+            "UPDATE opportunity_accounts SET disabled_at=? WHERE owner_id=? AND disabled_at IS NULL",
+            (timestamp, owner_id),
+        )
+        if result.rowcount:
+            connection.execute(
+                """UPDATE opportunity_active_sessions SET revoked_at=?
+                WHERE owner_id=? AND revoked_at IS NULL""",
+                (int(datetime.now(timezone.utc).timestamp()), owner_id),
+            )
+        connection.commit()
+        return result.rowcount == 1
+    except Exception:
+        connection.rollback()
+        raise
