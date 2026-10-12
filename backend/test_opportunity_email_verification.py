@@ -70,6 +70,13 @@ class VerificationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "hourly limit"):
             issue_challenge(self.db, self.owner, now=1360)
 
+    def test_malformed_unicode_owner_fails_closed(self):
+        token = issue_challenge(self.db, self.owner, now=1000)
+        with self.assertRaises(ValueError):
+            issue_challenge(self.db, "\ud800", now=1000)
+        self.assertFalse(consume_challenge(self.db, "\ud800", token, now=1000))
+        self.assertTrue(consume_challenge(self.db, self.owner, token, now=1000))
+
     def test_malformed_unicode_token_is_rejected_without_exception(self):
         token = issue_challenge(self.db, self.owner, now=1000)
         self.assertFalse(consume_challenge(self.db, self.owner, "\ud800" * 30, now=1000))
