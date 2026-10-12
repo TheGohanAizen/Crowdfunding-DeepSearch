@@ -281,6 +281,27 @@ class OpportunityStoreTests(unittest.TestCase):
         finally:
             connection.close()
 
+    def test_autocommit_connection_supports_all_store_operations(self):
+        connection = sqlite3.connect(":memory:", isolation_level=None)
+        try:
+            initialize(connection)
+            self.assertFalse(connection.in_transaction)
+            record = add(connection, "verified-user-A", {
+                "url": "https://example.org/autocommit", "notes": "Original",
+            })
+            self.assertFalse(connection.in_transaction)
+            self.assertEqual(len(list_for_owner(connection, "verified-user-A")), 1)
+            self.assertTrue(update_for_owner(connection, "verified-user-A",
+                                             record["record_id"], {"notes": "Updated"}))
+            self.assertEqual(list_for_owner(connection, "verified-user-A")[0]["notes"],
+                             "Updated")
+            self.assertTrue(delete_for_owner(connection, "verified-user-A",
+                                             record["record_id"]))
+            self.assertEqual(list_for_owner(connection, "verified-user-A"), [])
+            self.assertFalse(connection.in_transaction)
+        finally:
+            connection.close()
+
     def test_initialize_is_idempotent_and_preserves_existing_records(self):
         first = add(self.db, "verified-user-A", {
             "url": "https://example.org/preserved", "notes": "Keep this",
