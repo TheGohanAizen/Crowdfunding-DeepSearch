@@ -8,6 +8,8 @@ import hmac
 import time
 
 from opportunity_sessions import verify_session, MAX_AGE_SECONDS
+import json
+import base64
 
 
 def initialize(connection):
@@ -33,12 +35,15 @@ def register_session(connection, token, secret, now=None):
     current = int(time.time() if now is None else now)
     owner = verify_session(token, secret, now=current)
     digest = _digest(token)
+    payload_part = token.split(".", 1)[0]
+    payload = json.loads(base64.urlsafe_b64decode(payload_part + "=" * (-len(payload_part) % 4)))
+    expires_at = payload["iat"] + MAX_AGE_SECONDS
     with connection:
         connection.execute(
             """INSERT INTO opportunity_active_sessions
             (token_hash,owner_id,expires_at,revoked_at)
             VALUES (?,?,?,NULL)""",
-            (digest, owner, current + MAX_AGE_SECONDS),
+            (digest, owner, expires_at),
         )
     return owner
 
