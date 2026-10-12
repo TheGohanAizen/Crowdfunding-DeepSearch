@@ -120,6 +120,9 @@ class OpportunityStoreTests(unittest.TestCase):
             "https://example.org/path%0Aheader",
             "https://example.org/?q=%00",
             "https://example.org/?q=%0D%0A",
+            "https://example.org/%01",
+            "https://example.org/?q=%1f",
+            "https://example.org/%7F",
         ):
             with self.subTest(url=url), self.assertRaises(ValueError):
                 normalize_url(url)
@@ -127,6 +130,8 @@ class OpportunityStoreTests(unittest.TestCase):
                 add(self.db, "verified-user-A", {"url": url})
         self.assertEqual(normalize_url("https://example.org/%20"),
                          "https://example.org/%20")
+        self.assertEqual(normalize_url("https://example.org/%80"),
+                         "https://example.org/%80")
         self.assertEqual(list_for_owner(self.db, "verified-user-A"), [])
 
     def test_malformed_unicode_urls_rejected_before_storage(self):
