@@ -38,9 +38,13 @@ class OpportunityStoreTests(unittest.TestCase):
         for url in ("http://example.org", "javascript:alert(1)", "https://user:pass@example.org",
                     "https://example.org:444/", "https://example.org:abc/", "https://", "not a url",
                     "https://127.0.0.1/", "https://localhost/", "https://example..org/",
-                    "https://example.org.evil@attacker.org/"):
+                    "https://example.org.evil@attacker.org/", "https://bad_host.example.org/",
+                    "https://-bad.example.org/", "https://bad-.example.org/",
+                    "https://example.123/", "https://[broken/"):
             with self.subTest(url=url), self.assertRaises(ValueError):
                 normalize_url(url)
+        self.assertEqual(normalize_url("https://EXAMPLE.ORG/path/#section"), "https://example.org/path")
+        self.assertEqual(normalize_url("https://bücher.example/"), "https://xn--bcher-kva.example/")
         with self.assertRaises(ValueError):
             add(self.db, "", {"url": "https://example.org"})
         with self.assertRaises(ValueError):
