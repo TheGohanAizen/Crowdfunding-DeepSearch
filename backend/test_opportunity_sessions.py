@@ -21,7 +21,7 @@ class SessionTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             verify_session(token, b"another-local-test-secret-not-production-0000", now=1000)
         with self.assertRaises(ValueError):
-            verify_session(token[:-1] + ("A" if token[-1] != "A" else "B"), self.secret, now=1000)
+            verify_session(("A" if token[0] != "A" else "B") + token[1:], self.secret, now=1000)
         with self.assertRaises(ValueError):
             verify_session("not-a-token", self.secret, now=1000)
 
