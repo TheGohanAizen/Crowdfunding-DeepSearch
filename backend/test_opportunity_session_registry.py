@@ -37,6 +37,11 @@ class RegistryTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             revoke_session(self.db, "\ud800" * 30)
 
+    def test_revoke_owner_rejects_invalid_identifiers(self):
+        for owner in ("", " " * 4, "x" * 201, "\ud800", None):
+            with self.subTest(owner=repr(owner)[:24]), self.assertRaises(ValueError):
+                revoke_owner_sessions(self.db, owner)
+
     def test_expiration_and_invalid_signature(self):
         token = issue_session("owner-A", self.secret, now=1000)
         register_session(self.db, token, self.secret, now=1000)
