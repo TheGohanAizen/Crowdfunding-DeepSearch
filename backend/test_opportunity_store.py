@@ -60,6 +60,18 @@ class OpportunityStoreTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             delete_for_owner(self.db, "verified-user-A", "../other-user")
 
+    def test_ambiguous_url_characters_are_rejected(self):
+        for url in (
+            "https://example.org/pa\\th",
+            "https://example.org/path\\nnext",
+            "https://example.org/path\\tmore",
+            "https://example.org/path\\x00hidden",
+            "https://example.org/path\\x7fhidden",
+        ):
+            with self.subTest(url=repr(url)), self.assertRaises(ValueError):
+                normalize_url(url)
+        self.assertEqual(normalize_url(" https://example.org/path "), "https://example.org/path")
+
     def test_malformed_unicode_owner_rejected_across_operations(self):
         invalid_owner = "\ud800"
         record = add(self.db, "verified-user-A", {"url": "https://example.org/item"})
