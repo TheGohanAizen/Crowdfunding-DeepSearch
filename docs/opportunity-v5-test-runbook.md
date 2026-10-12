@@ -38,6 +38,8 @@ cancelled, pending, or missing job is not a passing result.
 - **NO RUN:** commits and tests exist, but no successful execution was observed.
   This is not equivalent to PASS.
 - **ZERO TESTS:** treat as a failure of test discovery, not as success.
+- **MISSING TEST FILES:** CI compilation must reject a checkout containing
+  opportunity modules but no matching `test_opportunity_*.py` files.
 
 ## Boundaries
 
