@@ -6,6 +6,7 @@ from opportunity_access import (
     list_opportunities, create_opportunity, update_opportunity, delete_opportunity,
 )
 from opportunity_sessions import issue_session, issue_csrf
+from opportunity_session_registry import initialize as initialize_sessions, register_session, revoke_session
 from opportunity_store import initialize
 
 
@@ -13,9 +14,12 @@ class AccessTests(unittest.TestCase):
     def setUp(self):
         self.db = sqlite3.connect(":memory:")
         initialize(self.db)
+        initialize_sessions(self.db)
         self.secret = b"local-only-test-secret-32-bytes-minimum-123"
         self.a = issue_session("verified-A", self.secret, now=1000)
         self.b = issue_session("verified-B", self.secret, now=1000)
+        register_session(self.db, self.a, self.secret, now=1000)
+        register_session(self.db, self.b, self.secret, now=1000)
         self.csrf_a = issue_csrf(self.a, self.secret)
         self.csrf_b = issue_csrf(self.b, self.secret)
 
@@ -51,6 +55,21 @@ class AccessTests(unittest.TestCase):
                                {"url": "https://example.org"}, now=1000 + 43201)
         with self.assertRaises(ValueError):
             list_opportunities(self.db, "forged", self.secret, now=1000)
+
+    def test_logout_revokes_access_to_private_records(self):
+        create_opportunity(self.db, self.a, self.csrf_a, self.secret,
+                           {"url": "https://example.org/submit"}, now=1000)
+        self.assertTrue(revoke_session(self.db, self.a))
+        with self.assertRaises(PermissionError):
+            list_opportunities(self.db, self.a, self.secret, now=1000)
+        with self.assertRaises(PermissionError):
+            create_opportunity(self.db, self.a, self.csrf_a, self.secret,
+                               {"url": "https://example.org/other"}, now=1000)
+
+    def test_unregistered_validly_signed_session_denied(self):
+        unsigned_registry_token = issue_session("verified-A", self.secret, now=1000)
+        with self.assertRaises(PermissionError):
+            list_opportunities(self.db, unsigned_registry_token, self.secret, now=1000)
 
 
 if __name__ == "__main__":
