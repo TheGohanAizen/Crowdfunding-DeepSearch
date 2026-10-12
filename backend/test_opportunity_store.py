@@ -1,0 +1,61 @@
+"""Offline owner-isolation regression tests. No network, Turso or outreach."""
+import sqlite3
+import unittest
+from opportunity_store import (
+    initialize, add, list_for_owner, update_for_owner, delete_for_owner,
+    normalize_url, MAX_RECORDS,
+)
+
+
+class OpportunityStoreTests(unittest.TestCase):
+    def setUp(self):
+        self.db = sqlite3.connect(":memory:")
+        initialize(self.db)
+
+    def tearDown(self):
+        self.db.close()
+
+    def test_owner_isolation_and_duplicate_merge(self):
+        item = {"url": "https://example.org/submit/#form", "name": "Submission page",
+                "campaign_label": "Transportation", "notes": "Public form", "status": "researching"}
+        a = add(self.db, "verified-user-A", item)
+        self.assertTrue(a["created"])
+        self.assertFalse(add(self.db, "verified-user-A", {**item, "url": "https://example.org/submit"})["created"])
+        self.assertEqual(len(list_for_owner(self.db, "verified-user-A")), 1)
+        self.assertEqual(list_for_owner(self.db, "verified-user-B"), [])
+        self.assertFalse(update_for_owner(self.db, "verified-user-B", a["record_id"], {"notes": "Intrusion"}))
+        self.assertFalse(delete_for_owner(self.db, "verified-user-B", a["record_id"]))
+        self.assertEqual(list_for_owner(self.db, "verified-user-A")[0]["notes"], "Public form")
+        self.assertTrue(update_for_owner(self.db, "verified-user-A", a["record_id"], {"status": "submission_route_found"}))
+        self.assertEqual(list_for_owner(self.db, "verified-user-A")[0]["status"], "submission_route_found")
+        b = add(self.db, "verified-user-B", item)
+        self.assertTrue(b["created"])
+        self.assertNotEqual(a["record_id"], b["record_id"])
+        self.assertTrue(delete_for_owner(self.db, "verified-user-A", a["record_id"]))
+        self.assertEqual(len(list_for_owner(self.db, "verified-user-B")), 1)
+
+    def test_reject_invalid_urls_and_inputs(self):
+        for url in ("http://example.org", "javascript:alert(1)", "https://user:pass@example.org",
+                    "https://example.org:444/", "https://", "not a url"):
+            with self.subTest(url=url), self.assertRaises(ValueError):
+                normalize_url(url)
+        with self.assertRaises(ValueError):
+            add(self.db, "", {"url": "https://example.org"})
+        with self.assertRaises(ValueError):
+            add(self.db, "verified-user-A", {"url": "https://example.org", "status": "sent"})
+        with self.assertRaises(ValueError):
+            add(self.db, "verified-user-A", {"url": "https://example.org", "notes": 42})
+        with self.assertRaises(ValueError):
+            update_for_owner(self.db, "verified-user-A", "missing", {"owner_id": "verified-user-B"})
+
+    def test_quota_per_owner(self):
+        for index in range(MAX_RECORDS):
+            self.assertTrue(add(self.db, "verified-user-A", {"url": f"https://example.org/{index}"})["created"])
+        with self.assertRaisesRegex(ValueError, "quota"):
+            add(self.db, "verified-user-A", {"url": "https://example.org/extra"})
+        self.assertTrue(add(self.db, "verified-user-B", {"url": "https://example.org/extra"})["created"])
+        self.assertFalse(add(self.db, "verified-user-A", {"url": "https://example.org/0"})["created"])
+
+
+if __name__ == "__main__":
+    unittest.main()
