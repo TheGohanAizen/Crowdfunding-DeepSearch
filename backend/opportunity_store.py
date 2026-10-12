@@ -62,7 +62,11 @@ def normalize_url(value):
         raise ValueError("invalid port")
     netloc = host
     path = parts.path.rstrip("/") or "/"
-    return urlunsplit(("https", netloc, path, parts.query, ""))
+    normalized = urlunsplit(("https", netloc, path, parts.query, ""))
+    # Normalization must not introduce a stored value beyond the URL limit.
+    if len(normalized) > 2048:
+        raise ValueError("invalid URL")
+    return normalized
 
 
 def initialize(connection):
