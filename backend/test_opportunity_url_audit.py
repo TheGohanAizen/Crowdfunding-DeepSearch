@@ -14,6 +14,16 @@ class OpportunityUrlAuditTests(unittest.TestCase):
     def tearDown(self):
         self.connection.close()
 
+    def test_sqlite_query_only_rejects_writes(self):
+        self.connection.execute("PRAGMA query_only = ON")
+        self.assertEqual(self.connection.execute(
+            "PRAGMA query_only").fetchone()[0], 1)
+        with self.assertRaises(sqlite3.OperationalError):
+            self.connection.execute(
+                "UPDATE opportunity_records SET notes='unexpected'"
+            )
+        self.assertEqual(audit(self.connection)["records_checked"], 0)
+
     def test_empty_store_reports_no_collisions(self):
         report = audit(self.connection)
         self.assertEqual(report["records_checked"], 0)
