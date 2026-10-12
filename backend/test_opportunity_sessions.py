@@ -25,6 +25,11 @@ class SessionTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             verify_session("not-a-token", self.secret, now=1000)
 
+    def test_non_ascii_token_is_rejected(self):
+        token = issue_session("verified-user-A", self.secret, now=1000)
+        with self.assertRaises(ValueError):
+            verify_session("é" + token, self.secret, now=1000)
+
     def test_csrf_session_binding(self):
         first = issue_session("verified-user-A", self.secret, now=1000)
         second = issue_session("verified-user-A", self.secret, now=1000)
