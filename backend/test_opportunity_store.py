@@ -166,6 +166,18 @@ class OpportunityStoreTests(unittest.TestCase):
         self.assertEqual(rows[0]["url"], "https://example.org/a%2Fb?q=%3D")
         self.assertEqual(rows[0]["notes"], "Keep")
 
+    def test_encoded_reserved_slash_is_not_merged_with_literal_slash(self):
+        encoded = add(self.db, "verified-user-A", {
+            "url": "https://example.org/a%2fb", "notes": "Encoded slash",
+        })
+        literal = add(self.db, "verified-user-A", {
+            "url": "https://example.org/a/b", "notes": "Literal slash",
+        })
+        self.assertTrue(encoded["created"])
+        self.assertTrue(literal["created"])
+        self.assertNotEqual(encoded["record_id"], literal["record_id"])
+        self.assertEqual(len(list_for_owner(self.db, "verified-user-A")), 2)
+
     def test_malformed_unicode_urls_rejected_before_storage(self):
         for url in ("https://example.org/\ud800", "https://example.org/?q=\ud800"):
             with self.subTest(url=repr(url)), self.assertRaises(ValueError):
