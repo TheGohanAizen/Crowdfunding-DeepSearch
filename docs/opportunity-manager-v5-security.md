@@ -1,6 +1,6 @@
 # Opportunity Manager V5 — authenticated persistence design
 
-Status: design checkpoint; NOT deployed, NOT authenticated, NOT an authorization to send outreach.
+Status: offline-only security prototype and design; NOT deployed, no public account routes, NOT an authorization to send outreach.
 
 ## Non-negotiable protections
 - Existing `audience-review.html` localStorage key `crowdfunding_deepsearch_saved_opportunities_v1` remains intact. No automatic clearing or destructive migration.
@@ -53,4 +53,4 @@ Return 401 for unauthenticated requests; use generic 404 for other users' record
 6. Stage, audit, then enable authenticated sync in production. Never enable email sending as part of this rollout.
 
 ## Current status
-V4 browser-local search, filters, notes, export and import are working. V5 is only a design at this checkpoint. Do not claim cross-device sync or account isolation is active.
+V4 browser-local search, filters, notes, export and import are working. V5 has offline-only SQLite account, password, email verification, login throttle, signed session, session revocation, access facade, and owner-scoped record-store modules with offline tests. No V5 account or opportunity HTTP endpoints are enabled; cross-device sync is not active. Email verification has no delivery integration. Registration, password recovery, trusted email delivery, production database adapter compatibility, and verified CI test execution remain blockers to rollout. The offline test suite is configured in GitHub Actions, but a successful run has not been independently confirmed. Do not claim public account isolation is active or that any V5 feature is deployed.
