@@ -41,8 +41,10 @@ def normalize_url(value):
     # Reject all encoded ASCII controls (including CR, LF, NUL and DEL).
     # Downstream URL consumers must not be able to reinterpret these bytes.
     for index, char in enumerate(value):
-        if char == "%" and int(value[index + 1:index + 3], 16) in (*range(32), 127):
-            raise ValueError("invalid URL control escape")
+        if char == "%":
+            decoded_byte = int(value[index + 1:index + 3], 16)
+            if decoded_byte < 32 or decoded_byte == 127:
+                raise ValueError("invalid URL control escape")
     try:
         parts = urlsplit(value)
     except ValueError as exc:
