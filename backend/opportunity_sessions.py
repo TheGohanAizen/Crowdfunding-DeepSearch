@@ -105,6 +105,9 @@ def verify_csrf(session_token, csrf_token, secret):
         supplied = _decode(signature)
     except ValueError:
         return False
-    signed = ("csrf-v1:" + session_token + ":" + nonce).encode("utf-8")
+    try:
+        signed = ("csrf-v1:" + session_token + ":" + nonce).encode("utf-8")
+    except UnicodeError:
+        return False
     expected = hmac.new(key, signed, hashlib.sha256).digest()
     return hmac.compare_digest(expected, supplied)
