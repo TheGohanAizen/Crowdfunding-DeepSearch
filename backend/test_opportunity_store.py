@@ -22,7 +22,7 @@ class OpportunityStoreTests(unittest.TestCase):
                 "campaign_label": "Transportation", "notes": "Public form", "status": "researching"}
         a = add(self.db, "verified-user-A", item)
         self.assertTrue(a["created"])
-        self.assertFalse(add(self.db, "verified-user-A", {**item, "url": "https://example.org/submit"})["created"])
+        self.assertFalse(add(self.db, "verified-user-A", {**item, "url": "https://example.org/submit/"})["created"])
         self.assertEqual(len(list_for_owner(self.db, "verified-user-A")), 1)
         self.assertEqual(list_for_owner(self.db, "verified-user-B"), [])
         self.assertFalse(update_for_owner(self.db, "verified-user-B", a["record_id"], {"notes": "Intrusion"}))
