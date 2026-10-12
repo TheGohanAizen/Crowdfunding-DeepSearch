@@ -5,6 +5,8 @@ body limits, and deliver email verification through a separately audited flow.
 A None result is deliberately ambiguous: invalid input, existing account,
 or rate limit. Never return an owner ID to an untrusted public client.
 """
+import hashlib
+
 from opportunity_accounts import normalize_email, register_unverified
 from opportunity_login_limits import bucket_key, record_attempts
 
@@ -15,11 +17,14 @@ def attempt_registration(connection, email, password, client_ip, now=None):
         identity = normalize_email(email)
     except ValueError:
         identity = "invalid-email"
+    # Hash the identity before adding a namespace so even maximum-length
+    # valid email addresses fit the bounded bucket-key input.
+    identity_digest = hashlib.sha256(identity.encode("utf-8")).hexdigest()
     # Separate registration namespace from login to avoid sharing budgets.
     buckets = (
         bucket_key("registration-ip", client_ip),
-        bucket_key("registration-identity:" + identity, "all-client-ips"),
-        bucket_key("registration-pair:" + identity, client_ip),
+        bucket_key("registration-identity:" + identity_digest, "all-client-ips"),
+        bucket_key("registration-pair:" + identity_digest, client_ip),
     )
     if not record_attempts(connection, buckets, now=now):
         return None
