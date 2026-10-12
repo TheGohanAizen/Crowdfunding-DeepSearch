@@ -47,6 +47,7 @@ def main():
     # URI mode=ro prevents writes even if the audit is changed later.
     uri = args.database_copy.resolve().as_uri() + "?mode=ro"
     with sqlite3.connect(uri, uri=True) as connection:
+        connection.execute("PRAGMA query_only = ON")
         report = audit(connection)
     print(json.dumps(report, indent=2, sort_keys=True))
 
