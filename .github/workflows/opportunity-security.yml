@@ -47,7 +47,7 @@ jobs:
           PY
       - name: Run all offline opportunity security tests
         run: |
-          python - <<'PY'
+          python - <<'PY' 2>&1 | tee opportunity-test-results.txt
           import sys
           import unittest
 
@@ -61,3 +61,11 @@ jobs:
           result = unittest.TextTestRunner(verbosity=2).run(suite)
           sys.exit(0 if result.wasSuccessful() else 1)
           PY
+      - name: Upload offline security test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: opportunity-security-python-${{ matrix.python-version }}
+          path: backend/opportunity-test-results.txt
+          if-no-files-found: warn
+          retention-days: 14
