@@ -26,7 +26,7 @@ def normalize_url(value):
         parts = urlsplit(value.strip())
     except ValueError as exc:
         raise ValueError("invalid URL") from exc
-    if parts.scheme.lower() != "https" or not parts.hostname or parts.username or parts.password:
+    if parts.scheme.lower() != "https" or not parts.hostname or parts.username is not None or parts.password is not None:
         raise ValueError("HTTPS source URL required")
     try:
         host = parts.hostname.encode("idna").decode("ascii").lower().rstrip(".")
