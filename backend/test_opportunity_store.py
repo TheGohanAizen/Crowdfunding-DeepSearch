@@ -60,6 +60,19 @@ class OpportunityStoreTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             delete_for_owner(self.db, "verified-user-A", "../other-user")
 
+    def test_malformed_unicode_owner_rejected_across_operations(self):
+        invalid_owner = "\ud800"
+        record = add(self.db, "verified-user-A", {"url": "https://example.org/item"})
+        for operation in (
+            lambda: add(self.db, invalid_owner, {"url": "https://example.org/item2"}),
+            lambda: list_for_owner(self.db, invalid_owner),
+            lambda: update_for_owner(self.db, invalid_owner, record["record_id"], {"notes": "bad"}),
+            lambda: delete_for_owner(self.db, invalid_owner, record["record_id"]),
+        ):
+            with self.assertRaises(ValueError):
+                operation()
+        self.assertEqual(len(list_for_owner(self.db, "verified-user-A")), 1)
+
     def test_quota_per_owner(self):
         for index in range(MAX_RECORDS):
             self.assertTrue(add(self.db, "verified-user-A", {"url": f"https://example.org/{index}"})["created"])
