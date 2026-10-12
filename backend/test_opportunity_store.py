@@ -1,5 +1,7 @@
 """Offline owner-isolation regression tests. No network, Turso or outreach."""
 import sqlite3
+import tempfile
+import os
 import unittest
 from opportunity_store import (
     initialize, add, list_for_owner, update_for_owner, delete_for_owner,
@@ -152,6 +154,26 @@ class OpportunityStoreTests(unittest.TestCase):
         self.assertFalse(self.db.in_transaction)
         self.assertEqual(len(list_for_owner(self.db, "verified-user-A", limit=MAX_RECORDS)), MAX_RECORDS)
         self.assertTrue(add(self.db, "verified-user-B", {"url": "https://example.org/allowed"})["created"])
+
+    def test_concurrent_writer_cannot_bypass_quota(self):
+        # Separate SQLite connections exercise the database-level write lock.
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "opportunities.sqlite3")
+            writer = sqlite3.connect(path, timeout=0.1)
+            contender = sqlite3.connect(path, timeout=0.1)
+            try:
+                initialize(writer)
+                writer.execute("BEGIN IMMEDIATE")
+                with self.assertRaises(sqlite3.OperationalError):
+                    add(contender, "verified-user-A", {"url": "https://example.org/blocked"})
+                writer.rollback()
+                self.assertFalse(contender.in_transaction)
+                self.assertTrue(add(contender, "verified-user-A",
+                                    {"url": "https://example.org/allowed"})["created"])
+                self.assertEqual(len(list_for_owner(writer, "verified-user-A")), 1)
+            finally:
+                contender.close()
+                writer.close()
 
     def test_quota_per_owner(self):
         for index in range(MAX_RECORDS):
