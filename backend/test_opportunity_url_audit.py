@@ -18,6 +18,7 @@ class OpportunityUrlAuditTests(unittest.TestCase):
         report = audit(self.connection)
         self.assertEqual(report["records_checked"], 0)
         self.assertEqual(report["collision_groups"], 0)
+        self.assertEqual(report["stored_key_mismatches"], 0)
         self.assertFalse(report["safe_to_auto_migrate"])
 
     def test_audit_does_not_modify_records_or_expose_private_values(self):
@@ -66,6 +67,7 @@ class OpportunityUrlAuditTests(unittest.TestCase):
         report = audit(self.connection)
         self.assertEqual(report["records_checked"], 2)
         self.assertEqual(report["collision_groups"], 1)
+        self.assertEqual(report["stored_key_mismatches"], 1)
         self.assertEqual(report["records_in_collision_groups"], 2)
 
 
