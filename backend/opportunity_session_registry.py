@@ -28,7 +28,10 @@ def initialize(connection):
 def _digest(token):
     if not isinstance(token, str) or not token or len(token) > 4096:
         raise ValueError("invalid session token")
-    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+    try:
+        return hashlib.sha256(token.encode("utf-8")).hexdigest()
+    except UnicodeError as exc:
+        raise ValueError("invalid session token") from exc
 
 
 def register_session(connection, token, secret, now=None):
