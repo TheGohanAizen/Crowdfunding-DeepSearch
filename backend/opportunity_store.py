@@ -89,28 +89,32 @@ def normalize_url(value):
 
 
 def initialize(connection):
-    # Schema setup commits its changes; refuse to commit unrelated caller work.
+    """Create the offline schema atomically without committing caller work."""
     if connection.in_transaction:
         raise ValueError("opportunity initialization requires a transaction-free connection")
-    connection.execute("""CREATE TABLE IF NOT EXISTS opportunity_records (
-        owner_id TEXT NOT NULL,
-        record_id TEXT NOT NULL,
-        source_url TEXT NOT NULL,
-        normalized_url TEXT NOT NULL,
-        name TEXT NOT NULL,
-        lead_type TEXT NOT NULL,
-        review_status TEXT NOT NULL,
-        campaign_label TEXT NOT NULL,
-        notes TEXT NOT NULL,
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL,
-        PRIMARY KEY (owner_id, record_id),
-        UNIQUE (owner_id, normalized_url)
-    )""")
-    connection.execute("""CREATE INDEX IF NOT EXISTS idx_opportunity_owner_updated
-        ON opportunity_records(owner_id, updated_at)""")
-    connection.commit()
-
+    connection.execute("BEGIN IMMEDIATE")
+    try:
+        connection.execute("""CREATE TABLE IF NOT EXISTS opportunity_records (
+            owner_id TEXT NOT NULL,
+            record_id TEXT NOT NULL,
+            source_url TEXT NOT NULL,
+            normalized_url TEXT NOT NULL,
+            name TEXT NOT NULL,
+            lead_type TEXT NOT NULL,
+            review_status TEXT NOT NULL,
+            campaign_label TEXT NOT NULL,
+            notes TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            PRIMARY KEY (owner_id, record_id),
+            UNIQUE (owner_id, normalized_url)
+        )""")
+        connection.execute("""CREATE INDEX IF NOT EXISTS idx_opportunity_owner_updated
+            ON opportunity_records(owner_id, updated_at)""")
+        connection.commit()
+    except Exception:
+        connection.rollback()
+        raise
 
 def require_owner(owner_id):
     if not isinstance(owner_id, str) or not owner_id.strip() or len(owner_id) > 200:
