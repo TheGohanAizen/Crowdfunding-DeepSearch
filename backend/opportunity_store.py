@@ -35,8 +35,8 @@ def normalize_url(value):
         raise ValueError("invalid URL")
     # Invisible format characters and bidirectional overrides can disguise
     # the destination when a saved link is displayed for human review.
-    if any(unicodedata.category(char) == "Cf" for char in value):
-        raise ValueError("invalid URL format character")
+    if any(unicodedata.category(char) in {"Cc", "Cf"} for char in value):
+        raise ValueError("invalid URL control or format character")
     # urllib.parse accepts malformed percent escapes, but clients may
     # reinterpret them. Only complete hexadecimal escapes are allowed.
     for index, char in enumerate(value):
