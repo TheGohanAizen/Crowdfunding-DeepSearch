@@ -123,12 +123,16 @@ def add(connection, owner_id, item):
     campaign = _text(item, "campaign_label", 100)
     notes = _text(item, "notes", 1500)
     now = datetime.now(timezone.utc).isoformat()
-    with connection:
+    # Acquire the write lock before checking quota and duplicates so two
+    # concurrent writers cannot both pass the 250-record limit.
+    connection.execute("BEGIN IMMEDIATE")
+    try:
         existing = connection.execute(
             "SELECT record_id FROM opportunity_records WHERE owner_id=? AND normalized_url=?",
             (owner_id, url),
         ).fetchone()
         if existing:
+            connection.commit()
             return {"created": False, "record_id": existing[0]}
         count = connection.execute(
             "SELECT COUNT(*) FROM opportunity_records WHERE owner_id=?", (owner_id,)
@@ -143,6 +147,10 @@ def add(connection, owner_id, item):
             VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
             (owner_id,record_id,url,url,name,lead_type,status,campaign,notes,now,now),
         )
+        connection.commit()
+    except Exception:
+        connection.rollback()
+        raise
     return {"created": True, "record_id": record_id}
 
 
