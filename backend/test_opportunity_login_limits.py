@@ -61,6 +61,12 @@ class LoginThrottleTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 prune_expired_buckets(self.db, now=1900, batch_size=size)
 
+    def test_malformed_unicode_bucket_inputs_fail_closed(self):
+        with self.assertRaises(ValueError):
+            bucket_key("account", "\ud800")
+        with self.assertRaises(ValueError):
+            bucket_key("\ud800", "192.0.2.1")
+
     def test_invalid_bucket(self):
         with self.assertRaises(ValueError):
             record_attempt(self.db, "untrusted", now=1000)
