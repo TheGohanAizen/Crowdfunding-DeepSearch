@@ -90,6 +90,7 @@ def disable_account(connection, owner_id):
     timestamp = datetime.now(timezone.utc).isoformat()
     connection.execute("BEGIN IMMEDIATE")
     try:
+        connection.execute("SELECT 1 FROM opportunity_active_sessions LIMIT 1")
         result = connection.execute(
             "UPDATE opportunity_accounts SET disabled_at=? WHERE owner_id=? AND disabled_at IS NULL",
             (timestamp, owner_id),
