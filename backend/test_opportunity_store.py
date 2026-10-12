@@ -225,6 +225,30 @@ class OpportunityStoreTests(unittest.TestCase):
         self.assertEqual(len(list_for_owner(self.db, "verified-user-A", limit=MAX_RECORDS)), MAX_RECORDS)
         self.assertTrue(add(self.db, "verified-user-B", {"url": "https://example.org/allowed"})["created"])
 
+    def test_initialize_rolls_back_partial_schema_on_failure(self):
+        connection = sqlite3.connect(":memory:")
+        try:
+            def deny_index_creation(action, arg1, arg2, database, trigger):
+                if action == sqlite3.SQLITE_CREATE_INDEX:
+                    return sqlite3.SQLITE_DENY
+                return sqlite3.SQLITE_OK
+
+            connection.set_authorizer(deny_index_creation)
+            with self.assertRaises(sqlite3.DatabaseError):
+                initialize(connection)
+            self.assertFalse(connection.in_transaction)
+            connection.set_authorizer(None)
+            tables = connection.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' "
+                "AND name='opportunity_records'"
+            ).fetchall()
+            self.assertEqual(tables, [])
+            initialize(connection)
+            self.assertTrue(add(connection, "verified-user-A",
+                                {"url": "https://example.org/recovered"})["created"])
+        finally:
+            connection.close()
+
     def test_initialize_does_not_commit_caller_transaction(self):
         self.db.execute("CREATE TABLE unrelated_work (value TEXT)")
         self.db.execute("BEGIN IMMEDIATE")
