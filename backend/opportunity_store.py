@@ -69,7 +69,7 @@ def normalize_url(value):
     path = parts.path.rstrip("/") or "/"
     normalized = urlunsplit(("https", netloc, path, parts.query, ""))
     # Normalization must not introduce a stored value beyond the URL limit.
-    if len(normalized) > 2048:
+    if len(normalized) > 2048 or len(normalized.encode("utf-8")) > 2048:
         raise ValueError("invalid URL")
     return normalized
 
