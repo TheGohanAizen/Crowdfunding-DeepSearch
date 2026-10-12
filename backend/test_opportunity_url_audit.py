@@ -47,6 +47,16 @@ class OpportunityUrlAuditTests(unittest.TestCase):
         self.assertNotIn("Private notes", str(report))
         self.assertNotIn("https://", str(report))
 
+    def test_same_url_across_owners_is_not_a_collision(self):
+        for owner in ("owner-one", "owner-two"):
+            add(self.connection, owner, {
+                "url": "https://example.org/shared",
+            })
+        report = audit(self.connection)
+        self.assertEqual(report["records_checked"], 2)
+        self.assertEqual(report["collision_groups"], 0)
+        self.assertEqual(report["stored_key_mismatches"], 0)
+
     def test_invalid_source_url_is_reported_without_disclosing_it(self):
         add(self.connection, "owner", {"url": "https://example.org/valid"})
         self.connection.execute(
