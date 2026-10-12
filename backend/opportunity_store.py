@@ -44,7 +44,9 @@ def normalize_url(value):
     for index, char in enumerate(value):
         if char == "%":
             decoded_byte = int(value[index + 1:index + 3], 16)
-            if decoded_byte < 32 or decoded_byte == 127:
+            if decoded_byte < 32 or decoded_byte == 127 or decoded_byte == 92:
+                # Encoded backslashes can be treated as path separators by
+                # browsers or downstream HTTP clients.
                 raise ValueError("invalid URL control escape")
     try:
         parts = urlsplit(value)
