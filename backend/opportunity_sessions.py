@@ -66,7 +66,7 @@ def verify_session(token, secret, now=None, max_age=MAX_AGE_SECONDS):
         payload = json.loads(_decode(payload_part))
     except (ValueError, UnicodeError, json.JSONDecodeError) as exc:
         raise ValueError("invalid session payload") from exc
-    if not isinstance(payload, dict) or payload.get("v") != 1:
+    if not isinstance(payload, dict) or type(payload.get("v")) is not int or payload.get("v") != 1:
         raise ValueError("unsupported session")
     owner = payload.get("sub")
     issued = payload.get("iat")
