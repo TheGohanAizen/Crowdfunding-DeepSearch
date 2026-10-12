@@ -96,6 +96,24 @@ class OpportunityStoreTests(unittest.TestCase):
         self.assertEqual(normalize_url(" https://example.org/path "), "https://example.org/path")
         self.assertEqual(normalize_url("https://example.org/a%20b"), "https://example.org/a%20b")
 
+    def test_percent_escapes_must_be_complete_hexadecimal(self):
+        for url in (
+            "https://example.org/%",
+            "https://example.org/%2",
+            "https://example.org/%GG",
+            "https://example.org/?q=%Q1",
+            "https://example.org/%20%4",
+        ):
+            with self.subTest(url=url), self.assertRaises(ValueError):
+                normalize_url(url)
+            with self.assertRaises(ValueError):
+                add(self.db, "verified-user-A", {"url": url})
+        self.assertEqual(normalize_url("https://example.org/a%20b"),
+                         "https://example.org/a%20b")
+        self.assertEqual(normalize_url("https://example.org/?q=%2F"),
+                         "https://example.org/?q=%2F")
+        self.assertEqual(list_for_owner(self.db, "verified-user-A"), [])
+
     def test_malformed_unicode_urls_rejected_before_storage(self):
         for url in ("https://example.org/\ud800", "https://example.org/?q=\ud800"):
             with self.subTest(url=repr(url)), self.assertRaises(ValueError):
