@@ -26,8 +26,13 @@ def normalize_url(value):
         value.encode("utf-8")
     except UnicodeError as exc:
         raise ValueError("invalid URL") from exc
+    value = value.strip()
+    # Literal whitespace within a URL is browser-dependent. Require callers
+    # to percent-encode spaces and other whitespace in paths and queries.
+    if any(char.isspace() for char in value):
+        raise ValueError("invalid URL")
     try:
-        parts = urlsplit(value.strip())
+        parts = urlsplit(value)
     except ValueError as exc:
         raise ValueError("invalid URL") from exc
     if parts.scheme.lower() != "https" or not parts.hostname or parts.username is not None or parts.password is not None:
