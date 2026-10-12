@@ -53,6 +53,12 @@ class OpportunityStoreTests(unittest.TestCase):
             add(self.db, "verified-user-A", {"url": "https://example.org", "notes": 42})
         with self.assertRaises(ValueError):
             update_for_owner(self.db, "verified-user-A", "missing", {"owner_id": "verified-user-B"})
+        with self.assertRaises(ValueError):
+            add(self.db, "verified-user-A", {"url": "https://example.org", "status": []})
+        with self.assertRaises(ValueError):
+            update_for_owner(self.db, "verified-user-A", "0" * 32, {"status": []})
+        with self.assertRaises(ValueError):
+            delete_for_owner(self.db, "verified-user-A", "../other-user")
 
     def test_quota_per_owner(self):
         for index in range(MAX_RECORDS):
