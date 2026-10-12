@@ -2,7 +2,7 @@
 import sqlite3
 import unittest
 
-from opportunity_accounts import initialize as init_accounts, register_unverified
+from opportunity_accounts import initialize as init_accounts, register_unverified, disable_account
 from opportunity_email_verification import initialize as init_email, issue_challenge, consume_challenge
 from opportunity_login_limits import initialize as init_limits
 from opportunity_session_registry import initialize as init_sessions, revoke_session
@@ -21,6 +21,22 @@ class FullAccountFlowTests(unittest.TestCase):
 
     def tearDown(self):
         self.db.close()
+
+    def test_disabling_account_revokes_session_without_affecting_others(self):
+        password = "strong unique password for integration"
+        first = register_unverified(self.db, "first@example.org", password)
+        second = register_unverified(self.db, "second@example.org", password)
+        for owner in (first, second):
+            token = issue_challenge(self.db, owner, now=1000)
+            self.assertTrue(consume_challenge(self.db, owner, token, now=1000))
+        first_session = attempt_login(self.db, "first@example.org", password, "192.0.2.10", self.secret, now=1000)
+        second_session = attempt_login(self.db, "second@example.org", password, "192.0.2.11", self.secret, now=1000)
+        self.assertTrue(disable_account(self.db, first))
+        self.assertFalse(disable_account(self.db, first))
+        with self.assertRaises(PermissionError):
+            list_opportunities(self.db, first_session, self.secret, now=1000)
+        self.assertEqual(list_opportunities(self.db, second_session, self.secret, now=1000), [])
+        self.assertIsNone(attempt_login(self.db, "first@example.org", password, "192.0.2.12", self.secret, now=1000))
 
     def test_verified_login_storage_isolation_and_logout(self):
         password = "strong unique password for integration"
