@@ -39,6 +39,27 @@ class LoginThrottleTests(unittest.TestCase):
         self.assertFalse(record_attempts(self.db, keys, now=1000))
         self.assertTrue(record_attempts(self.db, keys, now=1900))
 
+    def test_multi_bucket_rejection_does_not_charge_other_buckets(self):
+        blocked = bucket_key("blocked@example.org", "192.0.2.1")
+        other = bucket_key("other@example.org", "192.0.2.2")
+        for _ in range(5):
+            self.assertTrue(record_attempt(self.db, blocked, now=1000))
+        self.assertFalse(record_attempts(self.db, (other, blocked), now=1000))
+        self.assertIsNone(self.db.execute(
+            "SELECT attempts FROM opportunity_login_limits WHERE bucket=?", (other,)
+        ).fetchone())
+        self.assertTrue(record_attempts(self.db, (other,), now=1000))
+        self.assertEqual(self.db.execute(
+            "SELECT attempts FROM opportunity_login_limits WHERE bucket=?", (other,)
+        ).fetchone(), (1,))
+
+    def test_duplicate_multi_buckets_charge_once(self):
+        key = bucket_key("account@example.org", "192.0.2.1")
+        self.assertTrue(record_attempts(self.db, (key, key, key), now=1000))
+        self.assertEqual(self.db.execute(
+            "SELECT attempts FROM opportunity_login_limits WHERE bucket=?", (key,)
+        ).fetchone(), (1,))
+
     def test_bucket_fields_cannot_collide_via_delimiters(self):
         self.assertNotEqual(bucket_key("a|b", "c"), bucket_key("a", "b|c"))
         self.assertNotEqual(bucket_key("ab", "c"), bucket_key("a", "bc"))
