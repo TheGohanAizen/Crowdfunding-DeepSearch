@@ -1,0 +1,45 @@
+name: Opportunity Security Tests
+
+on:
+  push:
+    paths:
+      - "backend/opportunity_*.py"
+      - "backend/test_opportunity_*.py"
+      - ".github/workflows/opportunity-security.yml"
+  pull_request:
+    paths:
+      - "backend/opportunity_*.py"
+      - "backend/test_opportunity_*.py"
+      - ".github/workflows/opportunity-security.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run offline opportunity security suite
+        run: |
+          python -m unittest -v \
+            test_opportunity_store \
+            test_opportunity_sessions \
+            test_opportunity_access \
+            test_opportunity_passwords \
+            test_opportunity_accounts \
+            test_opportunity_login_limits \
+            test_opportunity_login \
+            test_opportunity_session_registry \
+            test_opportunity_email_verification \
+            test_opportunity_full_flow
