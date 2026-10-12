@@ -72,7 +72,7 @@ class VerificationTests(unittest.TestCase):
 
     def test_malformed_unicode_token_is_rejected_without_exception(self):
         token = issue_challenge(self.db, self.owner, now=1000)
-        self.assertFalse(consume_challenge(self.db, self.owner, "\\ud800" * 30, now=1000))
+        self.assertFalse(consume_challenge(self.db, self.owner, "\ud800" * 30, now=1000))
         self.assertTrue(consume_challenge(self.db, self.owner, token, now=1000))
 
     def test_hourly_limits_are_isolated_between_accounts(self):
