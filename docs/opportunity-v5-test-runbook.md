@@ -23,7 +23,9 @@ Open the repository's **Actions** tab, select **Opportunity Security Tests**,
 and inspect the run for the exact commit SHA. Check both Python 3.11 and 3.12
 matrix jobs. Each job uploads an `opportunity-security-python-<version>`
 artifact containing `opportunity-test-results.txt` (retained for 14 days).
-A log file is evidence of execution, **not** evidence of success by itself:
+The workflow uses Bash pipeline failure propagation so saving the log cannot
+hide a failing Python test process. A log file is evidence of execution,
+**not** evidence of success by itself:
 also verify the job conclusion and the test runner's summary. A skipped,
 cancelled, pending, or missing job is not a passing result.
 
