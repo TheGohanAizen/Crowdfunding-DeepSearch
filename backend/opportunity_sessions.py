@@ -29,7 +29,7 @@ def _decode(value):
         raise ValueError("invalid session token")
     try:
         return base64.b64decode(value + "=" * (-len(value) % 4), altchars=b"-_", validate=True)
-    except (ValueError, Exception) as exc:
+    except Exception as exc:
         raise ValueError("invalid session token") from exc
 
 
@@ -71,3 +71,36 @@ def verify_session(token, secret, now=None, max_age=MAX_AGE_SECONDS):
     if issued > current + CLOCK_SKEW_SECONDS or current - issued > max_age:
         raise ValueError("session expired or not yet valid")
     return owner
+
+
+def issue_csrf(session_token, secret):
+    """Issue a session-bound CSRF token for a separately verified session.
+
+    Callers MUST validate the session before issuing a CSRF token.
+    """
+    _secret(secret)
+    if not isinstance(session_token, str) or not session_token:
+        raise ValueError("session required")
+    nonce = secrets.token_hex(16)
+    signed = ("csrf-v1:" + session_token + ":" + nonce).encode("utf-8")
+    signature = _encode(hmac.new(_secret(secret), signed, hashlib.sha256).digest())
+    return nonce + "." + signature
+
+
+def verify_csrf(session_token, csrf_token, secret):
+    """Validate a CSRF token against the current session cookie value."""
+    key = _secret(secret)
+    if not isinstance(session_token, str) or not session_token:
+        return False
+    if not isinstance(csrf_token, str) or csrf_token.count(".") != 1 or len(csrf_token) > 256:
+        return False
+    nonce, signature = csrf_token.split(".")
+    if len(nonce) != 32 or any(c not in "0123456789abcdef" for c in nonce):
+        return False
+    try:
+        supplied = _decode(signature)
+    except ValueError:
+        return False
+    signed = ("csrf-v1:" + session_token + ":" + nonce).encode("utf-8")
+    expected = hmac.new(key, signed, hashlib.sha256).digest()
+    return hmac.compare_digest(expected, supplied)
