@@ -75,8 +75,12 @@ def revoke_session(connection, token):
 
 
 def revoke_owner_sessions(connection, owner_id):
-    if not isinstance(owner_id, str) or not owner_id.strip():
+    if not isinstance(owner_id, str) or not owner_id.strip() or len(owner_id) > 200:
         raise ValueError("owner required")
+    try:
+        owner_id.encode("utf-8")
+    except UnicodeError as exc:
+        raise ValueError("owner required") from exc
     with connection:
         result = connection.execute(
             """UPDATE opportunity_active_sessions SET revoked_at=?
