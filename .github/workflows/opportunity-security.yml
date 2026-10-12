@@ -46,4 +46,18 @@ jobs:
               py_compile.compile(path, doraise=True)
           PY
       - name: Run all offline opportunity security tests
-        run: python -m unittest discover -v -s . -p "test_opportunity_*.py"
+        run: |
+          python - <<'PY'
+          import sys
+          import unittest
+
+          suite = unittest.defaultTestLoader.discover(
+              start_dir=".", pattern="test_opportunity_*.py"
+          )
+          count = suite.countTestCases()
+          print(f"Discovered {count} opportunity security tests", flush=True)
+          if count == 0:
+              raise SystemExit("ERROR: No opportunity security tests discovered")
+          result = unittest.TextTestRunner(verbosity=2).run(suite)
+          sys.exit(0 if result.wasSuccessful() else 1)
+          PY
