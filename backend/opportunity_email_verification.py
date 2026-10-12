@@ -50,7 +50,7 @@ def issue_challenge(connection, owner_id, now=None):
 
 
 def consume_challenge(connection, owner_id, token, now=None):
-    if not isinstance(owner_id, str) or not owner_id.strip():
+    if not isinstance(owner_id, str) or not owner_id.strip() or len(owner_id) > 200:
         return False
     if not isinstance(token, str) or not 20 <= len(token) <= 256:
         return False
