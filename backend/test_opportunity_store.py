@@ -96,6 +96,21 @@ class OpportunityStoreTests(unittest.TestCase):
         self.assertEqual(normalize_url(" https://example.org/path "), "https://example.org/path")
         self.assertEqual(normalize_url("https://example.org/a%20b"), "https://example.org/a%20b")
 
+    def test_invisible_unicode_format_characters_rejected(self):
+        for url in (
+            "https://example.org/a\u200bb",
+            "https://example.org/a\u200db",
+            "https://example.org/\u202eadmin",
+            "https://example.org/?q=\u2066hidden\u2069",
+        ):
+            with self.subTest(url=repr(url)), self.assertRaises(ValueError):
+                normalize_url(url)
+            with self.assertRaises(ValueError):
+                add(self.db, "verified-user-A", {"url": url})
+        self.assertEqual(normalize_url("https://example.org/café"),
+                         "https://example.org/café")
+        self.assertEqual(list_for_owner(self.db, "verified-user-A"), [])
+
     def test_percent_escapes_must_be_complete_hexadecimal(self):
         for url in (
             "https://example.org/%",
