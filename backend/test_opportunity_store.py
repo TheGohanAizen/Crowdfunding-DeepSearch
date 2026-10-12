@@ -115,6 +115,20 @@ class OpportunityStoreTests(unittest.TestCase):
                 })
         self.assertEqual(list_for_owner(self.db, "verified-user-A"), [])
 
+    def test_duplicate_and_quota_paths_release_write_transaction(self):
+        first = add(self.db, "verified-user-A", {"url": "https://example.org/first"})
+        duplicate = add(self.db, "verified-user-A", {"url": "https://example.org/first"})
+        self.assertEqual(duplicate["record_id"], first["record_id"])
+        self.assertFalse(duplicate["created"])
+        self.assertFalse(self.db.in_transaction)
+        for index in range(MAX_RECORDS - 1):
+            add(self.db, "verified-user-A", {"url": f"https://example.org/item/{index}"})
+        with self.assertRaisesRegex(ValueError, "quota"):
+            add(self.db, "verified-user-A", {"url": "https://example.org/overflow"})
+        self.assertFalse(self.db.in_transaction)
+        self.assertEqual(len(list_for_owner(self.db, "verified-user-A", limit=MAX_RECORDS)), MAX_RECORDS)
+        self.assertTrue(add(self.db, "verified-user-B", {"url": "https://example.org/allowed"})["created"])
+
     def test_quota_per_owner(self):
         for index in range(MAX_RECORDS):
             self.assertTrue(add(self.db, "verified-user-A", {"url": f"https://example.org/{index}"})["created"])
