@@ -80,6 +80,12 @@ def require_owner(owner_id):
     return owner_id
 
 
+def require_record_id(record_id):
+    if not isinstance(record_id, str) or len(record_id) != 32 or any(c not in "0123456789abcdef" for c in record_id):
+        raise ValueError("invalid record ID")
+    return record_id
+
+
 def _text(item, key, limit, default=""):
     value = item.get(key, default)
     if not isinstance(value, str):
@@ -96,7 +102,7 @@ def add(connection, owner_id, item):
     name = _text(item, "name", 250, "Imported opportunity")
     lead_type = _text(item, "lead_type", 100, "unverified")
     status = item.get("status", "needs_review")
-    if status not in VALID_STATUSES:
+    if not isinstance(status, str) or status not in VALID_STATUSES:
         raise ValueError("invalid status")
     campaign = _text(item, "campaign_label", 100)
     notes = _text(item, "notes", 1500)
@@ -141,6 +147,7 @@ def list_for_owner(connection, owner_id, limit=100):
 
 def update_for_owner(connection, owner_id, record_id, changes):
     owner_id = require_owner(owner_id)
+    record_id = require_record_id(record_id)
     if not isinstance(changes, dict) or not changes or set(changes) - {"status","campaign_label","notes"}:
         raise ValueError("invalid update")
     columns = {"status":"review_status","campaign_label":"campaign_label","notes":"notes"}
@@ -148,7 +155,7 @@ def update_for_owner(connection, owner_id, record_id, changes):
     updates = {}
     for key, value in changes.items():
         if key == "status":
-            if value not in VALID_STATUSES:
+            if not isinstance(value, str) or value not in VALID_STATUSES:
                 raise ValueError("invalid status")
         else:
             if not isinstance(value,str) or len(value)>limits[key]:
@@ -163,6 +170,7 @@ def update_for_owner(connection, owner_id, record_id, changes):
 
 def delete_for_owner(connection, owner_id, record_id):
     owner_id = require_owner(owner_id)
+    record_id = require_record_id(record_id)
     with connection:
         result = connection.execute(
             "DELETE FROM opportunity_records WHERE owner_id=? AND record_id=?",
