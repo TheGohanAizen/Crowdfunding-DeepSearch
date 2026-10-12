@@ -23,6 +23,10 @@ def normalize_url(value):
     if any(ord(char) < 32 or ord(char) == 127 or char == "\\" for char in value):
         raise ValueError("invalid URL")
     try:
+        value.encode("utf-8")
+    except UnicodeError as exc:
+        raise ValueError("invalid URL") from exc
+    try:
         parts = urlsplit(value.strip())
     except ValueError as exc:
         raise ValueError("invalid URL") from exc
