@@ -81,6 +81,17 @@ class RegistrationTests(unittest.TestCase):
                 ))
         self.assertEqual(self.db.execute("SELECT COUNT(*) FROM opportunity_accounts").fetchone()[0], 0)
 
+    def test_registration_does_not_consume_login_budget(self):
+        from opportunity_login_limits import record_attempt
+        login_bucket = bucket_key("login@example.org", "192.0.2.1")
+        self.assertIsNotNone(self.register("new@example.org"))
+        self.assertIsNone(self.db.execute(
+            "SELECT attempts FROM opportunity_login_limits WHERE bucket=?", (login_bucket,)
+        ).fetchone())
+        for _ in range(5):
+            self.assertTrue(record_attempt(self.db, login_bucket, now=1000))
+        self.assertFalse(record_attempt(self.db, login_bucket, now=1000))
+
     def test_registration_budget_resets_after_window(self):
         for i in range(5):
             self.assertIsNotNone(self.register("early%d@example.org" % i, now=1000))
