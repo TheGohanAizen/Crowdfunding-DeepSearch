@@ -18,7 +18,10 @@ SALT_BYTES = 16
 def _password(value):
     if not isinstance(value, str) or not 12 <= len(value) <= 1024:
         raise ValueError("password must be 12 to 1024 characters")
-    encoded = value.encode("utf-8")
+    try:
+        encoded = value.encode("utf-8")
+    except UnicodeError as exc:
+        raise ValueError("invalid password encoding") from exc
     if len(encoded) > 4096:
         raise ValueError("password too long")
     return encoded
