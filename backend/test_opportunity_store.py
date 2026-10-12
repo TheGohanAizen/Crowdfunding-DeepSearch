@@ -63,10 +63,10 @@ class OpportunityStoreTests(unittest.TestCase):
     def test_ambiguous_url_characters_are_rejected(self):
         for url in (
             "https://example.org/pa\\th",
-            "https://example.org/path\\nnext",
-            "https://example.org/path\\tmore",
-            "https://example.org/path\\x00hidden",
-            "https://example.org/path\\x7fhidden",
+            "https://example.org/path\nnext",
+            "https://example.org/path\tmore",
+            "https://example.org/path\x00hidden",
+            "https://example.org/path\x7fhidden",
         ):
             with self.subTest(url=repr(url)), self.assertRaises(ValueError):
                 normalize_url(url)
