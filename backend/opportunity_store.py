@@ -38,10 +38,11 @@ def normalize_url(value):
                             any(digit not in "0123456789abcdefABCDEF"
                                 for digit in value[index + 1:index + 3])):
             raise ValueError("invalid URL escape")
-    # Prevent encoded CR/LF/NUL from being interpreted as control bytes by
-    # downstream HTTP clients or when URLs are copied into request headers.
-    if any(escape in value.lower() for escape in ("%0d", "%0a", "%00")):
-        raise ValueError("invalid URL control escape")
+    # Reject all encoded ASCII controls (including CR, LF, NUL and DEL).
+    # Downstream URL consumers must not be able to reinterpret these bytes.
+    for index, char in enumerate(value):
+        if char == "%" and int(value[index + 1:index + 3], 16) in (*range(32), 127):
+            raise ValueError("invalid URL control escape")
     try:
         parts = urlsplit(value)
     except ValueError as exc:
