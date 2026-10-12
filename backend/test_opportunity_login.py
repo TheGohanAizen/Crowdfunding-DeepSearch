@@ -5,6 +5,7 @@ from opportunity_accounts import initialize as init_accounts, register_unverifie
 from opportunity_login_limits import initialize as init_limits
 from opportunity_login import attempt_login
 from opportunity_sessions import verify_session
+from opportunity_session_registry import initialize as initialize_sessions, require_active_session, revoke_session
 
 
 class LoginTests(unittest.TestCase):
@@ -12,6 +13,7 @@ class LoginTests(unittest.TestCase):
         self.db = sqlite3.connect(":memory:")
         init_accounts(self.db)
         init_limits(self.db)
+        initialize_sessions(self.db)
         self.secret = b"local-only-test-secret-32-bytes-minimum-123"
         self.owner = register_unverified(self.db, "user@example.org", "strong unique password 2026")
 
@@ -27,6 +29,10 @@ class LoginTests(unittest.TestCase):
         self.db.commit()
         token = self.login("strong unique password 2026")
         self.assertEqual(verify_session(token, self.secret, now=1000), self.owner)
+        self.assertEqual(require_active_session(self.db, token, self.secret, now=1000), self.owner)
+        self.assertTrue(revoke_session(self.db, token))
+        with self.assertRaises(PermissionError):
+            require_active_session(self.db, token, self.secret, now=1000)
 
     def test_throttled_wrong_password(self):
         self.db.execute("UPDATE opportunity_accounts SET email_verified=1 WHERE owner_id=?", (self.owner,))
