@@ -37,7 +37,7 @@ def record_attempt(connection, bucket, now=None):
         row = connection.execute(
             "SELECT attempts,window_start FROM opportunity_login_limits WHERE bucket=?", (bucket,)
         ).fetchone()
-        if row is None or timestamp - row[1] >= WINDOW_SECONDS or timestamp < row[1]:
+        if row is None or timestamp - row[1] >= WINDOW_SECONDS:
             connection.execute(
                 """INSERT INTO opportunity_login_limits(bucket,attempts,window_start)
                 VALUES (?,1,?) ON CONFLICT(bucket) DO UPDATE SET attempts=1,window_start=excluded.window_start""",
@@ -81,7 +81,7 @@ def record_attempts(connection, buckets, now=None):
                 "SELECT attempts,window_start FROM opportunity_login_limits WHERE bucket=?",
                 (bucket,),
             ).fetchone()
-            fresh = row is None or timestamp - row[1] >= WINDOW_SECONDS or timestamp < row[1]
+            fresh = row is None or timestamp - row[1] >= WINDOW_SECONDS
             if not fresh and row[0] >= MAX_ATTEMPTS:
                 connection.commit()
                 return False
