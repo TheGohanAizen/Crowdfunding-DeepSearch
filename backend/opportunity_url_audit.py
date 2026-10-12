@@ -15,21 +15,25 @@ from opportunity_store import normalize_url
 def audit(connection):
     """Return counts and collision groups without exposing owner IDs or URLs."""
     rows = connection.execute(
-        "SELECT owner_id, record_id, normalized_url FROM opportunity_records"
+        "SELECT owner_id, record_id, source_url, normalized_url FROM opportunity_records"
     ).fetchall()
     by_owner_url = defaultdict(list)
     invalid = 0
-    for owner, record_id, original in rows:
+    stored_key_mismatches = 0
+    for owner, record_id, source_url, stored_key in rows:
         try:
-            normalized = normalize_url(original)
+            normalized = normalize_url(source_url)
         except (ValueError, TypeError):
             invalid += 1
             continue
+        if stored_key != normalized:
+            stored_key_mismatches += 1
         by_owner_url[(owner, normalized)].append(record_id)
     groups = [ids for ids in by_owner_url.values() if len(ids) > 1]
     return {
         "records_checked": len(rows),
-        "invalid_normalized_urls": invalid,
+        "invalid_source_urls": invalid,
+        "stored_key_mismatches": stored_key_mismatches,
         "collision_groups": len(groups),
         "records_in_collision_groups": sum(map(len, groups)),
         "safe_to_auto_migrate": False,
