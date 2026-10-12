@@ -82,6 +82,9 @@ def normalize_url(value):
 
 
 def initialize(connection):
+    # Schema setup commits its changes; refuse to commit unrelated caller work.
+    if connection.in_transaction:
+        raise ValueError("opportunity initialization requires a transaction-free connection")
     connection.execute("""CREATE TABLE IF NOT EXISTS opportunity_records (
         owner_id TEXT NOT NULL,
         record_id TEXT NOT NULL,
