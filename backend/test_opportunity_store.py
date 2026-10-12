@@ -281,6 +281,23 @@ class OpportunityStoreTests(unittest.TestCase):
         finally:
             connection.close()
 
+    def test_initialize_is_idempotent_and_preserves_existing_records(self):
+        first = add(self.db, "verified-user-A", {
+            "url": "https://example.org/preserved", "notes": "Keep this",
+        })
+        self.assertFalse(self.db.in_transaction)
+        initialize(self.db)
+        self.assertFalse(self.db.in_transaction)
+        rows = list_for_owner(self.db, "verified-user-A")
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["record_id"], first["record_id"])
+        self.assertEqual(rows[0]["notes"], "Keep this")
+        self.assertFalse(add(self.db, "verified-user-A", {
+            "url": "https://example.org/preserved", "notes": "Do not overwrite",
+        })["created"])
+        self.assertEqual(list_for_owner(self.db, "verified-user-A")[0]["notes"],
+                         "Keep this")
+
     def test_initialize_does_not_commit_caller_transaction(self):
         self.db.execute("CREATE TABLE unrelated_work (value TEXT)")
         self.db.execute("BEGIN IMMEDIATE")
