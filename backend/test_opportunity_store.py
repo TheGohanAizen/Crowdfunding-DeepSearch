@@ -106,6 +106,15 @@ class OpportunityStoreTests(unittest.TestCase):
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]["notes"], "Safe")
 
+    def test_malformed_unicode_after_truncation_boundary_is_rejected(self):
+        for field, limit in (("name", 250), ("lead_type", 100),
+                             ("campaign_label", 100), ("notes", 1500)):
+            with self.subTest(field=field), self.assertRaises(ValueError):
+                add(self.db, "verified-user-A", {
+                    "url": "https://example.org/new", field: "x" * limit + "\ud800",
+                })
+        self.assertEqual(list_for_owner(self.db, "verified-user-A"), [])
+
     def test_quota_per_owner(self):
         for index in range(MAX_RECORDS):
             self.assertTrue(add(self.db, "verified-user-A", {"url": f"https://example.org/{index}"})["created"])
