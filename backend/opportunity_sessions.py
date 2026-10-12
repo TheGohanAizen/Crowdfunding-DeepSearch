@@ -36,6 +36,10 @@ def _decode(value):
 def issue_session(owner_id, secret, now=None):
     if not isinstance(owner_id, str) or not owner_id.strip() or len(owner_id) > 200:
         raise ValueError("verified owner required")
+    try:
+        owner_id.encode("utf-8")
+    except UnicodeError as exc:
+        raise ValueError("verified owner required") from exc
     key = _secret(secret)
     issued = int(time.time() if now is None else now)
     payload = json.dumps({"v": 1, "sub": owner_id, "iat": issued,
@@ -72,6 +76,10 @@ def verify_session(token, secret, now=None, max_age=MAX_AGE_SECONDS):
             or any(c not in "0123456789abcdef" for c in nonce)
             or type(max_age) is not int or not 1 <= max_age <= MAX_AGE_SECONDS):
         raise ValueError("invalid session claims")
+    try:
+        owner.encode("utf-8")
+    except UnicodeError as exc:
+        raise ValueError("invalid session claims") from exc
     current = int(time.time() if now is None else now)
     if issued > current + CLOCK_SKEW_SECONDS or current - issued > max_age:
         raise ValueError("session expired or not yet valid")
