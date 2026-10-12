@@ -136,6 +136,10 @@ def add(connection, owner_id, item):
     campaign = _text(item, "campaign_label", 100)
     notes = _text(item, "notes", 1500)
     now = datetime.now(timezone.utc).isoformat()
+    # This function owns its transaction. Never commit or roll back unrelated
+    # changes made by a caller on the same connection.
+    if connection.in_transaction:
+        raise ValueError("opportunity add requires a transaction-free connection")
     # Acquire the write lock before checking quota and duplicates so two
     # concurrent writers cannot both pass the 250-record limit.
     connection.execute("BEGIN IMMEDIATE")
