@@ -43,6 +43,14 @@ class LoginTests(unittest.TestCase):
         self.assertIsNotNone(self.login("strong unique password 2026", now=1900))
 
 
+    def test_rotating_ip_cannot_bypass_account_limit(self):
+        self.db.execute("UPDATE opportunity_accounts SET email_verified=1 WHERE owner_id=?", (self.owner,))
+        self.db.commit()
+        for i in range(5):
+            self.assertIsNone(self.login("incorrect password 2026", ip="192.0.2.%d" % (i + 1)))
+        self.assertIsNone(self.login("strong unique password 2026", ip="192.0.2.99"))
+        self.assertIsNotNone(self.login("strong unique password 2026", ip="192.0.2.99", now=1900))
+
     def test_rotating_email_cannot_bypass_ip_limit(self):
         for i in range(5):
             self.assertIsNone(attempt_login(
