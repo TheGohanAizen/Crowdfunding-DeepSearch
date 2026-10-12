@@ -23,6 +23,22 @@ os.environ["AUTOMATION_LEDGER_PATH"] = _smoke_database
 os.environ.pop("TURSO_DATABASE_URL", None)
 os.environ.pop("TURSO_AUTH_TOKEN", None)
 
+# Offline opportunity ownership tests must pass before broader integration checks.
+opportunity_tests = subprocess.run(
+    [sys.executable, "-m", "unittest", "-v", "test_opportunity_store"],
+    cwd=os.path.join(ROOT, "backend"),
+    capture_output=True,
+    text=True,
+    timeout=30,
+    env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+)
+if opportunity_tests.returncode != 0:
+    raise AssertionError(
+        "Opportunity storage security regression tests failed:\\n"
+        + opportunity_tests.stdout + opportunity_tests.stderr
+    )
+print("Opportunity owner-isolation regression tests passed.")
+
 # Regression test: competing conditional updates must not both succeed.
 
 
