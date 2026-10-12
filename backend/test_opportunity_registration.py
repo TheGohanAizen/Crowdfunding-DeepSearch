@@ -5,6 +5,8 @@ import unittest
 from opportunity_accounts import initialize as initialize_accounts
 from opportunity_login_limits import initialize as initialize_limits
 from opportunity_registration import attempt_registration
+from opportunity_login_limits import bucket_key
+import hashlib
 
 
 class RegistrationTests(unittest.TestCase):
@@ -43,6 +45,33 @@ class RegistrationTests(unittest.TestCase):
             self.assertIsNone(self.register("same@example.org", ip="192.0.2.%d" % i))
         self.assertIsNone(self.register("same@example.org", ip="192.0.2.99"))
         self.assertIsNone(self.register("same@example.org", ip="192.0.2.99", now=1900))
+
+    def test_identity_budget_is_charged_across_ips(self):
+        email = "same@example.org"
+        digest = hashlib.sha256(email.encode("utf-8")).hexdigest()
+        identity_bucket = bucket_key("registration-identity:" + digest, "all-client-ips")
+        self.assertIsNotNone(self.register(email, ip="192.0.2.1"))
+        for i in range(2, 6):
+            self.assertIsNone(self.register(email, ip="192.0.2.%d" % i))
+        row = self.db.execute(
+            "SELECT attempts FROM opportunity_login_limits WHERE bucket=?",
+            (identity_bucket,),
+        ).fetchone()
+        self.assertEqual(row, (5,))
+        self.assertIsNone(self.register(email, ip="192.0.2.99"))
+        row = self.db.execute(
+            "SELECT attempts FROM opportunity_login_limits WHERE bucket=?",
+            (identity_bucket,),
+        ).fetchone()
+        self.assertEqual(row, (5,))
+
+    def test_maximum_length_email_registration(self):
+        email = "a" * 64 + "@" + "b" * 186 + ".io"
+        self.assertEqual(len(email), 254)
+        self.assertIsNotNone(self.register(email))
+
+    def test_malformed_unicode_email_fails_closed(self):
+        self.assertIsNone(self.register("\ud800@example.org"))
 
     def test_invalid_email_is_charged_to_ip_budget(self):
         for _ in range(5):
