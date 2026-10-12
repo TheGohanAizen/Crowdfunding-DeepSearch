@@ -32,6 +32,10 @@ def initialize(connection):
 def issue_challenge(connection, owner_id, now=None):
     if not isinstance(owner_id, str) or not owner_id.strip() or len(owner_id) > 200:
         raise ValueError("invalid account")
+    try:
+        owner_id.encode("utf-8")
+    except UnicodeError as exc:
+        raise ValueError("invalid account") from exc
     current = int(time.time() if now is None else now)
     token = secrets.token_urlsafe(32)
     token_hash = hashlib.sha256(token.encode("ascii")).hexdigest()
@@ -86,6 +90,10 @@ def consume_challenge(connection, owner_id, token, now=None):
     if not isinstance(owner_id, str) or not owner_id.strip() or len(owner_id) > 200:
         return False
     if not isinstance(token, str) or not 20 <= len(token) <= 256:
+        return False
+    try:
+        owner_id.encode("utf-8")
+    except UnicodeError:
         return False
     current = int(time.time() if now is None else now)
     try:
