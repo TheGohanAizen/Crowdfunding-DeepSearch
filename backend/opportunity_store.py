@@ -5,6 +5,7 @@ owner ID derived from independently verified authentication, never request JSON.
 """
 import uuid
 import re
+import unicodedata
 from datetime import datetime, timezone
 from urllib.parse import urlsplit, urlunsplit
 import ipaddress
@@ -32,6 +33,10 @@ def normalize_url(value):
     # to percent-encode spaces and other whitespace in paths and queries.
     if any(char.isspace() for char in value):
         raise ValueError("invalid URL")
+    # Invisible format characters and bidirectional overrides can disguise
+    # the destination when a saved link is displayed for human review.
+    if any(unicodedata.category(char) == "Cf" for char in value):
+        raise ValueError("invalid URL format character")
     # urllib.parse accepts malformed percent escapes, but clients may
     # reinterpret them. Only complete hexadecimal escapes are allowed.
     for index, char in enumerate(value):
