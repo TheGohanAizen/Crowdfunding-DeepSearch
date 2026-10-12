@@ -86,7 +86,10 @@ def issue_csrf(session_token, secret):
     if not isinstance(session_token, str) or not session_token:
         raise ValueError("session required")
     nonce = secrets.token_hex(16)
-    signed = ("csrf-v1:" + session_token + ":" + nonce).encode("utf-8")
+    try:
+        signed = ("csrf-v1:" + session_token + ":" + nonce).encode("utf-8")
+    except UnicodeError as exc:
+        raise ValueError("invalid session token") from exc
     signature = _encode(hmac.new(_secret(secret), signed, hashlib.sha256).digest())
     return nonce + "." + signature
 
