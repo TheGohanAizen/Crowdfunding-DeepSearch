@@ -6,6 +6,7 @@ A None result is deliberately ambiguous: invalid input, existing account,
 or rate limit. Never return an owner ID to an untrusted public client.
 """
 import hashlib
+import ipaddress
 
 from opportunity_accounts import normalize_email, register_unverified
 from opportunity_login_limits import bucket_key, record_attempts
@@ -24,6 +25,14 @@ def attempt_registration(connection, email, password, client_ip, now=None):
     except UnicodeError:
         identity = "invalid-email"
         identity_digest = hashlib.sha256(identity.encode("ascii")).hexdigest()
+    # Canonicalize trusted addresses so alternate IPv6 spellings cannot
+    # reset per-address limits. Reject hostnames, forwarded headers and junk.
+    try:
+        if not isinstance(client_ip, str):
+            raise ValueError("invalid client address")
+        client_ip = str(ipaddress.ip_address(client_ip.strip()))
+    except ValueError as exc:
+        raise ValueError("invalid client address") from exc
     # Separate registration namespace from login to avoid sharing budgets.
     buckets = (
         bucket_key("registration-ip", client_ip),
