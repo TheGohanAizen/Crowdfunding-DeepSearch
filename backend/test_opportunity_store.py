@@ -194,6 +194,25 @@ class OpportunityStoreTests(unittest.TestCase):
         self.assertTrue(add(self.db, "verified-user-A",
                             {"url": "https://example.org/new"})["created"])
 
+    def test_update_and_delete_preserve_caller_transaction(self):
+        record = add(self.db, "verified-user-A", {
+            "url": "https://example.org/protected", "notes": "Original",
+        })
+        self.db.execute("BEGIN IMMEDIATE")
+        for operation in (
+            lambda: update_for_owner(self.db, "verified-user-A",
+                                     record["record_id"], {"notes": "Changed"}),
+            lambda: delete_for_owner(self.db, "verified-user-A", record["record_id"]),
+        ):
+            with self.assertRaisesRegex(ValueError, "transaction-free"):
+                operation()
+            self.assertTrue(self.db.in_transaction)
+        self.assertEqual(list_for_owner(self.db, "verified-user-A")[0]["notes"], "Original")
+        self.db.rollback()
+        self.assertTrue(update_for_owner(self.db, "verified-user-A",
+                                         record["record_id"], {"notes": "Changed"}))
+        self.assertTrue(delete_for_owner(self.db, "verified-user-A", record["record_id"]))
+
     def test_concurrent_writer_cannot_bypass_quota(self):
         # Separate SQLite connections exercise the database-level write lock.
         with tempfile.TemporaryDirectory() as directory:
