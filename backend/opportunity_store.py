@@ -208,6 +208,8 @@ def update_for_owner(connection, owner_id, record_id, changes):
         updates[columns[key]] = value
     updates["updated_at"] = datetime.now(timezone.utc).isoformat()
     sql = "UPDATE opportunity_records SET "+", ".join(k+"=?" for k in updates)+" WHERE owner_id=? AND record_id=?"
+    if connection.in_transaction:
+        raise ValueError("opportunity update requires a transaction-free connection")
     with connection:
         result = connection.execute(sql, (*updates.values(),owner_id,record_id))
     return result.rowcount == 1
@@ -216,6 +218,8 @@ def update_for_owner(connection, owner_id, record_id, changes):
 def delete_for_owner(connection, owner_id, record_id):
     owner_id = require_owner(owner_id)
     record_id = require_record_id(record_id)
+    if connection.in_transaction:
+        raise ValueError("opportunity delete requires a transaction-free connection")
     with connection:
         result = connection.execute(
             "DELETE FROM opportunity_records WHERE owner_id=? AND record_id=?",
