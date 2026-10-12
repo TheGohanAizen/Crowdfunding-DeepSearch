@@ -166,6 +166,22 @@ class OpportunityStoreTests(unittest.TestCase):
         self.assertEqual(rows[0]["url"], "https://example.org/a%2Fb?q=%3D")
         self.assertEqual(rows[0]["notes"], "Keep")
 
+    def test_trailing_path_slash_is_preserved_as_distinct_source(self):
+        first = add(self.db, "verified-user-A", {
+            "url": "https://example.org/apply", "notes": "No slash",
+        })
+        second = add(self.db, "verified-user-A", {
+            "url": "https://example.org/apply/", "notes": "Slash",
+        })
+        self.assertTrue(first["created"])
+        self.assertTrue(second["created"])
+        self.assertNotEqual(first["record_id"], second["record_id"])
+        self.assertEqual({row["url"] for row in list_for_owner(
+            self.db, "verified-user-A")}, {
+                "https://example.org/apply", "https://example.org/apply/",
+            })
+        self.assertEqual(normalize_url("https://example.org"), "https://example.org/")
+
     def test_query_parameter_order_and_values_are_preserved(self):
         first = add(self.db, "verified-user-A", {
             "url": "https://example.org/apply?step=1&step=2&code=a%26b#form",
