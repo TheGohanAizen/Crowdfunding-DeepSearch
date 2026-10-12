@@ -25,7 +25,7 @@ os.environ.pop("TURSO_AUTH_TOKEN", None)
 
 # Offline opportunity ownership tests must pass before broader integration checks.
 opportunity_tests = subprocess.run(
-    [sys.executable, "-m", "unittest", "-v", "test_opportunity_store", "test_opportunity_sessions", "test_opportunity_access", "test_opportunity_passwords", "test_opportunity_accounts"],
+    [sys.executable, "-m", "unittest", "-v", "test_opportunity_store", "test_opportunity_sessions", "test_opportunity_access", "test_opportunity_passwords", "test_opportunity_accounts", "test_opportunity_login_limits"],
     cwd=os.path.join(ROOT, "backend"),
     capture_output=True,
     text=True,
