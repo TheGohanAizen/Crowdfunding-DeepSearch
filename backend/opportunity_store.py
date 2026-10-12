@@ -56,6 +56,10 @@ def normalize_url(value):
         raise ValueError("invalid port") from exc
     if port is not None and port != 443:
         raise ValueError("nonstandard port not supported")
+    # Explicit default ports are accepted, but canonicalize to the same
+    # source URL so an opportunity cannot be saved twice under :443.
+    if parts.netloc.endswith(":"):
+        raise ValueError("invalid port")
     netloc = host
     path = parts.path.rstrip("/") or "/"
     return urlunsplit(("https", netloc, path, parts.query, ""))
