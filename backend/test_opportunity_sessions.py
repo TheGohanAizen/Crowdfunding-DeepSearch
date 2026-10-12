@@ -45,6 +45,10 @@ class SessionTests(unittest.TestCase):
         csrf = issue_csrf(token, self.secret)
         self.assertFalse(verify_csrf("\\ud800" + token, csrf, self.secret))
 
+    def test_csrf_issuance_rejects_malformed_unicode(self):
+        with self.assertRaises(ValueError):
+            issue_csrf("\\ud800", self.secret)
+
     def test_bad_secret_and_claims(self):
         with self.assertRaises(ValueError):
             issue_session("verified-user-A", b"short")
