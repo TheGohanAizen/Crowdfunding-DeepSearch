@@ -205,6 +205,20 @@ class OpportunityStoreTests(unittest.TestCase):
         self.assertEqual(len(list_for_owner(self.db, "verified-user-A", limit=MAX_RECORDS)), MAX_RECORDS)
         self.assertTrue(add(self.db, "verified-user-B", {"url": "https://example.org/allowed"})["created"])
 
+    def test_initialize_does_not_commit_caller_transaction(self):
+        self.db.execute("CREATE TABLE unrelated_work (value TEXT)")
+        self.db.execute("BEGIN IMMEDIATE")
+        self.db.execute("INSERT INTO unrelated_work VALUES (?)", ("pending",))
+        with self.assertRaisesRegex(ValueError, "transaction-free"):
+            initialize(self.db)
+        self.assertTrue(self.db.in_transaction)
+        self.assertEqual(self.db.execute(
+            "SELECT COUNT(*) FROM unrelated_work").fetchone()[0], 1)
+        self.db.rollback()
+        self.assertEqual(self.db.execute(
+            "SELECT COUNT(*) FROM unrelated_work").fetchone()[0], 0)
+        initialize(self.db)
+
     def test_add_does_not_interfere_with_caller_transaction(self):
         self.db.execute("BEGIN IMMEDIATE")
         self.db.execute(
