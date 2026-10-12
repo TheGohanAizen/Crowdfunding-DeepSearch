@@ -16,7 +16,11 @@ def attempt_login(connection, email, password, client_ip, session_secret, now=No
     except ValueError:
         # Invalid identities must not bypass the IP's login attempt budget.
         identity = "invalid-email"
-    buckets = (bucket_key(identity, client_ip), bucket_key('all-ip-attempts', client_ip))
+    # Three independent budgets: identity/IP, whole IP, and identity across IPs.
+    # The last bucket prevents rotating source addresses to evade account limits.
+    buckets = (bucket_key(identity, client_ip),
+               bucket_key("all-ip-attempts", client_ip),
+               bucket_key(identity, "all-client-ips"))
     if not record_attempts(connection, buckets, now=now):
         return None
     owner_id = verify_credentials(connection, identity, password)
