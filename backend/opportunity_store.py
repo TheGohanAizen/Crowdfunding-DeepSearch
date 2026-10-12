@@ -18,6 +18,10 @@ MAX_RECORDS = 250
 def normalize_url(value):
     if not isinstance(value, str) or len(value) > 2048:
         raise ValueError("invalid URL")
+    # URL parsers and browsers may silently remove control characters or
+    # reinterpret backslashes. Reject ambiguous source links before parsing.
+    if any(ord(char) < 32 or ord(char) == 127 or char == "\\" for char in value):
+        raise ValueError("invalid URL")
     try:
         parts = urlsplit(value.strip())
     except ValueError as exc:
