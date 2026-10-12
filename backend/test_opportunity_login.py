@@ -34,6 +34,23 @@ class LoginTests(unittest.TestCase):
         with self.assertRaises(PermissionError):
             require_active_session(self.db, token, self.secret, now=1000)
 
+    def test_equivalent_ipv6_spellings_share_ip_budget(self):
+        for i in range(5):
+            self.assertIsNone(attempt_login(
+                self.db, "unknown%d@example.org" % i, "wrong password 2026",
+                ("2001:db8::1" if i % 2 else "2001:0DB8:0:0:0:0:0:1"),
+                self.secret, now=1000,
+            ))
+        self.db.execute("UPDATE opportunity_accounts SET email_verified=1 WHERE owner_id=?", (self.owner,))
+        self.db.commit()
+        self.assertIsNone(self.login("strong unique password 2026", ip="2001:db8::1"))
+        self.assertIsNotNone(self.login("strong unique password 2026", ip="2001:db8::2"))
+
+    def test_invalid_client_ip_is_rejected(self):
+        for ip in ("not-an-ip", "", None, "192.0.2.1, 198.51.100.2"):
+            with self.subTest(ip=ip), self.assertRaises(ValueError):
+                self.login("strong unique password 2026", ip=ip)
+
     def test_throttled_wrong_password(self):
         self.db.execute("UPDATE opportunity_accounts SET email_verified=1 WHERE owner_id=?", (self.owner,))
         self.db.commit()
