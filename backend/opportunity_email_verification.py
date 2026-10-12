@@ -9,6 +9,7 @@ import secrets
 import time
 
 TOKEN_LIFETIME = 30 * 60
+RESEND_COOLDOWN = 60
 
 
 def initialize(connection):
@@ -35,6 +36,12 @@ def issue_challenge(connection, owner_id, now=None):
         ).fetchone()
         if row is None or row[0] != 0 or row[1] is not None:
             raise ValueError("account not eligible for verification")
+        previous = connection.execute(
+            "SELECT expires_at FROM opportunity_email_challenges WHERE owner_id=?",
+            (owner_id,),
+        ).fetchone()
+        if previous is not None and current < previous[0] - TOKEN_LIFETIME + RESEND_COOLDOWN:
+            raise ValueError("verification challenge requested too recently")
         connection.execute(
             """INSERT INTO opportunity_email_challenges
             (owner_id,token_hash,expires_at,consumed_at) VALUES (?,?,?,NULL)
