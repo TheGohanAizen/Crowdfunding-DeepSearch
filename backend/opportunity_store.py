@@ -88,7 +88,9 @@ def normalize_url(value):
     if parts.netloc.endswith(":"):
         raise ValueError("invalid port")
     netloc = host
-    path = parts.path.rstrip("/") or "/"
+    # Trailing slashes can identify distinct routes on some websites.
+    # Preserve them instead of silently merging different submissions.
+    path = parts.path or "/"
     # Hex digits in percent escapes are case-insensitive; canonicalize them
     # without decoding reserved characters or changing URL semantics.
     path = re.sub(r"%[0-9A-Fa-f]{2}", lambda match: match.group().upper(), path)
