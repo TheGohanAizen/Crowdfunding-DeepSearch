@@ -17,6 +17,10 @@ def normalize_email(value):
     if not isinstance(value, str):
         raise ValueError("invalid email")
     email = value.strip().lower()
+    try:
+        email.encode("utf-8")
+    except UnicodeError as exc:
+        raise ValueError("invalid email") from exc
     # Reject embedded control characters (including NUL and DEL), which can
     # confuse mail delivery and downstream logging even when not whitespace.
     if any(ord(char) < 32 or ord(char) == 127 for char in email):
