@@ -31,7 +31,10 @@ def bucket_key(identity, ip_address):
     # share a throttle bucket (e.g. ("a|b", "c") vs ("a", "b|c")).
     payload = (str(len(normalized_identity)) + ":" + normalized_identity
                + str(len(normalized_ip)) + ":" + normalized_ip)
-    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+    try:
+        return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+    except UnicodeError as exc:
+        raise ValueError("invalid login bucket") from exc
 
 
 def record_attempt(connection, bucket, now=None):
