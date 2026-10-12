@@ -49,6 +49,12 @@ class AccountTests(unittest.TestCase):
         ).fetchone()[0]
         self.assertIsNone(disabled)
 
+    def test_email_control_characters_rejected(self):
+        for email in ("user\\x00@example.org", "user\\x1b@example.org",
+                      "user\\x7f@example.org", "user\\n@example.org"):
+            with self.subTest(email=repr(email)), self.assertRaises(ValueError):
+                normalize_email(email)
+
     def test_bad_email(self):
         for email in ("", "missing-at-sign", "@example.org", "person@localhost", None):
             with self.subTest(email=email), self.assertRaises(ValueError):
