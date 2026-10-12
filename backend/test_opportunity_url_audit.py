@@ -47,6 +47,20 @@ class OpportunityUrlAuditTests(unittest.TestCase):
         self.assertNotIn("Private notes", str(report))
         self.assertNotIn("https://", str(report))
 
+    def test_invalid_source_url_is_reported_without_disclosing_it(self):
+        add(self.connection, "owner", {"url": "https://example.org/valid"})
+        self.connection.execute(
+            "UPDATE opportunity_records SET source_url=? WHERE owner_id=?",
+            ("https://example.org/unsafe\\\\path", "owner"),
+        )
+        self.connection.commit()
+        report = audit(self.connection)
+        self.assertEqual(report["records_checked"], 1)
+        self.assertEqual(report["invalid_source_urls"], 1)
+        self.assertEqual(report["collision_groups"], 0)
+        self.assertNotIn("unsafe", str(report))
+        self.assertFalse(report["safe_to_auto_migrate"])
+
     def test_detects_same_owner_normalization_collision(self):
         add(self.connection, "owner", {"url": "https://example.org/a"})
         # Simulate legacy data that stored a noncanonical equivalent.
