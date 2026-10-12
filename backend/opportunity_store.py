@@ -156,7 +156,7 @@ def add(connection, owner_id, item):
 
 def list_for_owner(connection, owner_id, limit=100):
     owner_id = require_owner(owner_id)
-    if not isinstance(limit, int) or not 1 <= limit <= MAX_RECORDS:
+    if type(limit) is not int or not 1 <= limit <= MAX_RECORDS:
         raise ValueError("invalid limit")
     rows = connection.execute(
         """SELECT record_id,source_url,name,lead_type,review_status,
