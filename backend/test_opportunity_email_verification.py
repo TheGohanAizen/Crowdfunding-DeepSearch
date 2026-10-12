@@ -21,6 +21,20 @@ class VerificationTests(unittest.TestCase):
         self.assertFalse(consume_challenge(self.db, self.owner, token, now=1000))
         self.assertEqual(verify_credentials(self.db, "person@example.org", "secure password for testing 2026"), self.owner)
 
+    def test_disabled_account_cannot_issue_or_consume(self):
+        token = issue_challenge(self.db, self.owner, now=1000)
+        self.db.execute("UPDATE opportunity_accounts SET disabled_at=? WHERE owner_id=?", ("2026-10-11", self.owner))
+        self.db.commit()
+        self.assertFalse(consume_challenge(self.db, self.owner, token, now=1000))
+        with self.assertRaises(ValueError):
+            issue_challenge(self.db, self.owner, now=1000)
+
+    def test_wrong_account_cannot_consume(self):
+        second = register_unverified(self.db, "other@example.org", "another secure password 2026")
+        token = issue_challenge(self.db, self.owner, now=1000)
+        self.assertFalse(consume_challenge(self.db, second, token, now=1000))
+        self.assertTrue(consume_challenge(self.db, self.owner, token, now=1000))
+
     def test_expiry_and_replacement(self):
         first = issue_challenge(self.db, self.owner, now=1000)
         self.assertFalse(consume_challenge(self.db, self.owner, first, now=2800))
