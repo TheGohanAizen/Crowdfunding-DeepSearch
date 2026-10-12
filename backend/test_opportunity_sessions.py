@@ -43,11 +43,11 @@ class SessionTests(unittest.TestCase):
     def test_csrf_malformed_unicode_session_fails_closed(self):
         token = issue_session("verified-user-A", self.secret, now=1000)
         csrf = issue_csrf(token, self.secret)
-        self.assertFalse(verify_csrf("\\ud800" + token, csrf, self.secret))
+        self.assertFalse(verify_csrf("\ud800" + token, csrf, self.secret))
 
     def test_csrf_issuance_rejects_malformed_unicode(self):
         with self.assertRaises(ValueError):
-            issue_csrf("\\ud800", self.secret)
+            issue_csrf("\ud800", self.secret)
 
     def test_bad_secret_and_claims(self):
         with self.assertRaises(ValueError):
