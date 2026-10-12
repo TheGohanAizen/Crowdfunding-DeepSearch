@@ -117,6 +117,21 @@ class OpportunityStoreTests(unittest.TestCase):
                 })
         self.assertEqual(list_for_owner(self.db, "verified-user-A"), [])
 
+    def test_idna_expansion_cannot_exceed_stored_url_limit(self):
+        # Unicode hostname labels can grow when encoded as ASCII IDNA.
+        unicode_host = ".".join(["é" * 20] * 3) + ".example"
+        ascii_host = unicode_host.encode("idna").decode("ascii")
+        self.assertGreater(len(ascii_host), len(unicode_host))
+        max_input = 2048 - len("https:///") - len(unicode_host)
+        url = "https://" + unicode_host + "/" + ("x" * max_input)
+        self.assertLessEqual(len(url), 2048)
+        self.assertGreater(len("https://" + ascii_host + "/" + ("x" * max_input)), 2048)
+        with self.assertRaises(ValueError):
+            normalize_url(url)
+        with self.assertRaises(ValueError):
+            add(self.db, "verified-user-A", {"url": url})
+        self.assertEqual(list_for_owner(self.db, "verified-user-A"), [])
+
     def test_boolean_pagination_limits_rejected(self):
         add(self.db, "verified-user-A", {"url": "https://example.org/item"})
         for limit in (True, False, 0, MAX_RECORDS + 1, 1.0, "1"):
