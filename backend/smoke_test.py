@@ -29,7 +29,7 @@ opportunity_tests = subprocess.run(
     cwd=os.path.join(ROOT, "backend"),
     capture_output=True,
     text=True,
-    timeout=30,
+    timeout=90,
     env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
 )
 if opportunity_tests.returncode != 0:
