@@ -166,6 +166,22 @@ class OpportunityStoreTests(unittest.TestCase):
         self.assertEqual(rows[0]["url"], "https://example.org/a%2Fb?q=%3D")
         self.assertEqual(rows[0]["notes"], "Keep")
 
+    def test_query_parameter_order_and_values_are_preserved(self):
+        first = add(self.db, "verified-user-A", {
+            "url": "https://example.org/apply?step=1&step=2&code=a%26b#form",
+        })
+        second = add(self.db, "verified-user-A", {
+            "url": "https://example.org/apply?step=2&step=1&code=a%26b",
+        })
+        self.assertTrue(first["created"])
+        self.assertTrue(second["created"])
+        self.assertNotEqual(first["record_id"], second["record_id"])
+        urls = {row["url"] for row in list_for_owner(self.db, "verified-user-A")}
+        self.assertEqual(urls, {
+            "https://example.org/apply?step=1&step=2&code=a%26b",
+            "https://example.org/apply?step=2&step=1&code=a%26b",
+        })
+
     def test_encoded_reserved_slash_is_not_merged_with_literal_slash(self):
         encoded = add(self.db, "verified-user-A", {
             "url": "https://example.org/a%2fb", "notes": "Encoded slash",
