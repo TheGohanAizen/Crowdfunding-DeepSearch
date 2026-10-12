@@ -31,6 +31,13 @@ def normalize_url(value):
     # to percent-encode spaces and other whitespace in paths and queries.
     if any(char.isspace() for char in value):
         raise ValueError("invalid URL")
+    # urllib.parse accepts malformed percent escapes, but clients may
+    # reinterpret them. Only complete hexadecimal escapes are allowed.
+    for index, char in enumerate(value):
+        if char == "%" and (index + 2 >= len(value) or
+                            any(digit not in "0123456789abcdefABCDEF"
+                                for digit in value[index + 1:index + 3])):
+            raise ValueError("invalid URL escape")
     try:
         parts = urlsplit(value)
     except ValueError as exc:
