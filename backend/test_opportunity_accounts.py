@@ -49,9 +49,15 @@ class AccountTests(unittest.TestCase):
         ).fetchone()[0]
         self.assertIsNone(disabled)
 
+    def test_disable_rejects_malformed_owner_before_transaction(self):
+        for owner in ("", None, "x" * 201, "\ud800"):
+            with self.subTest(owner=repr(owner)[:20]), self.assertRaises(ValueError):
+                disable_account(self.db, owner)
+        self.assertFalse(self.db.in_transaction)
+
     def test_email_control_characters_rejected(self):
-        for email in ("user\\x00@example.org", "user\\x1b@example.org",
-                      "user\\x7f@example.org", "user\\n@example.org"):
+        for email in ("user\${x}@example.org", "user\${x}@example.org",
+                      "user\${x}@example.org", "user\${x}@example.org"):
             with self.subTest(email=repr(email)), self.assertRaises(ValueError):
                 normalize_email(email)
 
