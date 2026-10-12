@@ -69,6 +69,7 @@ def verify_session(token, secret, now=None, max_age=MAX_AGE_SECONDS):
     nonce = payload.get("nonce")
     if (not isinstance(owner, str) or not owner.strip() or len(owner) > 200
             or type(issued) is not int or not isinstance(nonce, str) or len(nonce) != 32
+            or any(c not in "0123456789abcdef" for c in nonce)
             or type(max_age) is not int or not 1 <= max_age <= MAX_AGE_SECONDS):
         raise ValueError("invalid session claims")
     current = int(time.time() if now is None else now)
