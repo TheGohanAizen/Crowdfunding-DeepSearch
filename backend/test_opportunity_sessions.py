@@ -53,6 +53,19 @@ class SessionTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             issue_csrf("\ud800", self.secret)
 
+    def test_malformed_unicode_owner_rejected_on_issuance(self):
+        with self.assertRaises(ValueError):
+            issue_session("\ud800", self.secret, now=1000)
+
+    def test_signed_session_rejects_malformed_unicode_owner(self):
+        payload = json.dumps({"v": 1, "sub": "\ud800", "iat": 1000,
+                              "nonce": "a" * 32}, separators=(",", ":"), sort_keys=True).encode()
+        encoded = base64.urlsafe_b64encode(payload).rstrip(b"=").decode("ascii")
+        signature = hmac.new(self.secret, encoded.encode("ascii"), hashlib.sha256).digest()
+        token = encoded + "." + base64.urlsafe_b64encode(signature).rstrip(b"=").decode("ascii")
+        with self.assertRaises(ValueError):
+            verify_session(token, self.secret, now=1000)
+
     def test_signed_session_rejects_non_hex_nonce(self):
         payload = json.dumps({"v": 1, "sub": "verified-user-A", "iat": 1000,
                               "nonce": "z" * 32}, separators=(",", ":"), sort_keys=True).encode()
