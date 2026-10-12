@@ -24,7 +24,13 @@ def bucket_key(identity, ip_address):
         raise ValueError("invalid login bucket")
     if not identity.strip() or not ip_address.strip() or len(identity) > 254 or len(ip_address) > 64:
         raise ValueError("invalid login bucket")
-    return hashlib.sha256((identity.strip().lower() + "|" + ip_address.strip()).encode()).hexdigest()
+    normalized_identity = identity.strip().lower()
+    normalized_ip = ip_address.strip()
+    # Length-prefix fields so delimiter characters cannot make distinct pairs
+    # share a throttle bucket (e.g. ("a|b", "c") vs ("a", "b|c")).
+    payload = (str(len(normalized_identity)) + ":" + normalized_identity
+               + str(len(normalized_ip)) + ":" + normalized_ip)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
 def record_attempt(connection, bucket, now=None):
