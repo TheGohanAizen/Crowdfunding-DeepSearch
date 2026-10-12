@@ -36,7 +36,9 @@ class OpportunityStoreTests(unittest.TestCase):
 
     def test_reject_invalid_urls_and_inputs(self):
         for url in ("http://example.org", "javascript:alert(1)", "https://user:pass@example.org",
-                    "https://example.org:444/", "https://", "not a url"):
+                    "https://example.org:444/", "https://example.org:abc/", "https://", "not a url",
+                    "https://127.0.0.1/", "https://localhost/", "https://example..org/",
+                    "https://example.org.evil@attacker.org/"):
             with self.subTest(url=url), self.assertRaises(ValueError):
                 normalize_url(url)
         with self.assertRaises(ValueError):
