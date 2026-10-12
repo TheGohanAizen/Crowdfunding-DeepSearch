@@ -6,6 +6,7 @@ email-verified accounts. Error details must not reveal account existence.
 from opportunity_accounts import normalize_email, verify_credentials
 from opportunity_login_limits import bucket_key, record_attempts
 from opportunity_sessions import issue_session
+from opportunity_session_registry import register_session
 
 
 def attempt_login(connection, email, password, client_ip, session_secret, now=None):
@@ -21,4 +22,6 @@ def attempt_login(connection, email, password, client_ip, session_secret, now=No
     owner_id = verify_credentials(connection, identity, password)
     if owner_id is None:
         return None
-    return issue_session(owner_id, session_secret, now=now)
+    token = issue_session(owner_id, session_secret, now=now)
+    register_session(connection, token, session_secret, now=now)
+    return token
