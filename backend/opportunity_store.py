@@ -18,16 +18,27 @@ MAX_RECORDS = 250
 def normalize_url(value):
     if not isinstance(value, str) or len(value) > 2048:
         raise ValueError("invalid URL")
-    parts = urlsplit(value.strip())
+    try:
+        parts = urlsplit(value.strip())
+    except ValueError as exc:
+        raise ValueError("invalid URL") from exc
     if parts.scheme.lower() != "https" or not parts.hostname or parts.username or parts.password:
         raise ValueError("HTTPS source URL required")
-    host = parts.hostname.lower().rstrip(".")
-    if not host or any(c.isspace() or ord(c) < 33 for c in host):
+    try:
+        host = parts.hostname.encode("idna").decode("ascii").lower().rstrip(".")
+    except (UnicodeError, AttributeError) as exc:
+        raise ValueError("invalid hostname") from exc
+    if len(host) > 253 or any(c.isspace() or ord(c) < 33 for c in host):
         raise ValueError("invalid hostname")
     try:
         ipaddress.ip_address(host)
     except ValueError:
-        if "." not in host or any(not label or len(label) > 63 for label in host.split(".")):
+        labels = host.split(".")
+        if len(labels) < 2 or any(
+            not label or len(label) > 63 or label.startswith("-")
+            or label.endswith("-") or not all(c.isascii() and (c.isalnum() or c == "-") for c in label)
+            for label in labels
+        ) or not any(c.isalpha() for c in labels[-1]):
             raise ValueError("public DNS hostname required")
     else:
         raise ValueError("IP addresses are not supported")
