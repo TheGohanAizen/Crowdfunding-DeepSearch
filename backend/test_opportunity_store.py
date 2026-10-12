@@ -36,6 +36,21 @@ class OpportunityStoreTests(unittest.TestCase):
         self.assertTrue(delete_for_owner(self.db, "verified-user-A", a["record_id"]))
         self.assertEqual(len(list_for_owner(self.db, "verified-user-B")), 1)
 
+    def test_default_https_port_merges_with_portless_url(self):
+        first = add(self.db, "verified-user-A", {
+            "url": "https://example.org:443/submit", "notes": "Original",
+        })
+        duplicate = add(self.db, "verified-user-A", {
+            "url": "https://EXAMPLE.ORG/submit", "notes": "Should not overwrite",
+        })
+        self.assertTrue(first["created"])
+        self.assertFalse(duplicate["created"])
+        self.assertEqual(first["record_id"], duplicate["record_id"])
+        rows = list_for_owner(self.db, "verified-user-A")
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["url"], "https://example.org/submit")
+        self.assertEqual(rows[0]["notes"], "Original")
+
     def test_reject_invalid_urls_and_inputs(self):
         for url in ("http://example.org", "javascript:alert(1)", "https://user:pass@example.org",
                     "https://example.org:444/", "https://example.org:abc/",
