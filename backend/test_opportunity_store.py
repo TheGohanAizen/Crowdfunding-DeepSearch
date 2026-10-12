@@ -48,7 +48,7 @@ class OpportunityStoreTests(unittest.TestCase):
         self.assertEqual(first["record_id"], duplicate["record_id"])
         rows = list_for_owner(self.db, "verified-user-A")
         self.assertEqual(len(rows), 1)
-        self.assertEqual(rows[0]["url"], "https://example.org/submit")
+        self.assertEqual(rows[0]["url"], "https://example.org/submit/")
         self.assertEqual(rows[0]["notes"], "Original")
 
     def test_reject_invalid_urls_and_inputs(self):
@@ -62,7 +62,7 @@ class OpportunityStoreTests(unittest.TestCase):
                     "https://example.123/", "https://[broken/"):
             with self.subTest(url=url), self.assertRaises(ValueError):
                 normalize_url(url)
-        self.assertEqual(normalize_url("https://EXAMPLE.ORG/path/#section"), "https://example.org/path")
+        self.assertEqual(normalize_url("https://EXAMPLE.ORG/path/#section"), "https://example.org/path/")
         self.assertEqual(normalize_url("https://bücher.example/"), "https://xn--bcher-kva.example/")
         self.assertEqual(normalize_url("https://example.org:443/"), "https://example.org/")
         with self.assertRaises(ValueError):
