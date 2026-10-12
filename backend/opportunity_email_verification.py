@@ -88,7 +88,10 @@ def consume_challenge(connection, owner_id, token, now=None):
     if not isinstance(token, str) or not 20 <= len(token) <= 256:
         return False
     current = int(time.time() if now is None else now)
-    supplied = hashlib.sha256(token.encode("utf-8")).hexdigest()
+    try:
+        supplied = hashlib.sha256(token.encode("utf-8")).hexdigest()
+    except UnicodeError:
+        return False
     connection.execute("BEGIN IMMEDIATE")
     try:
         row = connection.execute(
