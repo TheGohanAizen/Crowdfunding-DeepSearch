@@ -19,7 +19,11 @@ def attempt_registration(connection, email, password, client_ip, now=None):
         identity = "invalid-email"
     # Hash the identity before adding a namespace so even maximum-length
     # valid email addresses fit the bounded bucket-key input.
-    identity_digest = hashlib.sha256(identity.encode("utf-8")).hexdigest()
+    try:
+        identity_digest = hashlib.sha256(identity.encode("utf-8")).hexdigest()
+    except UnicodeError:
+        identity = "invalid-email"
+        identity_digest = hashlib.sha256(identity.encode("ascii")).hexdigest()
     # Separate registration namespace from login to avoid sharing budgets.
     buckets = (
         bucket_key("registration-ip", client_ip),
