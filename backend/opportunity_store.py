@@ -94,7 +94,12 @@ def _text(item, key, limit, default=""):
     value = item.get(key, default)
     if not isinstance(value, str):
         raise ValueError("invalid " + key)
-    return value[:limit]
+    value = value[:limit]
+    try:
+        value.encode("utf-8")
+    except UnicodeError as exc:
+        raise ValueError("invalid " + key) from exc
+    return value
 
 
 def add(connection, owner_id, item):
@@ -164,6 +169,10 @@ def update_for_owner(connection, owner_id, record_id, changes):
         else:
             if not isinstance(value,str) or len(value)>limits[key]:
                 raise ValueError("invalid "+key)
+            try:
+                value.encode("utf-8")
+            except UnicodeError as exc:
+                raise ValueError("invalid "+key) from exc
         updates[columns[key]] = value
     updates["updated_at"] = datetime.now(timezone.utc).isoformat()
     sql = "UPDATE opportunity_records SET "+", ".join(k+"=?" for k in updates)+" WHERE owner_id=? AND record_id=?"
