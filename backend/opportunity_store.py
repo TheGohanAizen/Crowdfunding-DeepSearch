@@ -4,6 +4,7 @@ Not wired to Flask routes or production Turso. The caller MUST supply an
 owner ID derived from independently verified authentication, never request JSON.
 """
 import uuid
+import re
 from datetime import datetime, timezone
 from urllib.parse import urlsplit, urlunsplit
 import ipaddress
@@ -81,7 +82,11 @@ def normalize_url(value):
         raise ValueError("invalid port")
     netloc = host
     path = parts.path.rstrip("/") or "/"
-    normalized = urlunsplit(("https", netloc, path, parts.query, ""))
+    # Hex digits in percent escapes are case-insensitive; canonicalize them
+    # without decoding reserved characters or changing URL semantics.
+    path = re.sub(r"%[0-9A-Fa-f]{2}", lambda match: match.group().upper(), path)
+    query = re.sub(r"%[0-9A-Fa-f]{2}", lambda match: match.group().upper(), parts.query)
+    normalized = urlunsplit(("https", netloc, path, query, ""))
     # Normalization must not introduce a stored value beyond the URL limit.
     if len(normalized) > 2048 or len(normalized.encode("utf-8")) > 2048:
         raise ValueError("invalid URL")
