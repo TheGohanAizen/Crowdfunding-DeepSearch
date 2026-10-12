@@ -1,0 +1,56 @@
+# Opportunity Manager V5 — authenticated persistence design
+
+Status: design checkpoint; NOT deployed, NOT authenticated, NOT an authorization to send outreach.
+
+## Non-negotiable protections
+- Existing `audience-review.html` localStorage key `crowdfunding_deepsearch_saved_opportunities_v1` remains intact. No automatic clearing or destructive migration.
+- No anonymous read/write/list/delete endpoints for private opportunities. Never use campaign URL, browser-supplied user ID, or email address as authentication.
+- All server operations require a validated login session or independently verified identity token. The server derives the owner ID from that verified identity, never from request JSON.
+- Enforce authorization on every row operation using owner_id and record_id together; never query by record_id alone. Test cross-user isolation, including update/delete and export.
+- Session cookies, if used: HttpOnly, Secure, SameSite=Lax or Strict; CSRF protection on writes, session rotation on login, logout invalidation, expiration, rate limiting and safe error handling.
+- Do not log tokens, private notes, or imported JSON. Enforce JSON body size, field length, URL scheme, quotas, and bounded pagination.
+- No automatic email outreach; recipient eligibility and permission safeguards remain unchanged.
+
+## Suggested remote schema (after authenticated identity is implemented)
+```sql
+CREATE TABLE IF NOT EXISTS opportunity_records (
+  owner_id TEXT NOT NULL,
+  record_id TEXT NOT NULL,
+  source_url TEXT NOT NULL,
+  normalized_url TEXT NOT NULL,
+  name TEXT NOT NULL DEFAULT '',
+  lead_type TEXT NOT NULL DEFAULT 'unverified',
+  review_status TEXT NOT NULL DEFAULT 'needs_review',
+  campaign_label TEXT NOT NULL DEFAULT '',
+  notes TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (owner_id, record_id),
+  UNIQUE (owner_id, normalized_url)
+);
+CREATE INDEX IF NOT EXISTS idx_opportunity_owner_updated
+  ON opportunity_records(owner_id, updated_at);
+```
+Migration must use the existing storage adapter's supported SQL dialect and a transactional rollout, with backups. Do not create tables on production without verifying adapter behavior.
+
+## Proposed API (not yet implemented)
+- GET /api/me: authenticated session and minimal identity.
+- GET /api/opportunities?cursor=...: only records for the authenticated owner.
+- POST /api/opportunities: validated new record for the authenticated owner, 250-record quota initially.
+- PATCH /api/opportunities/{record_id}: owner-scoped update.
+- DELETE /api/opportunities/{record_id}: owner-scoped deletion.
+- POST /api/opportunities/import: authenticated, bounded, merge-only import, no overwriting existing notes/status.
+- GET /api/opportunities/export: authenticated, owner-scoped JSON export.
+
+Return 401 for unauthenticated requests; use generic 404 for other users' record IDs. Database errors must not leak internal details.
+
+## Safe rollout sequence
+1. Choose and integrate a supported identity provider; verify tokens/sessions server-side and test denial cases.
+2. Add storage schema and owner-scoped repository functions behind disabled feature flag; use isolated test DB.
+3. Add tests for anonymous access, forged owner ID, cross-user read/write/delete, duplicate URL, 250-record limit, and failed imports.
+4. Implement endpoints with CSRF/rate-limit protections and keep them disabled until end-to-end verification.
+5. Add an explicit user-controlled "Sync my saved opportunities" flow, previewing merge/conflicts before upload. Preserve local JSON backup and localStorage until confirmed.
+6. Stage, audit, then enable authenticated sync in production. Never enable email sending as part of this rollout.
+
+## Current status
+V4 browser-local search, filters, notes, export and import are working. V5 is only a design at this checkpoint. Do not claim cross-device sync or account isolation is active.
