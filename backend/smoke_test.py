@@ -34,10 +34,10 @@ opportunity_tests = subprocess.run(
 )
 if opportunity_tests.returncode != 0:
     raise AssertionError(
-        "Opportunity storage security regression tests failed:\\n"
+        "Opportunity storage and session security tests failed:\\n"
         + opportunity_tests.stdout + opportunity_tests.stderr
     )
-print("Opportunity owner-isolation regression tests passed.")
+print("Opportunity owner-isolation and session security regression tests passed.")
 
 # Regression test: competing conditional updates must not both succeed.
 
