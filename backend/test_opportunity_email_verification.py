@@ -47,6 +47,29 @@ class VerificationTests(unittest.TestCase):
         self.assertFalse(consume_challenge(self.db, self.owner, first, now=1060))
         self.assertTrue(consume_challenge(self.db, self.owner, second, now=1060))
 
+    def test_hourly_issue_cap_and_window_reset(self):
+        tokens = [issue_challenge(self.db, self.owner, now=1000 + i * 60) for i in range(6)]
+        with self.assertRaisesRegex(ValueError, "hourly limit"):
+            issue_challenge(self.db, self.owner, now=1360)
+        # Rejected issuance must preserve the previously issued token.
+        self.assertTrue(consume_challenge(self.db, self.owner, tokens[-1], now=1360))
+
+    def test_hourly_limit_resets_after_window(self):
+        for i in range(6):
+            issue_challenge(self.db, self.owner, now=1000 + i * 60)
+        with self.assertRaisesRegex(ValueError, "hourly limit"):
+            issue_challenge(self.db, self.owner, now=1360)
+        token = issue_challenge(self.db, self.owner, now=4600)
+        self.assertTrue(consume_challenge(self.db, self.owner, token, now=4600))
+
+    def test_clock_rollback_does_not_reset_hourly_limit(self):
+        for i in range(6):
+            issue_challenge(self.db, self.owner, now=1000 + i * 60)
+        with self.assertRaises(ValueError):
+            issue_challenge(self.db, self.owner, now=999)
+        with self.assertRaisesRegex(ValueError, "hourly limit"):
+            issue_challenge(self.db, self.owner, now=1360)
+
     def test_expiry_and_replacement(self):
         first = issue_challenge(self.db, self.owner, now=1000)
         self.assertFalse(consume_challenge(self.db, self.owner, first, now=2800))
