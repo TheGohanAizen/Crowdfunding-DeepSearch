@@ -73,6 +73,18 @@ class OpportunityStoreTests(unittest.TestCase):
                 operation()
         self.assertEqual(len(list_for_owner(self.db, "verified-user-A")), 1)
 
+    def test_malformed_unicode_metadata_is_rejected_without_changes(self):
+        record = add(self.db, "verified-user-A", {"url": "https://example.org/original", "notes": "Safe"})
+        for field in ("name", "lead_type", "campaign_label", "notes"):
+            with self.subTest(field=field), self.assertRaises(ValueError):
+                add(self.db, "verified-user-A", {"url": "https://example.org/new", field: "\ud800"})
+        for field in ("campaign_label", "notes"):
+            with self.subTest(field=field), self.assertRaises(ValueError):
+                update_for_owner(self.db, "verified-user-A", record["record_id"], {field: "\ud800"})
+        rows = list_for_owner(self.db, "verified-user-A")
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["notes"], "Safe")
+
     def test_quota_per_owner(self):
         for index in range(MAX_RECORDS):
             self.assertTrue(add(self.db, "verified-user-A", {"url": f"https://example.org/{index}"})["created"])
