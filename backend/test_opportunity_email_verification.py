@@ -70,6 +70,20 @@ class VerificationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "hourly limit"):
             issue_challenge(self.db, self.owner, now=1360)
 
+    def test_malformed_unicode_token_is_rejected_without_exception(self):
+        token = issue_challenge(self.db, self.owner, now=1000)
+        self.assertFalse(consume_challenge(self.db, self.owner, "\\ud800" * 30, now=1000))
+        self.assertTrue(consume_challenge(self.db, self.owner, token, now=1000))
+
+    def test_hourly_limits_are_isolated_between_accounts(self):
+        other = register_unverified(self.db, "other@example.org", "another secure password 2026")
+        for i in range(6):
+            issue_challenge(self.db, self.owner, now=1000 + 60 * i)
+        with self.assertRaisesRegex(ValueError, "hourly limit"):
+            issue_challenge(self.db, self.owner, now=1360)
+        other_token = issue_challenge(self.db, other, now=1360)
+        self.assertTrue(consume_challenge(self.db, other, other_token, now=1360))
+
     def test_expiry_and_replacement(self):
         first = issue_challenge(self.db, self.owner, now=1000)
         self.assertFalse(consume_challenge(self.db, self.owner, first, now=2800))
