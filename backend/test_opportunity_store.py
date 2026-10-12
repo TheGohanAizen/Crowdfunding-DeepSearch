@@ -153,6 +153,19 @@ class OpportunityStoreTests(unittest.TestCase):
             add(self.db, "verified-user-A", {"url": url})
         self.assertEqual(list_for_owner(self.db, "verified-user-A"), [])
 
+    def test_multibyte_url_cannot_exceed_utf8_storage_limit(self):
+        prefix = "https://example.org/"
+        # A Unicode path can be below the character limit but over 2048 bytes.
+        url = prefix + ("é" * 1100)
+        self.assertLessEqual(len(url), 2048)
+        self.assertGreater(len(url.encode("utf-8")), 2048)
+        with self.assertRaises(ValueError):
+            normalize_url(url)
+        with self.assertRaises(ValueError):
+            add(self.db, "verified-user-A", {"url": url})
+        self.assertEqual(list_for_owner(self.db, "verified-user-A"), [])
+        self.assertEqual(normalize_url(prefix + "café"), prefix + "café")
+
     def test_boolean_pagination_limits_rejected(self):
         add(self.db, "verified-user-A", {"url": "https://example.org/item"})
         for limit in (True, False, 0, MAX_RECORDS + 1, 1.0, "1"):
