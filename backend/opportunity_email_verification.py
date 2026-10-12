@@ -10,6 +10,8 @@ import time
 
 TOKEN_LIFETIME = 30 * 60
 RESEND_COOLDOWN = 60
+HOURLY_LIMIT = 6
+HOURLY_WINDOW = 60 * 60
 
 
 def initialize(connection):
@@ -18,6 +20,11 @@ def initialize(connection):
         token_hash TEXT NOT NULL,
         expires_at INTEGER NOT NULL,
         consumed_at INTEGER
+    )""")
+    connection.execute("""CREATE TABLE IF NOT EXISTS opportunity_verification_issue_limits (
+        owner_id TEXT PRIMARY KEY,
+        window_start INTEGER NOT NULL,
+        attempts INTEGER NOT NULL
     )""")
     connection.commit()
 
@@ -42,6 +49,25 @@ def issue_challenge(connection, owner_id, now=None):
         ).fetchone()
         if previous is not None and current < previous[0] - TOKEN_LIFETIME + RESEND_COOLDOWN:
             raise ValueError("verification challenge requested too recently")
+        budget = connection.execute(
+            "SELECT window_start,attempts FROM opportunity_verification_issue_limits WHERE owner_id=?",
+            (owner_id,),
+        ).fetchone()
+        fresh = budget is None or current - budget[0] >= HOURLY_WINDOW
+        if not fresh and budget[1] >= HOURLY_LIMIT:
+            raise ValueError("verification challenge hourly limit reached")
+        if fresh:
+            connection.execute(
+                """INSERT INTO opportunity_verification_issue_limits(owner_id,window_start,attempts)
+                VALUES (?,?,1) ON CONFLICT(owner_id) DO UPDATE SET
+                window_start=excluded.window_start,attempts=1""",
+                (owner_id, current),
+            )
+        else:
+            connection.execute(
+                "UPDATE opportunity_verification_issue_limits SET attempts=attempts+1 WHERE owner_id=?",
+                (owner_id,),
+            )
         connection.execute(
             """INSERT INTO opportunity_email_challenges
             (owner_id,token_hash,expires_at,consumed_at) VALUES (?,?,?,NULL)
