@@ -174,6 +174,26 @@ class OpportunityStoreTests(unittest.TestCase):
         self.assertEqual(len(list_for_owner(self.db, "verified-user-A", limit=MAX_RECORDS)), MAX_RECORDS)
         self.assertTrue(add(self.db, "verified-user-B", {"url": "https://example.org/allowed"})["created"])
 
+    def test_add_does_not_interfere_with_caller_transaction(self):
+        self.db.execute("BEGIN IMMEDIATE")
+        self.db.execute(
+            """INSERT INTO opportunity_records
+            (owner_id,record_id,source_url,normalized_url,name,lead_type,
+             review_status,campaign_label,notes,created_at,updated_at)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+            ("verified-user-A", "a" * 32, "https://example.org/existing",
+             "https://example.org/existing", "Existing", "unverified",
+             "needs_review", "", "", "2026-01-01", "2026-01-01"),
+        )
+        with self.assertRaisesRegex(ValueError, "transaction-free"):
+            add(self.db, "verified-user-A", {"url": "https://example.org/new"})
+        self.assertTrue(self.db.in_transaction)
+        self.assertEqual(len(list_for_owner(self.db, "verified-user-A")), 1)
+        self.db.rollback()
+        self.assertEqual(list_for_owner(self.db, "verified-user-A"), [])
+        self.assertTrue(add(self.db, "verified-user-A",
+                            {"url": "https://example.org/new"})["created"])
+
     def test_concurrent_writer_cannot_bypass_quota(self):
         # Separate SQLite connections exercise the database-level write lock.
         with tempfile.TemporaryDirectory() as directory:
