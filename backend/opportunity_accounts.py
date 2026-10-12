@@ -95,6 +95,10 @@ def disable_account(connection, owner_id):
     """
     if not isinstance(owner_id, str) or not owner_id.strip() or len(owner_id) > 200:
         raise ValueError("invalid account")
+    try:
+        owner_id.encode("utf-8")
+    except UnicodeError as exc:
+        raise ValueError("invalid account") from exc
     timestamp = datetime.now(timezone.utc).isoformat()
     connection.execute("BEGIN IMMEDIATE")
     try:
