@@ -1,6 +1,6 @@
 """Offline session security tests; no production secrets or network."""
 import unittest
-from opportunity_sessions import issue_session, verify_session
+from opportunity_sessions import issue_session, verify_session, issue_csrf, verify_csrf
 
 
 class SessionTests(unittest.TestCase):
@@ -24,6 +24,16 @@ class SessionTests(unittest.TestCase):
             verify_session(("A" if token[0] != "A" else "B") + token[1:], self.secret, now=1000)
         with self.assertRaises(ValueError):
             verify_session("not-a-token", self.secret, now=1000)
+
+    def test_csrf_session_binding(self):
+        first = issue_session("verified-user-A", self.secret, now=1000)
+        second = issue_session("verified-user-A", self.secret, now=1000)
+        csrf = issue_csrf(first, self.secret)
+        self.assertTrue(verify_csrf(first, csrf, self.secret))
+        self.assertFalse(verify_csrf(second, csrf, self.secret))
+        self.assertFalse(verify_csrf(first, "not-valid", self.secret))
+        self.assertFalse(verify_csrf(first, csrf, b"another-local-test-secret-not-production-0000"))
+        self.assertFalse(verify_csrf(first, "x" * 500, self.secret))
 
     def test_bad_secret_and_claims(self):
         with self.assertRaises(ValueError):
