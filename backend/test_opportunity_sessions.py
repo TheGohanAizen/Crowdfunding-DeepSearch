@@ -1,5 +1,9 @@
 """Offline session security tests; no production secrets or network."""
 import unittest
+import base64
+import hashlib
+import hmac
+import json
 from opportunity_sessions import issue_session, verify_session, issue_csrf, verify_csrf
 
 
@@ -48,6 +52,15 @@ class SessionTests(unittest.TestCase):
     def test_csrf_issuance_rejects_malformed_unicode(self):
         with self.assertRaises(ValueError):
             issue_csrf("\ud800", self.secret)
+
+    def test_signed_session_rejects_non_hex_nonce(self):
+        payload = json.dumps({"v": 1, "sub": "verified-user-A", "iat": 1000,
+                              "nonce": "z" * 32}, separators=(",", ":"), sort_keys=True).encode()
+        encoded = base64.urlsafe_b64encode(payload).rstrip(b"=").decode("ascii")
+        signature = hmac.new(self.secret, encoded.encode("ascii"), hashlib.sha256).digest()
+        token = encoded + "." + base64.urlsafe_b64encode(signature).rstrip(b"=").decode("ascii")
+        with self.assertRaises(ValueError):
+            verify_session(token, self.secret, now=1000)
 
     def test_bad_secret_and_claims(self):
         with self.assertRaises(ValueError):
